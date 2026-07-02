@@ -1,0 +1,109 @@
+package com.dabana.backend.config;
+
+import com.dabana.backend.security.CustomUserDetailsService;
+import com.dabana.backend.security.JwtAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
+
+/**
+ * Cau hinh bao mat: JWT stateless, phan quyen RBAC theo tung nhom endpoint
+ * tuong ung voi B01-B15 (Khach hang / Nha hang doi tac / Quan tri vien).
+ */
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final CustomUserDetailsService userDetailsService;
+    private final CorsConfigurationSource corsConfigurationSource;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource))
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
+                .requestMatchers("/api/auth/**").permitAll()
+
+                // Tim kiem & xem nha hang/chi nhanh - cong khai (B01 buoc 1-2)
+                .requestMatchers("GET", "/api/restaurants/**", "/api/branches/**").permitAll()
+                .requestMatchers("GET", "/api/menu-items/branch/**").permitAll()
+                .requestMatchers("GET", "/api/reviews/branch/**").permitAll()
+
+                // B03/B04: quan ly ho so & chi nhanh - chi nha hang doi tac
+                .requestMatchers("/api/restaurants/me/**", "/api/branches/me/**")
+                    .hasRole("RESTAURANT_PARTNER")
+
+                // B05/B06/B07: chinh sach, thuc don, so do ban - nha hang doi tac
+                .requestMatchers("/api/policies/**", "/api/menu-items/manage/**",
+                                  "/api/zones/**", "/api/tables/manage/**")
+                    .hasRole("RESTAURANT_PARTNER")
+
+                // B08: cap nhat trang thai ban (check-in/out) - nha hang doi tac
+                .requestMatchers("/api/tables/*/status", "/api/bookings/*/check-in",
+                                  "/api/bookings/*/check-out")
+                    .hasAnyRole("RESTAURANT_PARTNER", "ADMIN")
+
+                // B01: dat ban - khach hang da dang nhap
+                .requestMatchers("/api/bookings/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER", "ADMIN")
+
+                // B10: hang cho
+                .requestMatchers("/api/waitlists/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER")
+
+                // B13: danh gia - khach hang
+                .requestMatchers("POST", "/api/reviews/**").hasRole("CUSTOMER")
+
+                // B14: ho so & lich su ca nhan - khach hang
+                .requestMatchers("/api/customers/me/**").hasRole("CUSTOMER")
+
+                // B15: thong ke - nha hang doi tac (chi nhanh minh) & admin (toan nen tang)
+                .requestMatchers("/api/statistics/branch/**").hasRole("RESTAURANT_PARTNER")
+                .requestMatchers("/api/statistics/platform/**").hasRole("ADMIN")
+
+                // B02/B03/B04 phe duyet - chi admin
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                .anyRequest().authenticated()
+            )
+            .authenticationProvider(authenticationProvider())
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}

@@ -1,0 +1,51 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: dabana-backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/dabana?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+
+# JWT
+app:
+  jwt:
+    secret: ${JWT_SECRET:dabana_super_secret_key_for_jwt_signing_change_in_production_2026}
+    access-token-expiration-ms: 3600000      # 1 gio
+    refresh-token-expiration-ms: 604800000   # 7 ngay
+
+  # B01 BR03: giu ban tam thoi toi da 15 phut
+  booking:
+    hold-table-minutes: 15
+    no-show-threshold-minutes: 15
+
+  # B10 BR02: han phan hoi loi moi hang cho la 10 phut
+  waitlist:
+    invite-timeout-minutes: 10
+
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+
+logging:
+  level:
+    com.dabana: DEBUG
+    org.springframework.security: INFO
