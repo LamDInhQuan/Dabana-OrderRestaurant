@@ -18,7 +18,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "reviews", uniqueConstraints = {
+@Table(name = "rv_reviews", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"booking_id"}) // moi don chi duoc danh gia 1 lan
 })
 public class Review extends BaseEntity {

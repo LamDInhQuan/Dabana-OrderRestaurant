@@ -13,7 +13,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "zones")
+@Table(name = "rt_layout_zones")
 public class Zone extends BaseEntity {
 
     @ManyToOne

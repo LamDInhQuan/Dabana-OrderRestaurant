@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @Entity
-@Table(name = "menu_items")
+@Table(name = "rt_menu_items")
 public class MenuItem extends BaseEntity {
 
     @ManyToOne

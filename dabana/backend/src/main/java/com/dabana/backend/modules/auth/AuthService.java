@@ -42,17 +42,24 @@ public class AuthService {
         user.setEmail(req.getEmail());
         user.setPhone(req.getPhone());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-        user.setRole(req.getRole());
+        Role role = new Role();
+        role.setId(1);
+        user.setRole(role);
         // Khach hang thi kich hoat ngay; doi tac can qua OTP + admin duyet (B02)
-        user.setStatus(req.getRole() == UserRole.CUSTOMER
-                ? AccountStatus.ACTIVE
-                : AccountStatus.PENDING_OTP);
-        userRepository.save(user);
+        user.setStatus(1);
+        try {
 
-        if (req.getRole() != UserRole.CUSTOMER) {
-            String identifier = req.getEmail() != null ? req.getEmail() : req.getPhone();
-            otpService.generateAndSend(identifier); // B02 Buoc 3
+            userRepository.save(user);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
         }
+//        if (req.getRole() != UserRole.CUSTOMER) {
+//            String identifier = req.getEmail() != null ? req.getEmail() : req.getPhone();
+//            otpService.generateAndSend(identifier); // B02 Buoc 3
+//        }
 
         return "Dang ky thanh cong";
     }
@@ -65,8 +72,8 @@ public class AuthService {
         User user = userRepository.findByEmailOrPhone(req.getIdentifier())
                 .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
 
-        user.setOtpVerified(true);
-        user.setStatus(AccountStatus.PENDING_ADMIN); // B02 Buoc 4: cho admin duyet
+//        user.setOtpVerified(true);
+        user.setStatus(1); // B02 Buoc 4: cho admin duyet
         userRepository.save(user);
 
         return "Xac thuc OTP thanh cong. Tai khoan dang cho quan tri vien duyet.";
@@ -82,22 +89,22 @@ public class AuthService {
         User user = userRepository.findByEmailOrPhone(req.getIdentifier())
                 .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
 
-        if (user.getStatus() == AccountStatus.REJECTED) {
-            throw new BusinessException("ACCOUNT_REJECTED",
-                    "Tai khoan bi tu choi: " + user.getRejectionReason());
-        }
-        if (user.getStatus() == AccountStatus.PENDING_OTP) {
-            throw new BusinessException("ACCOUNT_PENDING_OTP", "Tai khoan chua xac thuc OTP");
-        }
-        if (user.getStatus() == AccountStatus.PENDING_ADMIN) {
-            throw new BusinessException("ACCOUNT_PENDING_ADMIN", "Tai khoan dang cho quan tri vien duyet");
-        }
-        if (user.getStatus() == AccountStatus.SUSPENDED) {
-            throw new BusinessException("ACCOUNT_SUSPENDED", "Tai khoan da bi khoa");
-        }
+//        if (user.getStatus() == AccountStatus.REJECTED) {
+//            throw new BusinessException("ACCOUNT_REJECTED",
+//                    "Tai khoan bi tu choi: " + user.getRejectionReason());
+//        }
+//        if (user.getStatus() == AccountStatus.PENDING_OTP) {
+//            throw new BusinessException("ACCOUNT_PENDING_OTP", "Tai khoan chua xac thuc OTP");
+//        }
+//        if (user.getStatus() == AccountStatus.PENDING_ADMIN) {
+//            throw new BusinessException("ACCOUNT_PENDING_ADMIN", "Tai khoan dang cho quan tri vien duyet");
+//        }
+//        if (user.getStatus() == AccountStatus.SUSPENDED) {
+//            throw new BusinessException("ACCOUNT_SUSPENDED", "Tai khoan da bi khoa");
+//        }
 
         UserDetails userDetails = userDetailsService.toUserDetails(user);
-        String accessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().name());
+        String accessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().getRoleName());
         String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
 
         return AuthResponse.builder()
@@ -105,8 +112,8 @@ public class AuthService {
                 .refreshToken(refreshToken)
                 .userId(user.getId())
                 .fullName(user.getFullName())
-                .role(user.getRole().name())
-                .status(user.getStatus().name())
+                .role(user.getRole().getRoleName())
+//                .status(user.getStatus().name())
                 .build();
     }
 
@@ -125,14 +132,14 @@ public class AuthService {
             throw new BusinessException("TOKEN_EXPIRED", "Refresh token het han, vui long dang nhap lai");
         }
 
-        String newAccessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().name());
+        String newAccessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().getRoleName());
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(token)
                 .userId(user.getId())
                 .fullName(user.getFullName())
-                .role(user.getRole().name())
-                .status(user.getStatus().name())
+                .role(user.getRole().getRoleName())
+//                .status(user.getStatus().name())
                 .build();
     }
 }
