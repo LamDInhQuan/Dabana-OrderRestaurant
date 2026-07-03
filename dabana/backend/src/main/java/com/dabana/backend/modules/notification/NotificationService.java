@@ -1,7 +1,7 @@
 package com.dabana.backend.modules.notification;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.auth.User;
+import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.Booking;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;

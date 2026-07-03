@@ -1,7 +1,7 @@
 package com.dabana.backend.security;
 
-import com.dabana.backend.modules.auth.User;
-import com.dabana.backend.modules.auth.UserRepository;
+import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

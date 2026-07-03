@@ -1,5 +1,6 @@
 package com.dabana.backend.exception;
 
+import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -22,7 +23,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
-        Map<String, Object> body = errorBody("INVALID_CREDENTIALS", "Thong tin dang nhap khong dung");
+        ErrorCode authErrorCode = AuthErrorCode.EMAIL_ALREADY_EXISTS;
+        Map<String, Object> body = errorBody(authErrorCode.getCode(), authErrorCode.getCode());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
