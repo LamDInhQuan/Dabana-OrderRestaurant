@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @Entity
-@Table(name = "booking_items")
+@Table(name = "rs_preorder_items")
 public class BookingItem extends BaseEntity {
 
     @ManyToOne

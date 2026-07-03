@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "waitlist_entries")
+@Table(name = "wl_entries")
 public class WaitlistEntry extends BaseEntity {
 
     @ManyToOne

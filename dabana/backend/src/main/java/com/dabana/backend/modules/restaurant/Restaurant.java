@@ -14,7 +14,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "restaurants")
+@Table(name = "rt_restaurants")
 public class Restaurant extends BaseEntity {
 
     @OneToOne

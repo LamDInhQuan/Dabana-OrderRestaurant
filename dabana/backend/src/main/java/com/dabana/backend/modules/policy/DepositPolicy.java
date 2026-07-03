@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @Entity
-@Table(name = "deposit_policies")
+@Table(name = "rt_pol_reservation_policies")
 public class DepositPolicy extends BaseEntity {
 
     @OneToOne

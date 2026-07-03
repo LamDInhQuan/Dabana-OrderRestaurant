@@ -30,8 +30,8 @@ public abstract class BaseEntity {
 
     @LastModifiedDate
     private LocalDateTime updatedAt;
-
-    @JsonIgnore
-    @Version
-    private Long version; // dung cho optimistic locking - B08 BR06
+//
+//    @JsonIgnore
+//    @Version
+//    private Long version; // dung cho optimistic locking - B08 BR06
 }

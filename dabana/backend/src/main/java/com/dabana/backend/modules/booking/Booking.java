@@ -26,7 +26,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "bookings", uniqueConstraints = {
+@Table(name = "rs_reservations", uniqueConstraints = {
         // BR01 cua B01: mot ban khong duoc ton tai nhieu don trung thoi gian
         @UniqueConstraint(name = "uk_table_timeslot",
                 columnNames = {"table_id", "reservation_time"})

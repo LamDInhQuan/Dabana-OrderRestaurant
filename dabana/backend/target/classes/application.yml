@@ -8,14 +8,14 @@ spring:
     name: dabana-backend
 
   datasource:
-    url: jdbc:mysql://localhost:3306/dabana?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
+    url: jdbc:mysql://localhost:3306/dabana_order_restaurant?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
@@ -47,5 +47,7 @@ app:
 
 logging:
   level:
-    com.dabana: DEBUG
-    org.springframework.security: INFO
+      root: INFO
+      com.dabana: DEBUG
+      org.springframework.security: INFO
+      org.hibernate.SQL: DEBUG

@@ -22,7 +22,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "notifications")
+@Table(name = "nt_notifications")
 class Notification extends BaseEntity {
 
     @ManyToOne

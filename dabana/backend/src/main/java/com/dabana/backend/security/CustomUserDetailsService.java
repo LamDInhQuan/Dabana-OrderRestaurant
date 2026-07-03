@@ -28,7 +28,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     public UserDetails toUserDetails(User user) {
         Collection<? extends GrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()));
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail() != null ? user.getEmail() : user.getPhone())

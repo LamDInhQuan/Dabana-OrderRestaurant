@@ -1,8 +1,10 @@
 package com.dabana.backend.modules.auth.dto;
 
+import com.dabana.backend.modules.auth.Role;
 import com.dabana.backend.modules.auth.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,8 +27,8 @@ public class AuthDtos {
         @Size(min = 6, message = "Mat khau toi thieu 6 ky tu")
         private String password;
 
-        @NotBlank
-        private UserRole role; // CUSTOMER hoac RESTAURANT_PARTNER (B02)
+        @NotNull(message = "Role khong duoc de trong")
+        private Role role; // CUSTOMER hoac RESTAURANT_PARTNER (B02)
     }
 
     @Data

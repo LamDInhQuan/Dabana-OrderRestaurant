@@ -15,7 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "branches")
+@Table(name = "rt_branches")
 public class Branch extends BaseEntity {
 
     @ManyToOne
