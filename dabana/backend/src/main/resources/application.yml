@@ -9,8 +9,8 @@ spring:
 
   datasource:
     url: jdbc:mysql://localhost:3306/dabana_order_restaurant?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
+    username: root  
+    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:

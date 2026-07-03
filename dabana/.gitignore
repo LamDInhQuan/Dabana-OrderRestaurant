@@ -1,2 +1,4 @@
 target/
 .gitignore
+pom.xml
+application.yml
