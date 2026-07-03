@@ -1,7 +1,7 @@
 package com.dabana.backend.modules.restaurant;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.auth.User;
+import com.dabana.backend.modules.auth.entity.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;

@@ -1,7 +1,6 @@
 package com.dabana.backend.modules.auth.dto;
 
-import com.dabana.backend.modules.auth.Role;
-import com.dabana.backend.modules.auth.UserRole;
+import com.dabana.backend.modules.auth.entity.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

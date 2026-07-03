@@ -1,9 +1,9 @@
 //package com.dabana.backend.modules.admin;
 //
 //import com.dabana.backend.exception.BusinessException;
-//import com.dabana.backend.modules.auth.AccountStatus;
-//import com.dabana.backend.modules.auth.User;
-//import com.dabana.backend.modules.auth.UserRepository;
+//import com.dabana.backend.modules.auth.util.AccountStatus;
+//import com.dabana.backend.modules.auth.entity.User;
+//import com.dabana.backend.modules.auth.repository.UserRepository;
 //import com.dabana.backend.modules.branch.Branch;
 //import com.dabana.backend.modules.branch.BranchRepository;
 //import com.dabana.backend.modules.restaurant.ApprovalStatus;

@@ -1,7 +1,7 @@
 package com.dabana.backend.modules.booking;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.auth.User;
+import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.branch.Branch;
 import com.dabana.backend.modules.table_layout.RestaurantTable;
 import jakarta.persistence.*;
