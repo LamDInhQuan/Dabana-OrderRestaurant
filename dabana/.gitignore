@@ -1,0 +1,5 @@
+target/
+.gitignore
+pom.xml
+application.yml
+frontend/node_modules/
