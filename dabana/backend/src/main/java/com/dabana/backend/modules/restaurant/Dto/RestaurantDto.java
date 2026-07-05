@@ -1,0 +1,29 @@
+package com.dabana.backend.modules.restaurant.Dto;
+
+import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.restaurant.ApprovalStatus;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import lombok.Data;
+
+@Data
+public class RestaurantDto {
+
+    private User owner; 
+
+    private String brandName;
+
+
+    private String logoUrl;
+
+
+    private String description;
+
+
+    private String cuisineType; // nganh am thuc chinh
+
+
+}
