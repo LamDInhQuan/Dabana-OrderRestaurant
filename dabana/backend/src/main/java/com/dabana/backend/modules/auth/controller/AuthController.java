@@ -3,7 +3,10 @@ package com.dabana.backend.modules.auth.controller;
 import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
-import com.dabana.backend.modules.auth.dto.request.RegisterRequest;
+import com.dabana.backend.modules.auth.OtpService;
+import com.dabana.backend.modules.auth.dto.request.LoginRequest;
+import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
+import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -21,22 +24,26 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final OtpService otpService;
 
     @PostMapping("/register/customer")
-    public ResponseEntity<ApiResponse<UserResponse>> registerCustomer(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<UserResponse>> registerCustomer(@Valid @RequestBody RegisterAccountRequest request) {
         UserResponse userResponse = authService.register(request);
-        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED,userResponse));
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, userResponse));
     }
 
-//    @PostMapping("/verify-otp")
-//    public ResponseEntity<String> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-//        return ResponseEntity.ok(authService.verifyOtp(request));
-//    }
-//
-//    @PostMapping("/login")
-//    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-//        return ResponseEntity.ok(authService.login(request));
-//    }
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<Boolean>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        Boolean result = authService.verifyOtp(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
+
+    //
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<UserResponse>> login(@Valid @RequestBody LoginRequest request) {
+        UserResponse result = authService.login(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
 //
 //    @PostMapping("/refresh")
 //    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {

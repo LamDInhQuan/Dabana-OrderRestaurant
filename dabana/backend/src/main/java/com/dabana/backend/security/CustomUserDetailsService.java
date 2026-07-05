@@ -2,6 +2,7 @@ package com.dabana.backend.security;
 
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,21 +20,13 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
         User user = userRepository.findByEmailOrPhone(identifier)
-                .orElseThrow(() -> new UsernameNotFoundException("Khong tim thay nguoi dung: " + identifier));
-        return toUserDetails(user);
+                .orElseThrow(() -> new UsernameNotFoundException(AuthErrorCode.USER_NOT_FOUND.getMessage()));
+        return new CustomUserDetail(user);
     }
 
-    public UserDetails toUserDetails(User user) {
-        Collection<? extends GrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()));
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail() != null ? user.getEmail() : user.getPhone())
-                .password(user.getPassword())
-                .authorities(authorities)
-                .build();
-    }
 }

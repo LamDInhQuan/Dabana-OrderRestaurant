@@ -20,9 +20,25 @@ public class UserResponse {
 
     private String phone;
 
-    private String role;
-
     private Integer status;
 
     private String avatarUrl;
+
+    private String otp;
+
+    private String accessToken;
+
+    private String refreshToken;
+
+    public void setOtp(String otp) {
+        this.otp = otp;
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
 }

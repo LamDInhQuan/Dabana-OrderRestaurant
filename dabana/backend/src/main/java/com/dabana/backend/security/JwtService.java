@@ -1,5 +1,6 @@
 package com.dabana.backend.security;
 
+import com.dabana.backend.modules.auth.entity.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -33,10 +35,10 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateAccessToken(UserDetails userDetails, Long userId, String role) {
+    public String generateAccessToken(UserDetails userDetails, Long userId, List<UserRole> roles) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("uid", userId);
-        claims.put("role", role);
+        claims.put("roles", roles.stream().map(role -> role.getRole().getName()).toList());
         claims.put("type", "access");
         return buildToken(claims, userDetails.getUsername(), accessTokenExpirationMs);
     }
