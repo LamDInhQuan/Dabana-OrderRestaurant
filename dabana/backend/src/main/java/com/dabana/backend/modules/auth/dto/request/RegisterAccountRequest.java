@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 @Data
-public class RegisterRequest {
+public class RegisterAccountRequest {
     @NotBlank(message = "Họ tên không được để trống")
     @Size(max = 150)
     private String fullName;
@@ -24,6 +24,4 @@ public class RegisterRequest {
     @Size(min = 8, max = 50)
     private String password;
 
-    @NotBlank
-    private String role;
 }

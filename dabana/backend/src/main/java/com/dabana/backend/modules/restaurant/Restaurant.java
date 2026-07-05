@@ -19,7 +19,7 @@ public class Restaurant extends BaseEntity {
 
     @OneToOne
     @JoinColumn(name = "owner_user_id", nullable = false, unique = true)
-    private User owner; // tai khoan nha hang doi tac (UserRole.RESTAURANT_PARTNER)
+    private User owner;
 
     @NotBlank
     @Column(nullable = false, length = 200)

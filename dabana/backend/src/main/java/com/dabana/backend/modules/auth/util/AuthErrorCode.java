@@ -30,6 +30,11 @@ public enum AuthErrorCode implements ErrorCode {
             "Bạn không có quyền truy cập."
     ),
 
+    ACCOUNT_NOT_VERIFIED_BY_ADMIN(
+            "AUTH_005",
+            "Tài khoản phải được duyệt bởi admin."
+    ),
+
     // ==========================
     // User
     // ==========================
@@ -74,6 +79,16 @@ public enum AuthErrorCode implements ErrorCode {
     OTP_SEND_FAILED(
             "AUTH_204",
             "Không thể gửi OTP."
+    ),
+
+    OTP_LOCKED(
+            "AUTH_205",
+            "Đã nhập sai OTP quá 5 lần. Vui lòng thử lại sau 30 phút."
+    ),
+
+    OTP_EMAIL_INVAILID(
+            "AUTH_206",
+            "Email xác thực Otp không hợp lệ."
     ),
 
     // ==========================

@@ -2,24 +2,34 @@ package com.dabana.backend.modules.auth.service;
 
 import com.dabana.backend.exception.BusinessException;
 //import com.dabana.backend.modules.auth.OtpService;
-import com.dabana.backend.modules.auth.dto.request.RegisterRequest;
+import com.dabana.backend.modules.auth.OtpService;
+import com.dabana.backend.modules.auth.dto.request.LoginRequest;
+import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
+import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.entity.Role;
 import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.auth.entity.UserRole;
 import com.dabana.backend.modules.auth.mapper.UserMapper;
 import com.dabana.backend.modules.auth.repository.RoleRepository;
 import com.dabana.backend.modules.auth.repository.UserRepository;
-import com.dabana.backend.modules.auth.dto.AuthDtos.*;
+import com.dabana.backend.modules.auth.repository.UserRoleRepository;
+import com.dabana.backend.modules.auth.util.AccountStatus;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.RoleUser;
+import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashSet;
 
 /**
  * Trien khai dac ta B02: Dang ky va tro thanh nha hang doi tac
@@ -31,8 +41,9 @@ public class AuthService implements IAuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository ;
     private final PasswordEncoder passwordEncoder;
-    //    private final OtpService otpService;
+    private final OtpService otpService;
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
     private final AuthenticationManager authenticationManager;
@@ -43,7 +54,7 @@ public class AuthService implements IAuthService {
      */
     @Override
     @Transactional
-    public UserResponse register(RegisterRequest req) {
+    public UserResponse register(RegisterAccountRequest req) {
         if (req.getEmail() != null && userRepository.existsByEmail(req.getEmail())) {
             throw new BusinessException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
@@ -53,71 +64,60 @@ public class AuthService implements IAuthService {
 
         User user = userMapper.toEntyity(req);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-        Role role = roleRepository.findByName(req.getRole()).orElseThrow(() -> new BusinessException(AuthErrorCode.ROLE_NOT_FOUND));
-        user.setRole(role);
-        // Khach hang thi kich hoat ngay; doi tac can qua OTP + admin duyet (B02)
+        Role role = roleRepository.findByName(RoleUser.CUSTOMER.name()).orElseThrow(() -> new BusinessException(AuthErrorCode.ROLE_NOT_FOUND));
+        HashSet<UserRole> roles = new HashSet<>();
+        roles.add(com.dabana.backend.modules.auth.entity.UserRole.builder().role(role).user(user).build());
+        user.setUserRoles(roles);
         userRepository.save(user);
-//        if (req.getRole() != UserRole.CUSTOMER) {
-//            String identifier = req.getEmail() != null ? req.getEmail() : req.getPhone();
-//            otpService.generateAndSend(identifier); // B02 Buoc 3
-//        }
-
-        return userMapper.userResponse(user);
+        String otp = otpService.generateAndSend(req.getEmail()); // B02 Buoc 3
+        UserResponse userResponse = userMapper.userResponse(user);
+        userResponse.setOtp(otp);
+        return userResponse ;
     }
 
-//    /** B02 Buoc 3: Xac thuc OTP */
-//    @Transactional
-//    public String verifyOtp(VerifyOtpRequest req) {
-//        otpService.verify(req.getIdentifier(), req.getOtpCode());
-//
-//        User user = userRepository.findByEmailOrPhone(req.getIdentifier())
-//                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
-//
-////        user.setOtpVerified(true);
-//        user.setStatus(1); // B02 Buoc 4: cho admin duyet
-//        userRepository.save(user);
-//
-//        return "Xac thuc OTP thanh cong. Tai khoan dang cho quan tri vien duyet.";
-//    }
-//
-//    /** B02 Buoc 4-5: Quan tri vien duyet/tu choi - xem AdminService */
-//
-//    @Transactional(readOnly = true)
-//    public AuthResponse login(LoginRequest req) {
-//        authenticationManager.authenticate(
-//                new UsernamePasswordAuthenticationToken(req.getIdentifier(), req.getPassword()));
-//
-//        User user = userRepository.findByEmailOrPhone(req.getIdentifier())
-//                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
-//
-////        if (user.getStatus() == AccountStatus.REJECTED) {
-////            throw new BusinessException("ACCOUNT_REJECTED",
-////                    "Tai khoan bi tu choi: " + user.getRejectionReason());
-////        }
-////        if (user.getStatus() == AccountStatus.PENDING_OTP) {
-////            throw new BusinessException("ACCOUNT_PENDING_OTP", "Tai khoan chua xac thuc OTP");
-////        }
-////        if (user.getStatus() == AccountStatus.PENDING_ADMIN) {
-////            throw new BusinessException("ACCOUNT_PENDING_ADMIN", "Tai khoan dang cho quan tri vien duyet");
-////        }
-////        if (user.getStatus() == AccountStatus.SUSPENDED) {
-////            throw new BusinessException("ACCOUNT_SUSPENDED", "Tai khoan da bi khoa");
-////        }
-//
-//        UserDetails userDetails = userDetailsService.toUserDetails(user);
-//        String accessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().getRoleName());
-//        String refreshToken = jwtService.generateRefreshToken(userDetails, user.getId());
-//
-//        return AuthResponse.builder()
-//                .accessToken(accessToken)
-//                .refreshToken(refreshToken)
-//                .userId(user.getId())
-//                .fullName(user.getFullName())
-//                .role(user.getRole().getRoleName())
-////                .status(user.getStatus().name())
-//                .build();
-//    }
-//
+    /** B02 Buoc 3: Xac thuc OTP */
+    @Override
+    @Transactional
+    public Boolean verifyOtp(VerifyOtpRequest req) {
+        otpService.verify(req.getIdentifier(), req.getOtpCode());
+        User user = userRepository.findByEmailOrPhone(req.getIdentifier())
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+        user.setStatus(AccountStatus.ACTIVE.getStatus());  // active khi set otp thành công
+        userRepository.save(user);
+        return true;
+    }
+
+    /** B02 Buoc 4-5: Quan tri vien duyet/tu choi - xem AdminService */
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse login(LoginRequest req) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        req.getIdentifier(),
+                        req.getPassword())
+        );
+        CustomUserDetail principal =
+                (CustomUserDetail) authentication.getPrincipal();
+
+        User user = principal.getUser();
+        // một số trạng thái được xử lí ở security
+        if (user.getStatus() == AccountStatus.REJECTED.getStatus()) {
+            throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
+        }
+        if (user.getStatus() == AccountStatus.PENDING_ADMIN.getStatus()) {
+            throw new BusinessException(AuthErrorCode.ACCOUNT_NOT_VERIFIED_BY_ADMIN);
+        }
+
+        String accessToken = jwtService.generateAccessToken(principal, user.getId(), user.getUserRoles().stream().toList());
+        String refreshToken = jwtService.generateRefreshToken(principal, user.getId());
+        UserResponse userResponse = userMapper.userResponse(user);
+        userResponse.setAccessToken(accessToken);
+        userResponse.setRefreshToken(refreshToken);
+        return userResponse;
+    }
+
 //    @Transactional(readOnly = true)
 //    public AuthResponse refresh(RefreshTokenRequest req) {
 //        String token = req.getRefreshToken();

@@ -5,13 +5,16 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Tai khoan nguoi dung dung chung cho ca 3 vai tro: Khach hang,
  * Nha hang doi tac, Quan tri vien (phan biet boi truong role).
  * Lien quan: B02 (dang ky doi tac), B14 (ho so khach hang).
  */
-@Getter
 @Setter
+@Getter
 @Entity
 @Table(name = "id_users")
 public class User extends BaseEntity {
@@ -28,10 +31,6 @@ public class User extends BaseEntity {
     @Column(name = "password_hash", nullable = false)
     private String password;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
-
     @Column(nullable = false)
     private Integer status = 1;
 
@@ -40,4 +39,10 @@ public class User extends BaseEntity {
 
     @Column(name = "notification_preferences", columnDefinition = "LONGTEXT")
     private String notificationPreferences;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<UserRole> userRoles = new HashSet<>();
+
+
+
 }
