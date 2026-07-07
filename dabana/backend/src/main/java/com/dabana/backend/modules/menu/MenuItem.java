@@ -1,7 +1,8 @@
 package com.dabana.backend.modules.menu;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.branch.Branch;
+import com.dabana.backend.modules.branch.BranchOperatingStatus;
+import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -23,7 +24,7 @@ public class MenuItem extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "branch_id", nullable = false)
-    private Branch branch;
+    private com.dabana.backend.modules.branch2.entity.Branch branch;
 
     @NotBlank
     @Column(nullable = false, length = 200)

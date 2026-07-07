@@ -1,5 +1,6 @@
 package com.dabana.backend.config;
 
+import com.dabana.backend.exception.CustomAuthenticationEntryPoint;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -68,8 +70,8 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/api/reviews/branch/**").permitAll()
 
                 // B03/B04: quan ly ho so & chi nhanh - chi nha hang doi tac
-                .requestMatchers("/api/restaurants/me/**", "/api/branches/me/**")
-                    .hasRole("RESTAURANT_PARTNER")
+                .requestMatchers("/api/restaurants/me/**", "/api/branches/**")
+                    .hasRole("CUSTOMER")
 
                 // B05/B06/B07: chinh sach, thuc don, so do ban - nha hang doi tac
                 .requestMatchers("/api/policies/**", "/api/menu-items/manage/**",
@@ -103,7 +105,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(execetion -> execetion.authenticationEntryPoint(customAuthenticationEntryPoint));
 
         return http.build();
     }

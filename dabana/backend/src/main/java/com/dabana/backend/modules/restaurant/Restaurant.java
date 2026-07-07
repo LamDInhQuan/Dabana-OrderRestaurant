@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "rt_restaurants")
 public class Restaurant extends BaseEntity {
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_user_id", nullable = false, unique = true)
     private User owner;
 

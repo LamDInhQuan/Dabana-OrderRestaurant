@@ -43,14 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt = authHeader.substring(7);
 
         try {
-            final String username = jwtService.extractUsername(jwt);
+            final Long id = jwtService.extractUserId(jwt);
             final String tokenType = jwtService.extractTokenType(jwt);
 
-            if (username != null
+            if (id != null
                     && "access".equals(tokenType)
                     && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                UserDetails userDetails = userDetailsService.loadUserById(id);
 
                 if (jwtService.isTokenValid(jwt, userDetails)) { // kiểm tra đã hợp lệ v đăng nhập thành công chưa
                     UsernamePasswordAuthenticationToken authToken =
