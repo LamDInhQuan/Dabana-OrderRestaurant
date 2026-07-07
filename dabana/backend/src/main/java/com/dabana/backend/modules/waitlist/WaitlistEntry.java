@@ -2,7 +2,8 @@ package com.dabana.backend.modules.waitlist;
 
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
-import com.dabana.backend.modules.branch.Branch;
+import com.dabana.backend.modules.branch.BranchOperatingStatus;
+import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

@@ -1,7 +1,8 @@
 package com.dabana.backend.modules.policy;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.branch.Branch;
+import com.dabana.backend.modules.branch.BranchOperatingStatus;
+import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -23,7 +24,7 @@ public class DepositPolicy extends BaseEntity {
 
     @OneToOne
     @JoinColumn(name = "branch_id", nullable = false, unique = true)
-    private Branch branch;
+    private com.dabana.backend.modules.branch2.entity.Branch branch;
 
     private Boolean depositRequired = true; // AF02: khong yeu cau dat coc
 

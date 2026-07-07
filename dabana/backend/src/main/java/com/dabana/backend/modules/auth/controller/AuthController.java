@@ -3,7 +3,7 @@ package com.dabana.backend.modules.auth.controller;
 import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
-import com.dabana.backend.modules.auth.OtpService;
+import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
