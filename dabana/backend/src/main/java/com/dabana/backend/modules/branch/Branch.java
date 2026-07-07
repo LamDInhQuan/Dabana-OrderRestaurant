@@ -1,7 +1,5 @@
 package com.dabana.backend.modules.branch;
 
-import java.math.BigDecimal;
-
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.Restaurant;
@@ -20,35 +18,39 @@ import lombok.Setter;
 @Table(name = "rt_branches")
 public class Branch extends BaseEntity {
 
-@Column(name = "restaurant_id", nullable = false)
-    private Integer restaurantId; 
-    // Nếu bạn có Entity Restaurant, hãy dùng đoạn dưới đây thay cho trường Integer ở trên:
-    // @ManyToOne
-    // @JoinColumn(name = "restaurant_id", nullable = false)
-    // private Restaurant restaurant;
+    @ManyToOne
+    @JoinColumn(name = "restaurant_id", nullable = false)
+    private Restaurant restaurant;
 
     @NotBlank
-    @Column(name = "branch_name", nullable = false, length = 150)
+    @Column(nullable = false, length = 200)
     private String name;
 
-    @Column(name = "province", length = 100)
-    private String province;
-
     @NotBlank
-    @Column(name = "address", nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, length = 500)
     private String address;
 
-    @Column(name = "phone", length = 20)
-    private String phone;
+    private Double latitude;
+    private Double longitude;
 
-    // Tọa độ nên dùng BigDecimal(10,6) trong Java để khớp chính xác với decimal(10,6) của DB
-    @Column(name = "latitude", precision = 10, scale = 6)
-    private BigDecimal latitude;
+    @Column(length = 500)
+    private String coverImageUrl;
 
-    @Column(name = "longitude", precision = 10, scale = 6)
-    private BigDecimal longitude;
+    @Column(columnDefinition = "TEXT")
+    private String shortDescription;
 
-    // Trong DB của bạn trường này đang để là `status` kiểu tinyint(4), mặc định bằng 1
-    @Column(name = "status", nullable = false)
-    private Integer status = 1;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING; // B04 buoc 4
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private BranchOperatingStatus operatingStatus = BranchOperatingStatus.ACTIVE; // BR02 chi ACTIVE+APPROVED moi hien thi tim kiem
+
+    @Column(length = 500)
+    private String rejectionReason;
+
+    // Khung gio hoat dong - luu dang JSON don gian: {"mon":"08:00-22:00", ...}
+    @Column(columnDefinition = "TEXT")
+    private String operatingHoursJson;
 }

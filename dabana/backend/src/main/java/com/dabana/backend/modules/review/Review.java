@@ -3,7 +3,8 @@ package com.dabana.backend.modules.review;
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.Booking;
-import com.dabana.backend.modules.branch.Branch;
+import com.dabana.backend.modules.branch.BranchOperatingStatus ;
+import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,7 +30,7 @@ public class Review extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "branch_id", nullable = false)
-    private Branch branch;
+    private com.dabana.backend.modules.branch2.entity.Branch branch;
 
     @OneToOne
     @JoinColumn(name = "booking_id", nullable = false)

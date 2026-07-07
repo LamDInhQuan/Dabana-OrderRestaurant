@@ -1,7 +1,8 @@
 package com.dabana.backend.modules.table_layout;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.branch.Branch;
+import com.dabana.backend.modules.branch.BranchOperatingStatus;
+import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
