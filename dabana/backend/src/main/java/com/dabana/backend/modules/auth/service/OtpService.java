@@ -1,4 +1,4 @@
-package com.dabana.backend.modules.auth;
+package com.dabana.backend.modules.auth.service;
 
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.service.IOtpService;

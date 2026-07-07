@@ -11,26 +11,22 @@ import java.util.List;
 
 public interface BranchRepository extends JpaRepository<Branch, Long> {
 
-    List<Branch> findByRestaurantId(Long restaurantId);
+    List<Branch> findByRestaurantId(Integer restaurantId);
 
     /**
-     * B01 Buoc 1: tim kiem da tieu chi tren toan nen tang - chi tra ve
-     * cac chi nhanh da duyet va dang hoat dong (BR02 cua B04).
+     * Tim kiem chi nhanh theo ten/dia chi/trang thai.
+     * Repository nay phai khop voi Branch entity hien tai,
+     * vi Branch khong con map approvalStatus/operatingStatus/restaurant relation.
      */
     @Query("""
         SELECT b FROM Branch b
-        WHERE b.approvalStatus = :approvalStatus
-        AND b.operatingStatus = :operatingStatus
-        AND (:keyword IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-             OR LOWER(b.address) LIKE LOWER(CONCAT('%', :keyword, '%')))
-        AND (:cuisineType IS NULL OR b.restaurant.cuisineType = :cuisineType)
+        WHERE (:keyword IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(b.address) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(b.phone) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND (:status IS NULL OR b.status = :status)
         """)
     Page<Branch> searchBranches(
-            @Param("approvalStatus") ApprovalStatus approvalStatus,
-            @Param("operatingStatus") BranchOperatingStatus operatingStatus,
             @Param("keyword") String keyword,
-            @Param("cuisineType") String cuisineType,
+            @Param("status") Integer status,
             Pageable pageable);
-
-    List<Branch> findByApprovalStatus(ApprovalStatus status);
 }
