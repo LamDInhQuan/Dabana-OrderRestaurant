@@ -24,7 +24,7 @@ public class BookingItem extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "menu_item_id")
-    private com.dabana.backend.modules.menu.MenuItem menuItem; // tham chieu de truy vet, KHONG dung de tinh gia
+    private com.dabana.backend.modules.menu.entity.MenuItem menuItem; // tham chieu de truy vet, KHONG dung de tinh gia
 
     // ===== Snapshot (BR04 cua B06 / BR09 cua B01) =====
     @Column(nullable = false, length = 200)

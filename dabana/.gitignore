@@ -3,3 +3,5 @@ target/
 pom.xml
 application.yml
 frontend/node_modules/
+.postman/
+postman/
