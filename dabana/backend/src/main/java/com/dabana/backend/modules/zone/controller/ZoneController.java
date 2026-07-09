@@ -26,18 +26,18 @@ public class ZoneController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, zoneService.getZonesByBranch(branchId)));
     }
 
-    @PostMapping("/zone")
+    @PostMapping("/create")
     public ResponseEntity<ApiResponse<ZoneResponse>> createZone(@Valid @RequestBody CreateZoneRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, zoneService.createZone(request)));
     }
 
-    @PutMapping("/zone/{zoneId}")
+    @PutMapping("/update/{zoneId}")
     public ResponseEntity<ApiResponse<ZoneResponse>> updateZone(@PathVariable Long zoneId,
                                                                 @Valid @RequestBody UpdateZoneRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, zoneService.updateZone(zoneId, request)));
     }
 
-    @DeleteMapping("/zone/{zoneId}")
+    @DeleteMapping("/delete/{zoneId}")
     public ResponseEntity<ApiResponse<Boolean>> deleteZone(@PathVariable Long zoneId) {
         zoneService.deleteZone(zoneId);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.DELETED, true));

@@ -22,12 +22,20 @@ public class DiningTableController {
 
     private final IDiningTableService diningTableService;
 
-    @PostMapping
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<DiningTableResponse>>> getTablesByBranchAndZone(
+            @RequestParam Long branchId,
+            @RequestParam(required = false) Long zoneId) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
+                diningTableService.getTablesByBranchAndZone(branchId, zoneId)));
+    }
+
+    @PostMapping("/create")
     public ResponseEntity<ApiResponse<DiningTableResponse>> createDiningTable(@Valid @RequestBody CreateDiningTableRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, diningTableService.createDiningTable(request)));
     }
 
-    @PutMapping("/{tableId}")
+    @PutMapping("/update/{tableId}")
     public ResponseEntity<ApiResponse<DiningTableResponse>> updateDiningTable(@PathVariable Long tableId,
                                                                               @Valid @RequestBody UpdateDiningTableRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, diningTableService.updateDiningTable(tableId, request)));
@@ -38,7 +46,7 @@ public class DiningTableController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, diningTableService.bulkUpdatePositions(request)));
     }
 
-    @DeleteMapping("/{tableId}")
+    @DeleteMapping("/delete/{tableId}")
     public ResponseEntity<ApiResponse<Boolean>> deleteDiningTable(@PathVariable Long tableId) {
         diningTableService.deleteDiningTable(tableId);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.DELETED, true));

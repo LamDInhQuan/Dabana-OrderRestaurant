@@ -47,6 +47,25 @@ public class DiningTableService implements IDiningTableService {
     private final DiningTableMapper diningTableMapper;
 
     @Override
+    @Transactional(readOnly = true)
+    public List<DiningTableResponse> getTablesByBranchAndZone(Long branchId, Long zoneId) {
+        validateBranch(branchId);
+        if (zoneId != null) {
+            validateZone(zoneId);
+            if (!zoneRepository.findById(zoneId).orElseThrow(() -> new BusinessException(DiningTableErrorCode.ZONE_NOT_FOUND)).getBranch().getId().equals(branchId)) {
+                throw new BusinessException(DiningTableErrorCode.ZONE_NOT_FOUND);
+            }
+            return diningTableRepository.findByZoneIdOrderByIdAsc(zoneId).stream()
+                    .map(diningTableMapper::toResponse)
+                    .toList();
+        }
+
+        return diningTableRepository.findByZoneBranchId(branchId).stream()
+                .map(diningTableMapper::toResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public DiningTableResponse createDiningTable(CreateDiningTableRequest request) {
         Zone zone = validateZone(request.getZoneId());

@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface IDiningTableService {
 
+    List<DiningTableResponse> getTablesByBranchAndZone(Long branchId, Long zoneId);
+
     DiningTableResponse createDiningTable(CreateDiningTableRequest request);
 
     DiningTableResponse updateDiningTable(Long tableId, UpdateDiningTableRequest request);
