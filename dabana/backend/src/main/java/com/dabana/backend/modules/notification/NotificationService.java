@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 // ===== Entity =====
 @Getter
@@ -105,6 +107,17 @@ public class NotificationService {
         notificationRepository.save(notif);
     }
 
+    private String resolveTableLabel(Booking booking) {
+        if (booking == null || booking.getBookingTables() == null || booking.getBookingTables().isEmpty()) {
+            return "chưa phân bàn";
+        }
+
+        return booking.getBookingTables().stream()
+                .map(bt -> bt.getDiningTable() != null ? bt.getDiningTable().getTableCode() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(", "));
+    }
+
     /**
      * B09 Buoc 5: nhac lich hen 15-30 phut truoc gio an.
      * Chay moi 5 phut de phat hien cac don can nhac.
@@ -121,7 +134,7 @@ public class NotificationService {
                     "Nhac lich: Ban co dat ban tai %s vao luc %s. Ban: %s",
                     booking.getBranch().getName(),
                     booking.getReservationTime(),
-                    booking.getTable().getTableCode());
+                    resolveTableLabel(booking));
 
             sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
             sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "EMAIL");

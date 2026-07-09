@@ -83,6 +83,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/menu/**").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/api/menu/**").permitAll()
                 .requestMatchers(HttpMethod.PATCH, "/api/menu/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/zones/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/zones/**").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/zones/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/zones/**").permitAll()
+                // .requestMatchers(HttpMethod.PATCH, "/api/zones/**").permitAll()
 
                 // B08: cap nhat trang thai ban (check-in/out) - nha hang doi tac
                 .requestMatchers("/api/tables/*/status", "/api/bookings/*/check-in",

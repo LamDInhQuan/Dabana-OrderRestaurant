@@ -12,9 +12,9 @@
 //import com.dabana.backend.modules.policy.DepositPolicy;
 //import com.dabana.backend.modules.policy.DepositPolicyRepository;
 //import com.dabana.backend.modules.policy.DepositType;
-//import com.dabana.backend.modules.table_layout.RestaurantTable;
-//import com.dabana.backend.modules.table_layout.RestaurantTableRepository;
-//import com.dabana.backend.modules.table_layout.TableStatus;
+//import com.dabana.backend.modules.diningtable.entity.DiningTable;
+//import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
+//import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 //import lombok.RequiredArgsConstructor;
 //import org.springframework.stereotype.Service;
 //import org.springframework.transaction.annotation.Transactional;

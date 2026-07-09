@@ -36,6 +36,44 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("now") LocalDateTime now,
             @Param("reminderWindow") LocalDateTime reminderWindow);
 
+    @Query("""
+        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        FROM Booking b
+        JOIN b.bookingTables bt
+        JOIN bt.diningTable dt
+        WHERE dt.id = :tableId
+        AND b.reservationTime = :reservationTime
+        AND b.status IN :statuses
+        """)
     boolean existsByTableIdAndReservationTimeAndStatusIn(
-            Long tableId, LocalDateTime reservationTime, List<BookingStatus> statuses);
+            @Param("tableId") Long tableId,
+            @Param("reservationTime") LocalDateTime reservationTime,
+            @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("""
+        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        FROM Booking b
+        JOIN b.bookingTables bt
+        JOIN bt.diningTable dt
+        WHERE dt.id = :tableId
+        AND b.reservationTime > :now
+        AND b.status IN :statuses
+        """)
+    boolean existsFutureBookingsByTableId(@Param("tableId") Long tableId,
+                                          @Param("now") LocalDateTime now,
+                                          @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("""
+        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        FROM Booking b
+        JOIN b.bookingTables bt
+        JOIN bt.diningTable dt
+        JOIN dt.zone z
+        WHERE z.id = :zoneId
+        AND b.reservationTime > :now
+        AND b.status IN :statuses
+        """)
+    boolean existsFutureBookingsByZoneId(@Param("zoneId") Long zoneId,
+                                         @Param("now") LocalDateTime now,
+                                         @Param("statuses") List<BookingStatus> statuses);
 }
