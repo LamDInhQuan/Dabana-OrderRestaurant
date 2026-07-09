@@ -1,8 +1,8 @@
 package com.dabana.backend.modules.menu.service;
 
 import com.dabana.backend.exception.BusinessException;
-import com.dabana.backend.modules.branch.Branch;
-import com.dabana.backend.modules.branch.BranchRepository;
+import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.menu.dto.request.*;
 import com.dabana.backend.modules.menu.dto.response.MenuCategoryResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemImageResponse;
@@ -27,7 +27,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MenuService implements IMenuService {
 
-    private final BranchRepository branchRepository;
+    private final com.dabana.backend.modules.branch2.repository.BranchRepository branchRepository;
     private final MenuCategoryRepository categoryRepository;
     private final MenuItemRepository itemRepository;
     private final MenuItemImageRepository imageRepository;
@@ -170,7 +170,7 @@ public class MenuService implements IMenuService {
         imageRepository.delete(getImage(imageId));
     }
 
-    private Branch validateBranch(Long branchId) {
+    private com.dabana.backend.modules.branch2.entity.Branch validateBranch(Long branchId) {
         return branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(MenuErrorCode.BRANCH_NOT_FOUND));
     }
