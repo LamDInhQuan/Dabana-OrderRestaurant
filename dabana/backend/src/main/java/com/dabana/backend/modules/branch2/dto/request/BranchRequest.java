@@ -1,11 +1,14 @@
 package com.dabana.backend.modules.branch2.dto.request;
 
+import com.dabana.backend.modules.branch2.dto.BranchImageDto;
+import com.dabana.backend.modules.branch2.entity.BranchImage;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 public class BranchRequest {
@@ -29,5 +32,5 @@ public class BranchRequest {
     private BigDecimal latitude;
     private BigDecimal longitude;
 
-    private Integer status = 1;
+    private List<BranchImageDto> branchImages ;
 }

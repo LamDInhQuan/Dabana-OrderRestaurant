@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * B04: Chi nhanh thuoc mot nha hang doi tac. Moi chi nhanh co thuc don (B06),
@@ -49,4 +51,8 @@ public class Branch extends BaseEntity {
     // Trong DB của bạn trường này đang để là `status` kiểu tinyint(4), mặc định bằng 1
     @Column(name = "status", nullable = false)
     private Integer status = 1;
+
+    @OneToMany(mappedBy = "branch", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC") // Tự động sắp xếp ảnh theo thứ tự hiển thị dưới DB luôn
+    private List<BranchImage> images = new ArrayList<>();
 }
