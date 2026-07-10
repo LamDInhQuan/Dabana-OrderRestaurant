@@ -38,20 +38,19 @@ export default function App() {
           <Route path="/register"    element={<RegisterPage />} />
 
           {/* ===== Customer (B01 / B10 / B13 / B14) ===== */}
-          <Route path="/booking/:branchId"
-            element={<ProtectedRoute role="CUSTOMER"><BookingFlow /></ProtectedRoute>} />
+            {/*
+            /branch/:id  → trang chi tiết nhà hàng
+            Bấm "Đặt bàn ngay" → step chuyển nội bộ trong BranchDetail
+            (step 0 = chi tiết | 1 = chọn bàn | 2 = thông tin | 3 = đặt món | 4 = thanh toán)
+            Không cần route /booking/:id riêng nữa
+          */}
+          <Route path="/branch/:id" element={<BranchDetail />} />
           <Route path="/my-bookings"
             element={<ProtectedRoute role="CUSTOMER"><MyBookings /></ProtectedRoute>} />
 
           {/* ===== Restaurant Partner (B03-B08 / B12 / B15) ===== */}
-          <Route path="/partner"
+        <Route path="/partner"
             element={<ProtectedRoute role="RESTAURANT_PARTNER"><PartnerDashboard /></ProtectedRoute>} />
-          <Route path="/partner/table-layout/:branchId"
-            element={<ProtectedRoute role="RESTAURANT_PARTNER"><TableLayout /></ProtectedRoute>} />
-          <Route path="/partner/bookings"
-            element={<ProtectedRoute role="RESTAURANT_PARTNER"><ManageBookings /></ProtectedRoute>} />
-          <Route path="/partner/menu/:branchId"
-            element={<ProtectedRoute role="RESTAURANT_PARTNER"><MenuManager /></ProtectedRoute>} />
 
           {/* ===== Admin (B02 B03 B04 B15) ===== */}
           <Route path="/admin"
