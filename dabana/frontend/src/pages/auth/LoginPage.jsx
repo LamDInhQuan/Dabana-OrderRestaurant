@@ -16,12 +16,13 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data } = await authApi.login(form)
-      login(data)
-      toast.success(`Chào mừng, ${data.fullName}!`)
-      if (data.role === 'ADMIN')               navigate('/admin')
-      else if (data.role === 'RESTAURANT_PARTNER') navigate('/partner')
-      else                                      navigate('/')
+      const { data: res } = await authApi.login(form)
+      const userData = res.data
+      login(userData)
+      toast.success(`Chào mừng, ${userData.fullName}!`)
+      if (userData.role === 'ADMIN')               navigate('/admin')
+      else if (userData.role === 'RESTAURANT_PARTNER') navigate('/partner')
+      else                                          navigate('/')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Đăng nhập thất bại')
     } finally {

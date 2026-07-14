@@ -17,6 +17,11 @@ public class UserMapper {
     }
 
     public UserResponse userResponse(User user) {
+        String role = user.getUserRoles().stream()
+                .findFirst()
+                .map(ur -> ur.getRole().getName())
+                .orElse(null);
+
         return UserResponse.builder()
                 .phone(user.getPhone())
                 .email(user.getEmail())
@@ -24,6 +29,7 @@ public class UserMapper {
                 .fullName(user.getFullName())
                 .avatarUrl(user.getAvatarUrl())
                 .status(user.getStatus())
+                .role(role)
                 .build();
     }
 }

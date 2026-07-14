@@ -62,17 +62,30 @@ public class AuthService implements IAuthService {
             throw new BusinessException(AuthErrorCode.PHONE_ALREADY_EXISTS);
         }
 
+        RoleUser requestedRole = req.getRole() != null ? req.getRole() : RoleUser.CUSTOMER;
+
         User user = userMapper.toEntyity(req);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-        Role role = roleRepository.findByName(RoleUser.CUSTOMER.name()).orElseThrow(() -> new BusinessException(AuthErrorCode.ROLE_NOT_FOUND));
+        Role role = roleRepository.findByName(requestedRole.name())
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ROLE_NOT_FOUND));
         HashSet<UserRole> roles = new HashSet<>();
         roles.add(com.dabana.backend.modules.auth.entity.UserRole.builder().role(role).user(user).build());
         user.setUserRoles(roles);
-        userRepository.save(user);
-        String otp = otpService.generateAndSend(req.getEmail()); // B02 Buoc 3
+
+        if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
+            user.setStatus(AccountStatus.PENDING_OTP.getStatus());
+        } else {
+            user.setStatus(AccountStatus.ACTIVE.getStatus());
+        }
+        user = userRepository.saveAndFlush(user);
+
         UserResponse userResponse = userMapper.userResponse(user);
-        userResponse.setOtp(otp);
-        return userResponse ;
+        if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
+            String otp = otpService.generateAndSend(req.getEmail()); // B02 Buoc 3
+            userResponse.setOtp(otp);
+        }
+
+        return userResponse;
     }
 
     /** B02 Buoc 3: Xac thuc OTP */
@@ -82,7 +95,12 @@ public class AuthService implements IAuthService {
         otpService.verify(req.getIdentifier(), req.getOtpCode());
         User user = userRepository.findByEmailOrPhone(req.getIdentifier())
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
-        user.setStatus(AccountStatus.ACTIVE.getStatus());  // active khi set otp thành công
+
+        boolean isPartner = user.getUserRoles().stream()
+                .anyMatch(ur -> RoleUser.RESTAURANT_PARTNER.name().equals(ur.getRole().getName()));
+        user.setStatus(isPartner
+                ? AccountStatus.PENDING_ADMIN.getStatus()
+                : AccountStatus.ACTIVE.getStatus());
         userRepository.save(user);
         return true;
     }
@@ -118,29 +136,29 @@ public class AuthService implements IAuthService {
         return userResponse;
     }
 
-//    @Transactional(readOnly = true)
-//    public AuthResponse refresh(RefreshTokenRequest req) {
-//        String token = req.getRefreshToken();
-//        if (!"refresh".equals(jwtService.extractTokenType(token))) {
-//            throw new BusinessException("INVALID_TOKEN", "Token khong hop le");
-//        }
-//        String username = jwtService.extractUsername(token);
-//        User user = userRepository.findByEmailOrPhone(username)
-//                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
-//
-//        UserDetails userDetails = userDetailsService.toUserDetails(user);
-//        if (!jwtService.isTokenValid(token, userDetails)) {
-//            throw new BusinessException("TOKEN_EXPIRED", "Refresh token het han, vui long dang nhap lai");
-//        }
-//
-//        String newAccessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().getRoleName());
-//        return AuthResponse.builder()
-//                .accessToken(newAccessToken)
-//                .refreshToken(token)
-//                .userId(user.getId())
-//                .fullName(user.getFullName())
-//                .role(user.getRole().getRoleName())
-////                .status(user.getStatus().name())
-//                .build();
-//    }
+   @Transactional(readOnly = true)
+   public AuthResponse refresh(RefreshTokenRequest req) {
+       String token = req.getRefreshToken();
+       if (!"refresh".equals(jwtService.extractTokenType(token))) {
+           throw new BusinessException("INVALID_TOKEN", "Token khong hop le");
+       }
+       String username = jwtService.extractUsername(token);
+       User user = userRepository.findByEmailOrPhone(username)
+               .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
+
+       UserDetails userDetails = userDetailsService.toUserDetails(user);
+       if (!jwtService.isTokenValid(token, userDetails)) {
+           throw new BusinessException("TOKEN_EXPIRED", "Refresh token het han, vui long dang nhap lai");
+       }
+
+       String newAccessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().getRoleName());
+       return AuthResponse.builder()
+               .accessToken(newAccessToken)
+               .refreshToken(token)
+               .userId(user.getId())
+               .fullName(user.getFullName())
+               .role(user.getRole().getRoleName())
+//                .status(user.getStatus().name())
+               .build();
+   }
 }
