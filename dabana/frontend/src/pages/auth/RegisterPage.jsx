@@ -5,7 +5,7 @@ import { authApi } from '../../api'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '' })
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '', role: 'CUSTOMER' })
   const [loading, setLoading] = useState(false)
   const [step, setStep]   = useState('form') // form | otp
   const [otp, setOtp]     = useState('')

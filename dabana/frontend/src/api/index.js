@@ -48,11 +48,11 @@ export const authApi = {
 
 // ===== Branch/Restaurant API =====
 export const branchApi = {
-  search:    (params) => api.get('/branches', { params }),
-  getById:   (id)     => api.get(`/branches/${id}`),
-  getMyList: ()       => api.get('/branches/me'),
-  create:    (data)   => api.post('/branches/me', data),
-  update:    (id, d)  => api.put(`/branches/me/${id}`, d),
+  search:    (params) => api.get('/branchs', { params }),
+  getById:   (id)     => api.get(`/branchs/${id}`),
+  getMyList: ()       => api.get('/branchs/me'),
+  create:    (data)   => api.post('/branchs/me', data),
+  update:    (id, d)  => api.put(`/branchs/me/${id}`, d),
 }
 
 // ===== Table Layout API (B07/B08) =====
