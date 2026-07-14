@@ -4,7 +4,9 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.zone.dto.request.CreateZoneRequest;
+import com.dabana.backend.modules.zone.dto.request.FloorPlanRequest;
 import com.dabana.backend.modules.zone.dto.request.UpdateZoneRequest;
+import com.dabana.backend.modules.zone.dto.response.FloorPlanResponse;
 import com.dabana.backend.modules.zone.dto.response.ZoneResponse;
 import com.dabana.backend.modules.zone.service.IZoneService;
 import jakarta.validation.Valid;
@@ -40,6 +42,22 @@ public class ZoneController {
     @DeleteMapping("/delete/{zoneId}")
     public ResponseEntity<ApiResponse<Boolean>> deleteZone(@PathVariable Long zoneId) {
         zoneService.deleteZone(zoneId);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.DELETED, true));
+    }
+
+    @GetMapping("/{zoneId}/floor-plan")
+    public ResponseEntity<ApiResponse<FloorPlanResponse>> getFloorPlanByZone(@PathVariable Long zoneId) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, zoneService.getFloorPlanByZone(zoneId)));
+    }
+
+    @PostMapping("/floor-plan")
+    public ResponseEntity<ApiResponse<FloorPlanResponse>> createOrUpdateFloorPlan(@Valid @RequestBody FloorPlanRequest request) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, zoneService.createOrUpdateFloorPlan(request)));
+    }
+
+    @DeleteMapping("/{zoneId}/floor-plan")
+    public ResponseEntity<ApiResponse<Boolean>> deleteFloorPlan(@PathVariable Long zoneId) {
+        zoneService.deleteFloorPlan(zoneId);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.DELETED, true));
     }
 }

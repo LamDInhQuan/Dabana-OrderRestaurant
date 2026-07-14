@@ -3,6 +3,10 @@ package com.dabana.backend.modules.diningtable.service;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.diningtable.dto.request.BulkUpdateDiningTablePositionsRequest;
@@ -15,7 +19,9 @@ import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+import com.dabana.backend.modules.zone.entity.FloorPlan;
 import com.dabana.backend.modules.zone.entity.Zone;
+import com.dabana.backend.modules.zone.repository.FloorPlanRepository;
 import com.dabana.backend.modules.zone.repository.ZoneRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,9 +48,11 @@ public class DiningTableService implements IDiningTableService {
 
     private final BranchRepository branchRepository;
     private final ZoneRepository zoneRepository;
+    private final FloorPlanRepository floorPlanRepository;
     private final DiningTableRepository diningTableRepository;
     private final BookingRepository bookingRepository;
     private final DiningTableMapper diningTableMapper;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -78,7 +86,10 @@ public class DiningTableService implements IDiningTableService {
         table.setPositionX(request.getPositionX());
         table.setPositionY(request.getPositionY());
         table.setStatus(DiningTableStatus.EMPTY);
-        return diningTableMapper.toResponse(diningTableRepository.save(table));
+
+        DiningTable savedTable = diningTableRepository.save(table);
+        syncTableIntoFloorPlan(savedTable, true);
+        return diningTableMapper.toResponse(savedTable);
     }
 
     @Override
@@ -93,10 +104,14 @@ public class DiningTableService implements IDiningTableService {
         Zone targetZone = validateZone(request.getZoneId());
         ensureTableNameAvailable(targetZone.getId(), request.getTableName(), table.getId());
 
+        Long previousZoneId = table.getZone() != null ? table.getZone().getId() : null;
         table.setZone(targetZone);
         table.setTableName(request.getTableName().trim());
         table.setCapacity(request.getCapacity());
-        return diningTableMapper.toResponse(diningTableRepository.save(table));
+
+        DiningTable savedTable = diningTableRepository.save(table);
+        syncTableIntoFloorPlan(savedTable, false, previousZoneId);
+        return diningTableMapper.toResponse(savedTable);
     }
 
     @Override
@@ -126,7 +141,9 @@ public class DiningTableService implements IDiningTableService {
 
         List<DiningTableResponse> responses = new ArrayList<>();
         for (DiningTable table : lockedTables) {
-            responses.add(diningTableMapper.toResponse(diningTableRepository.save(table)));
+            DiningTable savedTable = diningTableRepository.save(table);
+            syncTableIntoFloorPlan(savedTable, false);
+            responses.add(diningTableMapper.toResponse(savedTable));
         }
         return responses;
     }
@@ -139,6 +156,7 @@ public class DiningTableService implements IDiningTableService {
 
         enforceEditableStructure(table);
         ensureNoFutureBookings(table.getId());
+        removeTableFromFloorPlan(table);
         diningTableRepository.delete(table);
     }
 
@@ -205,5 +223,89 @@ public class DiningTableService implements IDiningTableService {
                 }
             }
         }
+    }
+
+    private void syncTableIntoFloorPlan(DiningTable table) {
+        syncTableIntoFloorPlan(table, true, null);
+    }
+
+    private void syncTableIntoFloorPlan(DiningTable table, boolean addIfMissing) {
+        syncTableIntoFloorPlan(table, addIfMissing, null);
+    }
+
+    private void syncTableIntoFloorPlan(DiningTable table, boolean addIfMissing, Long previousZoneId) {
+        Long zoneId = table.getZone().getId();
+        if (previousZoneId != null && !previousZoneId.equals(zoneId)) {
+            removeTableFromFloorPlan(table, previousZoneId);
+        }
+
+        FloorPlan floorPlan = floorPlanRepository.findByZoneId(zoneId)
+                .orElseGet(() -> createDefaultFloorPlan(table.getZone()));
+
+        try {
+            ObjectNode root = (ObjectNode) objectMapper.readTree(floorPlan.getLayoutData());
+            ArrayNode tablesNode = root.withArray("tables");
+            boolean found = false;
+            for (int i = 0; i < tablesNode.size(); i++) {
+                ObjectNode item = (ObjectNode) tablesNode.get(i);
+                if (table.getId() != null && item.has("tableId") && item.get("tableId").asLong() == table.getId()) {
+                    item.put("tableId", table.getId());
+                    item.put("tableName", table.getTableName());
+                    item.put("x", table.getPositionX() != null ? table.getPositionX() : 0);
+                    item.put("y", table.getPositionY() != null ? table.getPositionY() : 0);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found && addIfMissing) {
+                ObjectNode item = objectMapper.createObjectNode();
+                item.put("tableId", table.getId());
+                item.put("tableName", table.getTableName());
+                item.put("x", table.getPositionX() != null ? table.getPositionX() : 0);
+                item.put("y", table.getPositionY() != null ? table.getPositionY() : 0);
+                tablesNode.add(item);
+            }
+
+            floorPlan.setLayoutData(objectMapper.writeValueAsString(root));
+            floorPlanRepository.save(floorPlan);
+        } catch (JsonProcessingException ignored) {
+            // fallback: ignore invalid existing layout and keep data consistent in DB tables
+        }
+    }
+
+    private void removeTableFromFloorPlan(DiningTable table) {
+        removeTableFromFloorPlan(table, table.getZone().getId());
+    }
+
+    private void removeTableFromFloorPlan(DiningTable table, Long zoneId) {
+        FloorPlan floorPlan = floorPlanRepository.findByZoneId(zoneId).orElse(null);
+        if (floorPlan == null) {
+            return;
+        }
+
+        try {
+            ObjectNode root = (ObjectNode) objectMapper.readTree(floorPlan.getLayoutData());
+            ArrayNode tablesNode = root.withArray("tables");
+            for (int i = tablesNode.size() - 1; i >= 0; i--) {
+                ObjectNode item = (ObjectNode) tablesNode.get(i);
+                if (table.getId() != null && item.has("tableId") && item.get("tableId").asLong() == table.getId()) {
+                    tablesNode.remove(i);
+                    break;
+                }
+            }
+            floorPlan.setLayoutData(objectMapper.writeValueAsString(root));
+            floorPlanRepository.save(floorPlan);
+        } catch (JsonProcessingException ignored) {
+            // ignore
+        }
+    }
+
+    private FloorPlan createDefaultFloorPlan(Zone zone) {
+        FloorPlan floorPlan = new FloorPlan();
+        floorPlan.setZone(zone);
+        floorPlan.setLayoutData("{\"tables\":[]}");
+        floorPlan.setVersion(1);
+        return floorPlanRepository.save(floorPlan);
     }
 }

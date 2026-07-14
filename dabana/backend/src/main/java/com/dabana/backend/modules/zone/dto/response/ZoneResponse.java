@@ -13,5 +13,6 @@ public class ZoneResponse {
     private Long branchId;
     private String zoneName;
     private String description;
+    private FloorPlanResponse floorPlan;
     private List<DiningTableResponse> tables = new ArrayList<>();
 }
