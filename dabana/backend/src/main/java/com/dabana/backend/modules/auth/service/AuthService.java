@@ -22,6 +22,7 @@ import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -49,6 +50,10 @@ public class AuthService implements IAuthService {
     private final CustomUserDetailsService userDetailsService;
     private final AuthenticationManager authenticationManager;
     private final UserMapper userMapper;
+
+    /** CHI true khi dev/test chua co SMTP that; production phai la false de khong lo OTP qua API. */
+    @Value("${app.otp.expose-in-response:false}")
+    private boolean exposeOtpInResponse;
 
     /**
      * B02 Buoc 1-2: cung cap thong tin co ban + ra soat trung lap
@@ -82,11 +87,32 @@ public class AuthService implements IAuthService {
 
         UserResponse userResponse = userMapper.userResponse(user);
         if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
-            String otp = otpService.generateAndSend(req.getEmail()); // B02 Buoc 3
-            userResponse.setOtp(otp);
+            String otp = otpService.generateAndSend(req.getEmail()); // B02 Buoc 3: gui OTP that qua email
+            if (exposeOtpInResponse) {
+                // Chi dung khi dev/test chua cau hinh SMTP that, de tien kiem tra luong ma khong can mo email.
+                userResponse.setOtp(otp);
+            }
         }
 
         return userResponse;
+    }
+
+    /**
+     * Gui lai OTP khi ma cu het han hoac nguoi dung khong nhan duoc email (B02 buoc 3, truong hop gui lai).
+     */
+    @Override
+    @Transactional
+    public Boolean resendOtp(String identifier) {
+        User user = userRepository.findByEmailOrPhone(identifier)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() != AccountStatus.PENDING_OTP.getStatus()) {
+            // Tai khoan da xac thuc OTP roi hoac dang o trang thai khac, khong can gui lai.
+            throw new BusinessException(AuthErrorCode.OTP_ALREADY_VERIFIED);
+        }
+
+        otpService.generateAndSend(identifier);
+        return true;
     }
 
     /** B02 Buoc 3: Xac thuc OTP */

@@ -179,6 +179,7 @@ export default function PartnerDashboard() {
   const [tables,   setTables]     = useState({})
   const [bookings, setBookings]   = useState([])
   const [menu,     setMenu]       = useState([])
+  const [menuCategories, setMenuCategories] = useState([]) // du lieu goc tu backend: [{id, categoryName, items:[...]}]
   const [waitlist, setWaitlist]   = useState([])
   const [activeZone, setActiveZone] = useState(null)
   const [bkFilter,  setBkFilter]  = useState('ALL')
@@ -195,6 +196,8 @@ export default function PartnerDashboard() {
   const [addZoneModal,setAddZoneModal]=useState(false)
   const [zoneForm,setZoneForm]      = useState({ name:'',description:'' })
   const [selectedTable,setSelectedTable]=useState(null)
+  const [branchForm,setBranchForm]  = useState({ name:'',address:'',phone:'',province:'' })
+  const [savingBranch,setSavingBranch]=useState(false)
 
   const CATEGORIES = ['Khai vị','Món chính','Lẩu','Hải sản','Đồ uống','Tráng miệng','Khác']
 
@@ -208,6 +211,12 @@ export default function PartnerDashboard() {
   useEffect(() => {
     if (!activeBranch) return
     const bid = activeBranch.id
+    setBranchForm({
+      name:    activeBranch.name    || '',
+      address: activeBranch.address || '',
+      phone:   activeBranch.phone   || '',
+      province:activeBranch.province|| '',
+    })
     // zones & tables
     zoneApi.getByBranch(bid).then(async r => {
       const zList = r.data.length ? r.data : (DEMO_ZONES[bid]||DEMO_ZONES[1]||[])
@@ -227,7 +236,21 @@ export default function PartnerDashboard() {
     // bookings
     bookingApi.myBookings().then(r=>setBookings(r.data||DEMO_BOOKINGS)).catch(()=>setBookings(DEMO_BOOKINGS))
     // menu
-    menuApi.getByBranch(bid).then(r=>setMenu(r.data.length?r.data:DEMO_MENU)).catch(()=>setMenu(DEMO_MENU))
+    // menu (backend tra ve theo Danh muc -> Mon an, can flatten cho UI dang phang)
+    menuApi.getByBranch(bid).then(r => {
+      const categories = r.data || []
+      setMenuCategories(categories)
+      const flat = categories.flatMap(cat => (cat.items||[]).map(it => ({
+        id: it.id,
+        name: it.itemName,
+        category: cat.categoryName,
+        price: Number(it.price),
+        status: it.status,
+        description: it.description || '',
+        emoji: '🍽️', // backend chua ho tro emoji, chi hien thi mac dinh
+      })))
+      setMenu(flat.length ? flat : DEMO_MENU)
+    }).catch(() => { setMenuCategories([]); setMenu(DEMO_MENU) })
     // waitlist (demo)
     setWaitlist(DEMO_WAITLIST)
   },[activeBranch])
@@ -276,21 +299,73 @@ export default function PartnerDashboard() {
   const saveMenuItem = async (e) => {
     e.preventDefault()
     if(!menuForm.price||Number(menuForm.price)<=0){toast.error('Giá phải lớn hơn 0');return}
+    if(!activeBranch){toast.error('Chưa chọn chi nhánh');return}
     try {
-      if(menuModal==='add') await menuApi.create({...menuForm,price:Number(menuForm.price),branchId:activeBranch?.id})
-      else await menuApi.update(menuModal.id,{...menuForm,price:Number(menuForm.price)})
-      toast.success(menuModal==='add'?'Đã thêm món!':'Đã cập nhật!')
-    } catch {}
-    if(menuModal==='add') setMenu(p=>[...p,{id:Date.now(),...menuForm,price:Number(menuForm.price),status:'SELLING'}])
-    else setMenu(p=>p.map(m=>m.id===menuModal.id?{...m,...menuForm,price:Number(menuForm.price)}:m))
-    setMenuModal(null)
+      // 1. Tim danh muc theo ten; neu chi nhanh chua co danh muc nay thi tao moi
+      let category = menuCategories.find(c => c.categoryName === menuForm.category)
+      if (!category) {
+        const { data: res } = await menuApi.createCategory({ branchId: activeBranch.id, categoryName: menuForm.category })
+        category = { ...res.data, items: [] }
+        setMenuCategories(prev => [...prev, category])
+      }
+
+      const payload = {
+        categoryId: category.id,
+        itemName: menuForm.name,
+        description: menuForm.description,
+        price: Number(menuForm.price),
+        imageUrl: '',
+        status: menuModal==='add' ? 'SELLING' : (menuModal.status || 'SELLING'),
+      }
+
+      if (menuModal==='add') {
+        const { data: res } = await menuApi.createItem(payload)
+        const created = res.data
+        setMenu(p=>[...p,{ id:created.id, name:created.itemName, category:menuForm.category,
+          price:Number(created.price), status:created.status, description:created.description||'', emoji:menuForm.emoji }])
+        toast.success('Đã thêm món!')
+      } else {
+        const { data: res } = await menuApi.updateItem(menuModal.id, payload)
+        const updated = res.data
+        setMenu(p=>p.map(m=>m.id===menuModal.id?{ ...m, name:updated.itemName, category:menuForm.category,
+          price:Number(updated.price), status:updated.status, description:updated.description||'', emoji:menuForm.emoji }:m))
+        toast.success('Đã cập nhật!')
+      }
+      setMenuModal(null)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu món ăn')
+    }
   }
 
-  const cycleMenuStatus = (item) => {
+  const cycleMenuStatus = async (item) => {
     const next={SELLING:'OUT_OF_STOCK',OUT_OF_STOCK:'DISCONTINUED',DISCONTINUED:'SELLING'}[item.status]
-    try { menuApi.updateStatus(item.id,next) } catch {}
-    setMenu(p=>p.map(m=>m.id===item.id?{...m,status:next}:m))
-    toast.success(`Chuyển sang: ${next==='SELLING'?'Đang bán':next==='OUT_OF_STOCK'?'Hết món':'Ngừng bán'}`)
+    try {
+      await menuApi.updateStatus(item.id,next)
+      setMenu(p=>p.map(m=>m.id===item.id?{...m,status:next}:m))
+      toast.success(`Chuyển sang: ${next==='SELLING'?'Đang bán':next==='OUT_OF_STOCK'?'Hết món':'Ngừng bán'}`)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể cập nhật trạng thái món')
+    }
+  }
+
+  const saveBranchInfo = async () => {
+    if (!activeBranch) return
+    if (!branchForm.name.trim() || !branchForm.address.trim()) {
+      toast.error('Tên chi nhánh và địa chỉ không được để trống')
+      return
+    }
+    setSavingBranch(true)
+    try {
+      const { data: res } = await branchApi.update(activeBranch.id, branchForm)
+      const updated = res.data
+      setBranches(prev => prev.map(b => b.id === activeBranch.id ? { ...b, ...updated } : b))
+      setActiveBranch(prev => ({ ...prev, ...updated }))
+      toast.success('Đã lưu thông tin chi nhánh!')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu thông tin chi nhánh')
+    } finally {
+      setSavingBranch(false)
+    }
   }
 
   const addTable = async (e) => {
@@ -933,27 +1008,29 @@ export default function PartnerDashboard() {
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1.25rem' }}>
                   <div style={{ gridColumn:'1/-1' }}>
                     <label style={S.label}>Tên chi nhánh</label>
-                    <input style={S.input} defaultValue={activeBranch?.name}/>
+                    <input style={S.input} value={branchForm.name}
+                      onChange={e=>setBranchForm(p=>({...p,name:e.target.value}))}/>
                   </div>
                   <div style={{ gridColumn:'1/-1' }}>
                     <label style={S.label}>Địa chỉ</label>
-                    <input style={S.input} defaultValue={activeBranch?.address}/>
+                    <input style={S.input} value={branchForm.address}
+                      onChange={e=>setBranchForm(p=>({...p,address:e.target.value}))}/>
                   </div>
                   <div>
-                    <label style={S.label}>Mở cửa</label>
-                    <input type="time" style={S.input} defaultValue="10:00"/>
+                    <label style={S.label}>Tỉnh/Thành phố</label>
+                    <input style={S.input} value={branchForm.province}
+                      onChange={e=>setBranchForm(p=>({...p,province:e.target.value}))}/>
                   </div>
                   <div>
-                    <label style={S.label}>Đóng cửa</label>
-                    <input type="time" style={S.input} defaultValue="22:00"/>
-                  </div>
-                  <div style={{ gridColumn:'1/-1' }}>
-                    <label style={S.label}>Mô tả chi nhánh</label>
-                    <textarea style={{ ...S.input,resize:'vertical' }} rows={3} defaultValue=""/>
+                    <label style={S.label}>Số điện thoại</label>
+                    <input style={S.input} value={branchForm.phone}
+                      onChange={e=>setBranchForm(p=>({...p,phone:e.target.value}))}/>
                   </div>
                 </div>
-                <button onClick={()=>toast.success('Đã lưu thông tin chi nhánh!')}
-                  style={{ ...S.btnGold,marginTop:'1.25rem' }}>Lưu thay đổi</button>
+                <button onClick={saveBranchInfo} disabled={savingBranch}
+                  style={{ ...S.btnGold,marginTop:'1.25rem' }}>
+                  {savingBranch ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
               </div>
 
               <div style={{ ...S.card,marginBottom:'1.25rem' }}>
