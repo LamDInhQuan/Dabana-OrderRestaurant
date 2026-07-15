@@ -11,6 +11,8 @@ public interface IAuthService {
 
     Boolean verifyOtp(VerifyOtpRequest req);
 
+    Boolean resendOtp(String identifier);
+
     UserResponse login(LoginRequest request);
 
     UserResponse refresh(RefreshTokenRequest request);

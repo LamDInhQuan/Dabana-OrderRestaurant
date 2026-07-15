@@ -7,6 +7,7 @@ import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
+import com.dabana.backend.modules.auth.dto.request.ResendOtpRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
@@ -36,6 +37,13 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<Boolean>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         Boolean result = authService.verifyOtp(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
+
+    /** Gui lai OTP qua email khi ma cu het han hoac chua nhan duoc email. */
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<Boolean>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        Boolean result = authService.resendOtp(request.getIdentifier());
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
     }
 

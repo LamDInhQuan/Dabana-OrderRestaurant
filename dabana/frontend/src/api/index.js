@@ -5,9 +5,13 @@ const api = axios.create({ baseURL: '/api', timeout: 10000 })
 // Request interceptor: tự động đính kèm JWT vào header
 api.interceptors.request.use((config) => {
   const stored = localStorage.getItem('dabana_auth')
-  if (stored) {
-    const { accessToken } = JSON.parse(stored)
-    if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+  if (stored && stored !== 'undefined' && stored !== 'null') {
+    try {
+      const { accessToken } = JSON.parse(stored)
+      if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+    } catch {
+      localStorage.removeItem('dabana_auth')
+    }
   }
   return config
 })
@@ -21,12 +25,14 @@ api.interceptors.response.use(
       original._retry = true
       try {
         const stored = localStorage.getItem('dabana_auth')
-        if (!stored) return Promise.reject(error)
+        if (!stored || stored === 'undefined' || stored === 'null') return Promise.reject(error)
 
-        const { refreshToken } = JSON.parse(stored)
+        const parsedAuth = JSON.parse(stored)
+        const { refreshToken } = parsedAuth
+        if (!refreshToken) return Promise.reject(error)
         const { data: res } = await axios.post('/api/auth/refresh', { refreshToken })
         const newAccessToken = res.data.accessToken
-        const updated = { ...JSON.parse(stored), accessToken: newAccessToken }
+        const updated = { ...parsedAuth, accessToken: newAccessToken }
         localStorage.setItem('dabana_auth', JSON.stringify(updated))
         original.headers.Authorization = `Bearer ${newAccessToken}`
         return api(original)
@@ -44,6 +50,7 @@ export const authApi = {
   register:  (data) => api.post('/auth/register/customer', data),
   login:     (data) => api.post('/auth/login', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
+  resendOtp: (data) => api.post('/auth/resend-otp', data),
   refresh:   (data) => api.post('/auth/refresh', data),
 }
 
@@ -85,10 +92,12 @@ export const bookingApi = {
 
 // ===== Menu API (B06) =====
 export const menuApi = {
-  getByBranch:   (bid)    => api.get(`/menu-items/branch/${bid}`),
-  create:        (data)   => api.post('/menu-items/manage', data),
-  update:        (id, d)  => api.put(`/menu-items/manage/${id}`, d),
-  updateStatus:  (id, s)  => api.patch(`/menu-items/manage/${id}/status`, { status: s }),
+  getByBranch:    (bid)     => api.get(`/menu/branches/${bid}`),
+  createCategory: (data)    => api.post('/menu/categories', data),
+  createItem:     (data)    => api.post('/menu/items', data),
+  updateItem:     (id, d)   => api.put(`/menu/items/${id}`, d),
+  updateStatus:   (id, s)   => api.patch(`/menu/items/${id}/status`, { status: s }),
+  deleteItem:     (id)      => api.delete(`/menu/items/${id}`),
 }
 
 // ===== Waitlist API (B10) =====
