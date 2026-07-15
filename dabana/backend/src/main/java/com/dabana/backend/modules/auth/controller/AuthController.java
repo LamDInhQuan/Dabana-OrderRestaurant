@@ -5,6 +5,7 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
+import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
@@ -44,9 +45,10 @@ public class AuthController {
         UserResponse result = authService.login(request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
     }
-//
-//    @PostMapping("/refresh")
-//    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-//        return ResponseEntity.ok(authService.refresh(request));
-//    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<UserResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        UserResponse result = authService.refresh(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
 }
