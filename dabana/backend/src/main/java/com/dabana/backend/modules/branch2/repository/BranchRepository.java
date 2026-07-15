@@ -13,6 +13,8 @@ import java.util.List;
 
 public interface BranchRepository extends JpaRepository<com.dabana.backend.modules.branch2.entity.Branch, Long> {
 
+    boolean existsByPhone(String phone);
+
     List<com.dabana.backend.modules.branch2.entity.Branch> findByRestaurantId(Long restaurantId);
 
     /**

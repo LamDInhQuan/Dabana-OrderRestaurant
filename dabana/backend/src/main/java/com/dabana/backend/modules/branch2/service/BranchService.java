@@ -22,8 +22,11 @@ import com.dabana.backend.modules.branch.BranchOperatingStatus;
 import com.dabana.backend.modules.branch2.dto.request.BranchRequest;
 import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
 import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.branch2.entity.BranchImage;
 import com.dabana.backend.modules.branch2.mapper.BranchMapper;
+import com.dabana.backend.modules.branch2.repository.BranchImageRepository;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
+import com.dabana.backend.modules.branch2.util.BranchErrorCode;
 import com.dabana.backend.modules.branch2.util.BranchStatus;
 import com.dabana.backend.modules.restaurant.Restaurant;
 import com.dabana.backend.security.CustomUserDetail;
@@ -51,6 +54,7 @@ import java.util.Optional;
 public class BranchService implements IBranchService {
 
     private final BranchRepository branchRepository;
+    private final BranchImageRepository branchImageRepository;
     private final BranchMapper branchMapper;
 
     @Override
@@ -75,13 +79,12 @@ public class BranchService implements IBranchService {
 
     @Override
     public BranchResponse create(BranchRequest request) {
-        com.dabana.backend.modules.branch2.entity.Branch branch = branchMapper.toEntity(request) ;
-        Restaurant mockRestaurant = new Restaurant();
-        mockRestaurant.setId(request.getRestaurantId().longValue()); // Set đúng ID nhà hàng đang có dưới DB
-        branch.setRestaurant(mockRestaurant);
-        branch.setStatus(BranchStatus.PENDING.getStatus());
-        BranchResponse branchResponse = branchMapper.toResponse(branchRepository.save(branch));
-        return branchResponse;
+        if(branchRepository.existsByPhone(request.getPhone())){
+            throw new BusinessException(BranchErrorCode.DUPLICATE_PHONE);
+        }
+        com.dabana.backend.modules.branch2.entity.Branch branch = branchMapper.toEntity(request);
+        initializeAdditionalData(branch,request);
+        return branchMapper.toResponse(branchRepository.save(branch));
     }
 
 //    @Override
@@ -91,6 +94,27 @@ public class BranchService implements IBranchService {
 
     @Override
     public void delete(Long id) {
+
+    }
+
+    private void initializeAdditionalData(Branch branch, BranchRequest request) {
+        // 1. Xử lý mock Restaurant relation
+        if (request.getRestaurantId() != null) {
+            Restaurant mockRestaurant = new Restaurant();
+            mockRestaurant.setId(request.getRestaurantId().longValue());
+            branch.setRestaurant(mockRestaurant);
+        }
+        branch.setStatus(BranchStatus.PENDING.getStatus());
+        if (request.getBranchImages() != null) {
+            branch.setImages(request.getBranchImages().stream().map(dto ->
+                    BranchImage.builder()
+                            .branch(branch) // Link ngược lại cha
+                            .imageUrl(dto.getImageUrl())
+                            .isCover(dto.getIsCover())
+                            .displayOrder(dto.getDisplayOrder())
+                            .build()
+            ).toList());
+        }
 
     }
 }

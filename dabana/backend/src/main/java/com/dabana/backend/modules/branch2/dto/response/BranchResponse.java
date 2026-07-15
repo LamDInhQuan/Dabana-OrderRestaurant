@@ -1,9 +1,11 @@
 package com.dabana.backend.modules.branch2.dto.response;
 
+import com.dabana.backend.modules.branch2.dto.BranchImageDto;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class BranchResponse {
@@ -18,4 +20,5 @@ public class BranchResponse {
     private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<BranchImageDto> branchImageDtos ;
 }
