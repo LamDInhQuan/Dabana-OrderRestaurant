@@ -24,10 +24,11 @@ api.interceptors.response.use(
         if (!stored) return Promise.reject(error)
 
         const { refreshToken } = JSON.parse(stored)
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken })
-        const updated = { ...JSON.parse(stored), accessToken: data.accessToken }
+        const { data: res } = await axios.post('/api/auth/refresh', { refreshToken })
+        const newAccessToken = res.data.accessToken
+        const updated = { ...JSON.parse(stored), accessToken: newAccessToken }
         localStorage.setItem('dabana_auth', JSON.stringify(updated))
-        original.headers.Authorization = `Bearer ${data.accessToken}`
+        original.headers.Authorization = `Bearer ${newAccessToken}`
         return api(original)
       } catch {
         localStorage.removeItem('dabana_auth')

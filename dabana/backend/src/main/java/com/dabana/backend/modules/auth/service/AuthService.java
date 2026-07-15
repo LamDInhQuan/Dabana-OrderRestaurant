@@ -4,6 +4,7 @@ import com.dabana.backend.exception.BusinessException;
 //import com.dabana.backend.modules.auth.OtpService;
 import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
+import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
@@ -136,29 +137,34 @@ public class AuthService implements IAuthService {
         return userResponse;
     }
 
-   @Transactional(readOnly = true)
-   public AuthResponse refresh(RefreshTokenRequest req) {
-       String token = req.getRefreshToken();
-       if (!"refresh".equals(jwtService.extractTokenType(token))) {
-           throw new BusinessException("INVALID_TOKEN", "Token khong hop le");
-       }
-       String username = jwtService.extractUsername(token);
-       User user = userRepository.findByEmailOrPhone(username)
-               .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay tai khoan"));
+    @Override
+    @Transactional(readOnly = true)
+    public UserResponse refresh(RefreshTokenRequest req) {
+        String token = req.getRefreshToken();
 
-       UserDetails userDetails = userDetailsService.toUserDetails(user);
-       if (!jwtService.isTokenValid(token, userDetails)) {
-           throw new BusinessException("TOKEN_EXPIRED", "Refresh token het han, vui long dang nhap lai");
-       }
+        if (!"refresh".equals(jwtService.extractTokenType(token))) {
+            throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
 
-       String newAccessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getRole().getRoleName());
-       return AuthResponse.builder()
-               .accessToken(newAccessToken)
-               .refreshToken(token)
-               .userId(user.getId())
-               .fullName(user.getFullName())
-               .role(user.getRole().getRoleName())
-//                .status(user.getStatus().name())
-               .build();
-   }
+        Long userId = jwtService.extractUserId(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        CustomUserDetail userDetails = new CustomUserDetail(user);
+        if (!jwtService.isTokenValid(token, userDetails)) {
+            throw new BusinessException(AuthErrorCode.REFRESH_TOKEN_EXPIRED);
+        }
+
+        if (user.getStatus() == AccountStatus.SUSPENDED.getStatus()
+                || user.getStatus() == AccountStatus.REJECTED.getStatus()) {
+            throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
+        }
+
+        String newAccessToken = jwtService.generateAccessToken(userDetails, user.getId(), user.getUserRoles().stream().toList());
+
+        UserResponse userResponse = userMapper.userResponse(user);
+        userResponse.setAccessToken(newAccessToken);
+        userResponse.setRefreshToken(token); // giu nguyen refresh token cu cho den khi het han
+        return userResponse;
+    }
 }
