@@ -28,7 +28,7 @@ import com.dabana.backend.modules.branch2.repository.BranchImageRepository;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.util.BranchErrorCode;
 import com.dabana.backend.modules.branch2.util.BranchStatus;
-import com.dabana.backend.modules.restaurant.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;

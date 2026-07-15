@@ -3,7 +3,8 @@ package com.dabana.backend.modules.branch2.entity;
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.branch.BranchOperatingStatus;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
-import com.dabana.backend.modules.restaurant.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.Restaurant;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
