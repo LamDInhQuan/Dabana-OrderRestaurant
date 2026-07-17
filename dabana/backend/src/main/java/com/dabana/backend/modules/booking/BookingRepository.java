@@ -36,44 +36,33 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("now") LocalDateTime now,
             @Param("reminderWindow") LocalDateTime reminderWindow);
 
-    @Query("""
-        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
-        FROM Booking b
-        JOIN b.bookingTables bt
-        JOIN bt.diningTable dt
-        WHERE dt.id = :tableId
-        AND b.reservationTime = :reservationTime
-        AND b.status IN :statuses
-        """)
     boolean existsByTableIdAndReservationTimeAndStatusIn(
-            @Param("tableId") Long tableId,
-            @Param("reservationTime") LocalDateTime reservationTime,
-            @Param("statuses") List<BookingStatus> statuses);
+            Long tableId, LocalDateTime reservationTime, List<BookingStatus> statuses);
 
-    @Query("""
-        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
-        FROM Booking b
-        JOIN b.bookingTables bt
-        JOIN bt.diningTable dt
-        WHERE dt.id = :tableId
-        AND b.reservationTime > :now
-        AND b.status IN :statuses
-        """)
-    boolean existsFutureBookingsByTableId(@Param("tableId") Long tableId,
-                                          @Param("now") LocalDateTime now,
-                                          @Param("statuses") List<BookingStatus> statuses);
+    // ======================================================
+    // F47/F48/F49: Thong ke & bao cao (Quan tri vien)
+    // ======================================================
 
+    long countByStatus(BookingStatus status);
+
+    List<Booking> findByCreatedAtAfter(LocalDateTime from);
+
+    /** F47: doanh thu (tam tinh tu tien coc) theo chi nhanh, don da hoan tat. */
     @Query("""
-        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        SELECT b.branch.id, COALESCE(SUM(b.snapshotDepositAmount), 0), COUNT(b)
         FROM Booking b
-        JOIN b.bookingTables bt
-        JOIN bt.diningTable dt
-        JOIN dt.zone z
-        WHERE z.id = :zoneId
-        AND b.reservationTime > :now
-        AND b.status IN :statuses
+        WHERE b.status = 'COMPLETED'
+        GROUP BY b.branch.id
         """)
-    boolean existsFutureBookingsByZoneId(@Param("zoneId") Long zoneId,
-                                         @Param("now") LocalDateTime now,
-                                         @Param("statuses") List<BookingStatus> statuses);
+    List<Object[]> sumDepositRevenueByBranch();
+
+    /** F48: thong ke luot dat ban theo ngay trong khoang thoi gian. */
+    @Query("""
+        SELECT FUNCTION('DATE', b.createdAt), COUNT(b)
+        FROM Booking b
+        WHERE b.createdAt >= :from
+        GROUP BY FUNCTION('DATE', b.createdAt)
+        ORDER BY FUNCTION('DATE', b.createdAt)
+        """)
+    List<Object[]> countBookingsPerDaySince(@Param("from") LocalDateTime from);
 }

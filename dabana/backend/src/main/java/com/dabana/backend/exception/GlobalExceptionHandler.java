@@ -1,5 +1,6 @@
 package com.dabana.backend.exception;
 
+import com.dabana.backend.common.ErrorDetail;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -20,7 +22,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException ex) {
-        Map<String, Object> body = errorBody(ex.getErrorCode(), ex.getMessage());
+        Map<String, Object> body = errorBody(ex.getErrorCode(), ex.getMessage() , ex.getErrorDetails() != null  ? ex.getErrorDetails() : null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -30,6 +32,7 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = errorBody(authErrorCode.getCode(), authErrorCode.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
         ErrorCode authErrorCode = AuthErrorCode.PASSWORD_INCORRECT;
@@ -73,6 +76,17 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now());
         body.put("errorCode", code);
         body.put("message", message);
+        return body;
+    }
+    private Map<String, Object> errorBody(String code, String message, List<? extends ErrorDetail> errorDetails) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("errorCode", code);
+        body.put("message", message);
+        if (errorDetails != null && errorDetails.size() > 0) {
+            body.put("errorDetails", errorDetails);
+        }
+
         return body;
     }
 }
