@@ -5,3 +5,4 @@ application.yml
 frontend/node_modules/
 .postman/
 postman/
+backend/target/

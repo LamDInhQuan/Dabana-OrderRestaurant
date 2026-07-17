@@ -4,7 +4,7 @@ import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.branch.BranchOperatingStatus;
 import com.dabana.backend.modules.branch2.entity.Branch;
-import com.dabana.backend.modules.table_layout.RestaurantTable;
+import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -27,11 +27,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "rs_reservations", uniqueConstraints = {
-        // BR01 cua B01: mot ban khong duoc ton tai nhieu don trung thoi gian
-        @UniqueConstraint(name = "uk_table_timeslot",
-                columnNames = {"table_id", "reservation_time"})
-})
+@Table(name = "rs_reservations")
 public class Booking extends BaseEntity {
 
     @ManyToOne
@@ -40,15 +36,11 @@ public class Booking extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "branch_id", nullable = false)
-    private com.dabana.backend.modules.branch2.entity.Branch branch;
-
-    @ManyToOne
-    @JoinColumn(name = "table_id", nullable = false)
-    private RestaurantTable table;
+    private Branch branch;
 
     @NotBlank
     @Column(nullable = false, length = 150)
-    private String contactName; // B01 buoc 4
+    private String contactName;
 
     @NotBlank
     @Column(nullable = false, length = 20)
@@ -62,31 +54,39 @@ public class Booking extends BaseEntity {
     private Integer guestCount;
 
     @Column(nullable = false)
-    private LocalDateTime reservationTime; // gio den du kien
+    private LocalDateTime reservationTime;
 
     @Column(nullable = false)
-    private LocalDateTime holdExpiresAt; // B01 BR03: het han giu ban (15 phut)
+    private LocalDateTime holdExpiresAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private BookingStatus status = BookingStatus.HOLDING;
 
-    // ===== Snapshot chinh sach dat coc (chot tai B01 buoc 6-7) =====
     private Boolean snapshotDepositRequired;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal snapshotDepositAmount;
+
     private Integer snapshotFreeCancellationHours;
 
-    // ===== Thanh toan =====
     @Column(length = 100)
     private String paymentTransactionId;
-    @Column(length = 30)
-    private String paymentStatus; // PENDING / SUCCESS / FAILED
 
-    // ===== No-show tracking (B08 EF01 / B11) =====
+    @Column(length = 30)
+    private String paymentStatus;
+
     private LocalDateTime noShowWarningAt;
+
     private Boolean reminderSent = false;
 
-    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BookingItem> items = new ArrayList<>(); // mon dat truoc - B01 buoc 5
+    @OneToMany(mappedBy = "booking",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    private List<BookingItem> items = new ArrayList<>();
+
+    @OneToMany(mappedBy = "booking",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    private List<BookingTable> bookingTables = new ArrayList<>();
 }

@@ -10,13 +10,13 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * B04: Chi nhanh thuoc mot nha hang doi tac. Moi chi nhanh co thuc don (B06),
  * so do (B07) va chinh sach dat ban (B05) rieng (BR01).
+ *
+ * Duoc tao lai o goi branch2 (thay cho goi branch cu da bi vo hieu hoa) vi day
+ * la thuc the duoc rat nhieu module khac (booking, menu, waitlist, policy,
+ * review, table_layout) tham chieu truc tiep toi.
  */
 @Getter
 @Setter
@@ -29,31 +29,36 @@ public class Branch extends BaseEntity {
     private Restaurant restaurant;
 
     @NotBlank
-    @Column(name = "branch_name", nullable = false, length = 150)
+    @Column(nullable = false, length = 200)
     private String name;
 
-    @Column(name = "province", length = 100)
-    private String province;
-
     @NotBlank
-    @Column(name = "address", nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, length = 500)
     private String address;
 
-    @Column(name = "phone", length = 20)
-    private String phone;
+    private Double latitude;
+    private Double longitude;
 
-    // Tọa độ nên dùng BigDecimal(10,6) trong Java để khớp chính xác với decimal(10,6) của DB
-    @Column(name = "latitude", precision = 10, scale = 6)
-    private BigDecimal latitude;
+    @Column(length = 500)
+    private String coverImageUrl;
 
-    @Column(name = "longitude", precision = 10, scale = 6)
-    private BigDecimal longitude;
+    @Column(columnDefinition = "TEXT")
+    private String shortDescription;
 
-    // Trong DB của bạn trường này đang để là `status` kiểu tinyint(4), mặc định bằng 1
-    @Column(name = "status", nullable = false)
-    private Integer status = 1;
+    /** B04 Buoc 4: trang thai duyet ho so chi nhanh boi Quan tri vien (F43). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-    @OneToMany(mappedBy = "branch", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("displayOrder ASC") // Tự động sắp xếp ảnh theo thứ tự hiển thị dưới DB luôn
-    private List<BranchImage> images = new ArrayList<>();
+    /** BR02: chi ACTIVE + APPROVED moi hien thi trong tim kiem (B01 buoc 1). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private BranchOperatingStatus operatingStatus = BranchOperatingStatus.ACTIVE;
+
+    @Column(length = 500)
+    private String rejectionReason;
+
+    // Khung gio hoat dong - luu dang JSON don gian: {"mon":"08:00-22:00", ...}
+    @Column(columnDefinition = "TEXT")
+    private String operatingHoursJson;
 }

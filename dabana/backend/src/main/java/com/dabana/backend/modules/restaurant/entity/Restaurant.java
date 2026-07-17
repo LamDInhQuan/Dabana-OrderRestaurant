@@ -24,29 +24,44 @@ public class Restaurant extends BaseEntity {
     private User owner;
 
     @NotBlank
-    @Column(nullable = false, length = 200)
-    private String brandName;
-
-    @Column(length = 500)
-    private String logoUrl;
+    @Column(name = "restaurant_name", nullable = false, length = 155) // Fix length = 150 theo ảnh (để 155 hoặc 150 đều được)
+    private String restaurantName;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 100)
-    private String cuisineType; // nganh am thuc chinh
+    @Column(name = "logo_url", nullable = false, length = 255) // Trong DB là Not Null [v] và varchar(255)
+    private String logoUrl;
+
+    @Column(length = 20) // Mới bổ sung theo DB
+    private String phone;
+
+    @Column(length = 150) // Mới bổ sung theo DB
+    private String email;
+
+    @Column(length = 255, unique = true) // Mới bổ sung theo DB (có tag UNI)
+    private String website;
+
+    @Column(name = "is_active", nullable = false) // Mới bổ sung theo DB (tinyint(4) mapping thành boolean)
+    private boolean isActive = true;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private ApprovalStatus status = ApprovalStatus.PENDING;
+    @Column(name = "approval_status", nullable = false, length = 30) // Đổi tên cột từ status -> approval_status
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-    @Column(length = 500)
-    private String rejectionReason;
+    // Lưu ý: Các trường dưới đây không có trong ảnh MySQL của bạn.
+    // Nếu bạn thực sự cần chúng, hãy chạy lệnh ALTER TABLE trong DB để thêm cột,
+    // còn nếu không dùng nữa thì hãy XÓA HẲN chúng đi để tránh lỗi SQL tiếp theo:
 
-    // Snapshot ban cap nhat dang cho duyet (AF02 cua B03)
-    @Column(length = 500)
-    private String pendingLogoUrl;
+    // @Column(length = 100)
+    // private String cuisineType;
 
-    @Column(columnDefinition = "TEXT")
-    private String pendingDescription;
+    // @Column(length = 500)
+    // private String rejectionReason;
+
+    // @Column(length = 500)
+    // private String pendingLogoUrl;
+
+    // @Column(columnDefinition = "TEXT")
+    // private String pendingDescription;
 }
