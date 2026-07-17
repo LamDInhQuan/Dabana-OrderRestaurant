@@ -52,25 +52,26 @@ public class ReservationPolicyScheduleService implements IReservationPolicySched
     @Override
     @Transactional
     public ReservationPolicyScheduleResponse update(Long restaurantId, Long policyId, Long scheduleId, UpdateReservationPolicyScheduleRequest request) {
-        restaurantRepository.findById(restaurantId)
-                .orElseThrow(() -> new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND));
-
-        ReservationPolicy policy = reservationPolicyRepository.findByIdAndRestaurantId(policyId, restaurantId)
-                .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
-
-        ReservationPolicySchedule entity = reservationPolicyScheduleRepository.findByIdAndPolicyId(scheduleId, policyId)
-                .orElseThrow(() -> new BusinessException(PolicyErrorCode.SCHEDULE_NOT_FOUND));
-
-        validateSchedule(policy, request, null);
-
-        entity.setDayOfWeek(request.getDayOfWeek());
-        entity.setDateFrom(request.getDateFrom());
-        entity.setDateTo(request.getDateTo());
-        entity.setTimeFrom(request.getTimeFrom());
-        entity.setTimeTo(request.getTimeTo());
-        entity.setStatus(request.getStatus());
-
-        return reservationPolicyScheduleMapper.toResponse(reservationPolicyScheduleRepository.save(entity));
+//        restaurantRepository.findById(restaurantId)
+//                .orElseThrow(() -> new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND));
+//
+//        ReservationPolicy policy = reservationPolicyRepository.findByIdAndRestaurantId(policyId, restaurantId)
+//                .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
+//
+//        ReservationPolicySchedule entity = reservationPolicyScheduleRepository.findByIdAndPolicyId(scheduleId, policyId)
+//                .orElseThrow(() -> new BusinessException(PolicyErrorCode.SCHEDULE_NOT_FOUND));
+//
+//        validateSchedule(policy, request, null);
+//
+//        entity.setDayOfWeek(request.getDayOfWeek());
+//        entity.setDateFrom(request.getDateFrom());
+//        entity.setDateTo(request.getDateTo());
+//        entity.setTimeFrom(request.getTimeFrom());
+//        entity.setTimeTo(request.getTimeTo());
+//        entity.setStatus(request.getStatus());
+//
+//        return reservationPolicyScheduleMapper.toResponse(reservationPolicyScheduleRepository.save(entity));
+        return null ;
     }
 
     @Override
@@ -156,10 +157,10 @@ public class ReservationPolicyScheduleService implements IReservationPolicySched
                 if (exists) {
                     throw new BusinessException(PolicyErrorCode.POLICY_SCHEDULE_ALREADY_EXISTS);
             }
-
+}
             case DAY_OF_WEEK -> {
 
-                List<ReservationPolicySchedule> schedules2 = reservationPolicyScheduleRepository.findAllByPolicyIdOrderByIdAsc(policyId);
+                List<ReservationPolicySchedule> schedules = reservationPolicyScheduleRepository.findAllByPolicyIdOrderByIdAsc(policyId);
 
                 boolean duplicated = schedules.stream()
                         .filter(s -> excludeId == null || !s.getId().equals(excludeId))
