@@ -36,12 +36,6 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
-    <!-- Email (gui OTP xac thuc dang ky nha hang doi tac) -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-mail</artifactId>
-    </dependency>
-
     <!-- JPA / MySQL -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

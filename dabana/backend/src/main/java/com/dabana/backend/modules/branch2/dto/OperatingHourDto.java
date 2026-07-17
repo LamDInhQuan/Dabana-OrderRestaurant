@@ -7,7 +7,6 @@ import lombok.Data;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 
-@ValidOperatingHour(message = "Giờ kết thúc phải sau giờ bắt đầu")
 @Data
 public class OperatingHourDto {
     private Long id;
@@ -16,6 +15,7 @@ public class OperatingHourDto {
 
     private LocalTime openTime;
 
+    @ValidOperatingHour(message = "Giờ kết thúc phải sau giờ bắt đầu")
     private LocalTime closeTime;
 
     private String shiftName;

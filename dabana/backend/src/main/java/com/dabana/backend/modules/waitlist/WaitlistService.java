@@ -7,9 +7,9 @@
 //import com.dabana.backend.modules.booking.dto.BookingDtos;
 //import com.dabana.backend.modules.branch.Branch;
 //import com.dabana.backend.modules.branch.BranchRepository;
-//import com.dabana.backend.modules.diningtable.entity.DiningTable;
-//import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
-//import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+//import com.dabana.backend.modules.table_layout.RestaurantTable;
+//import com.dabana.backend.modules.table_layout.RestaurantTableRepository;
+//import com.dabana.backend.modules.table_layout.TableStatus;
 //import lombok.RequiredArgsConstructor;
 //import lombok.extern.slf4j.Slf4j;
 //import org.springframework.beans.factory.annotation.Value;

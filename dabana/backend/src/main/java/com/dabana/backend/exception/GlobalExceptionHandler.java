@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException ex) {
-        Map<String, Object> body = errorBody(ex.getErrorCode(), ex.getMessage() , ex.getErrorDetails() != null  ? ex.getErrorDetails() : null);
+        Map<String, Object> body = errorBody(ex.getErrorCode(), ex.getMessage() , ex.getErrorDetails());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -83,7 +83,7 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now());
         body.put("errorCode", code);
         body.put("message", message);
-        if (errorDetails != null && errorDetails.size() > 0) {
+        if (errorDetails.size() > 0) {
             body.put("errorDetails", errorDetails);
         }
 
