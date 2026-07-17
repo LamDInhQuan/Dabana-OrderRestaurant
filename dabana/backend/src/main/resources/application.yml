@@ -15,7 +15,10 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: none
+      # This project does not yet have versioned SQL migrations.  Keep the
+      # local MySQL schema in sync with the JPA entities so newly added admin
+      # fields/tables do not make every repository query fail with HTTP 500.
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:

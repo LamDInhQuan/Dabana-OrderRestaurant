@@ -15,8 +15,12 @@ import TableLayout      from './pages/partner/TableLayout'
 import ManageBookings   from './pages/partner/ManageBookings'
 import MenuManager      from './pages/partner/MenuManager'
 
-import AdminDashboard   from './pages/admin/AdminDashboard'
-import ApprovalPanel    from './pages/admin/ApprovalPanel'
+import AdminDashboard    from './pages/admin/AdminDashboard'
+import ApprovalPanel     from './pages/admin/ApprovalPanel'
+import UserManagement    from './pages/admin/UserManagement'
+import ReviewModeration  from './pages/admin/ReviewModeration'
+import CategoryManagement from './pages/admin/CategoryManagement'
+import Reports           from './pages/admin/Reports'
 
 function ProtectedRoute({ children, role }) {
   const { auth, isRole } = useAuth()
@@ -52,11 +56,19 @@ export default function App() {
         <Route path="/partner"
             element={<ProtectedRoute role="RESTAURANT_PARTNER"><PartnerDashboard /></ProtectedRoute>} />
 
-          {/* ===== Admin (B02 B03 B04 B15) ===== */}
+          {/* ===== Admin (B02 B03 B04 B15, F41, F43-F50) ===== */}
           <Route path="/admin"
             element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/approvals"
             element={<ProtectedRoute role="ADMIN"><ApprovalPanel /></ProtectedRoute>} />
+          <Route path="/admin/users"
+            element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
+          <Route path="/admin/reviews"
+            element={<ProtectedRoute role="ADMIN"><ReviewModeration /></ProtectedRoute>} />
+          <Route path="/admin/categories"
+            element={<ProtectedRoute role="ADMIN"><CategoryManagement /></ProtectedRoute>} />
+          <Route path="/admin/reports"
+            element={<ProtectedRoute role="ADMIN"><Reports /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
