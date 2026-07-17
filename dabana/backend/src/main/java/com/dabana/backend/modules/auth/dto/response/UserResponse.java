@@ -30,6 +30,8 @@ public class UserResponse {
 
     private String refreshToken;
 
+    private String role;
+
     public void setOtp(String otp) {
         this.otp = otp;
     }

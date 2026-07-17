@@ -10,12 +10,15 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/dabana_order_restaurant?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
     username: root
-    password: 
+    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: none
+      # This project does not yet have versioned SQL migrations.  Keep the
+      # local MySQL schema in sync with the JPA entities so newly added admin
+      # fields/tables do not make every repository query fail with HTTP 500.
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
@@ -26,6 +29,20 @@ spring:
     time-zone: Asia/Ho_Chi_Minh
     date-format: yyyy-MM-dd'T'HH:mm:ss
 
+  mail:
+      host: smtp.gmail.com
+      port: 587
+      username: thanhnd@itss.vn
+      password: "nivo vjlc biuy dbry"
+      properties:
+        mail:
+          smtp:
+            auth: true
+            starttls:
+              enable: true
+            connectiontimeout: 5000
+            timeout: 5000
+            writetimeout: 5000
 # JWT
 app:
   jwt:

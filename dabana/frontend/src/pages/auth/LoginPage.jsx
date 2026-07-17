@@ -16,12 +16,13 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data } = await authApi.login(form)
-      login(data)
-      toast.success(`Chào mừng, ${data.fullName}!`)
-      if (data.role === 'ADMIN')               navigate('/admin')
-      else if (data.role === 'RESTAURANT_PARTNER') navigate('/partner')
-      else                                      navigate('/')
+      const { data: res } = await authApi.login(form)
+      const userData = res.data
+      login(userData)
+      toast.success(`Chào mừng, ${userData.fullName}!`)
+      if (userData.role === 'ADMIN')               navigate('/admin')
+      else if (userData.role === 'RESTAURANT_PARTNER') navigate('/partner')
+      else                                          navigate('/')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Đăng nhập thất bại')
     } finally {
@@ -55,6 +56,24 @@ export default function LoginPage() {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
+        {/* --- Phần UI mới cho Google Login --- */}
+        {/* <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0' }}>
+          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }}></div>
+          <span style={{ margin: '0 10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>hoặc</span>
+          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }}></div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => toast.error('Lỗi kết nối với Google')}
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="rectangular"
+          />
+        </div> */}
+        {/* --------------------------------- */}
         <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '.87rem', color: 'var(--text-muted)' }}>
           Chưa có tài khoản? <Link to="/register" style={{ color: 'var(--brand)', fontWeight: 600 }}>Đăng ký ngay</Link>
         </p>

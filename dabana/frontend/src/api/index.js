@@ -5,9 +5,13 @@ const api = axios.create({ baseURL: '/api', timeout: 10000 })
 // Request interceptor: tự động đính kèm JWT vào header
 api.interceptors.request.use((config) => {
   const stored = localStorage.getItem('dabana_auth')
-  if (stored) {
-    const { accessToken } = JSON.parse(stored)
-    if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+  if (stored && stored !== 'undefined' && stored !== 'null') {
+    try {
+      const { accessToken } = JSON.parse(stored)
+      if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
+    } catch {
+      localStorage.removeItem('dabana_auth')
+    }
   }
   return config
 })
@@ -21,13 +25,16 @@ api.interceptors.response.use(
       original._retry = true
       try {
         const stored = localStorage.getItem('dabana_auth')
-        if (!stored) return Promise.reject(error)
+        if (!stored || stored === 'undefined' || stored === 'null') return Promise.reject(error)
 
-        const { refreshToken } = JSON.parse(stored)
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken })
-        const updated = { ...JSON.parse(stored), accessToken: data.accessToken }
+        const parsedAuth = JSON.parse(stored)
+        const { refreshToken } = parsedAuth
+        if (!refreshToken) return Promise.reject(error)
+        const { data: res } = await axios.post('/api/auth/refresh', { refreshToken })
+        const newAccessToken = res.data.accessToken
+        const updated = { ...parsedAuth, accessToken: newAccessToken }
         localStorage.setItem('dabana_auth', JSON.stringify(updated))
-        original.headers.Authorization = `Bearer ${data.accessToken}`
+        original.headers.Authorization = `Bearer ${newAccessToken}`
         return api(original)
       } catch {
         localStorage.removeItem('dabana_auth')
@@ -40,19 +47,20 @@ api.interceptors.response.use(
 
 // ===== Auth API =====
 export const authApi = {
-  register:  (data) => api.post('/auth/register', data),
+  register:  (data) => api.post('/auth/register/customer', data),
   login:     (data) => api.post('/auth/login', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
+  resendOtp: (data) => api.post('/auth/resend-otp', data),
   refresh:   (data) => api.post('/auth/refresh', data),
 }
 
 // ===== Branch/Restaurant API =====
 export const branchApi = {
-  search:    (params) => api.get('/branches', { params }),
-  getById:   (id)     => api.get(`/branches/${id}`),
-  getMyList: ()       => api.get('/branches/me'),
-  create:    (data)   => api.post('/branches/me', data),
-  update:    (id, d)  => api.put(`/branches/me/${id}`, d),
+  search:    (params) => api.get('/branchs', { params }),
+  getById:   (id)     => api.get(`/branchs/${id}`),
+  getMyList: ()       => api.get('/branchs/me'),
+  create:    (data)   => api.post('/branchs/me', data),
+  update:    (id, d)  => api.put(`/branchs/me/${id}`, d),
 }
 
 // ===== Table Layout API (B07/B08) =====
@@ -84,10 +92,12 @@ export const bookingApi = {
 
 // ===== Menu API (B06) =====
 export const menuApi = {
-  getByBranch:   (bid)    => api.get(`/menu-items/branch/${bid}`),
-  create:        (data)   => api.post('/menu-items/manage', data),
-  update:        (id, d)  => api.put(`/menu-items/manage/${id}`, d),
-  updateStatus:  (id, s)  => api.patch(`/menu-items/manage/${id}/status`, { status: s }),
+  getByBranch:    (bid)     => api.get(`/menu/branches/${bid}`),
+  createCategory: (data)    => api.post('/menu/categories', data),
+  createItem:     (data)    => api.post('/menu/items', data),
+  updateItem:     (id, d)   => api.put(`/menu/items/${id}`, d),
+  updateStatus:   (id, s)   => api.patch(`/menu/items/${id}/status`, { status: s }),
+  deleteItem:     (id)      => api.delete(`/menu/items/${id}`),
 }
 
 // ===== Waitlist API (B10) =====
@@ -110,13 +120,45 @@ export const notificationApi = {
 
 // ===== Admin API =====
 export const adminApi = {
+  // F43/B02-B04: phê duyệt
   pendingUsers:       ()        => api.get('/admin/users/pending'),
   approveUser:        (id, d)   => api.post(`/admin/users/${id}/approve`, d),
   pendingRestaurants: ()        => api.get('/admin/restaurants/pending'),
   approveRestaurant:  (id, d)   => api.post(`/admin/restaurants/${id}/approve`, d),
   pendingBranches:    ()        => api.get('/admin/branches/pending'),
   approveBranch:      (id, d)   => api.post(`/admin/branches/${id}/approve`, d),
+
+  // F44: quản lý tài khoản người dùng toàn hệ thống
+  searchUsers:        (params)  => api.get('/admin/users', { params }),
+  getUserDetail:      (id)      => api.get(`/admin/users/${id}`),
+  lockUser:           (id, d)   => api.post(`/admin/users/${id}/lock`, d),
+
+  // F43 mở rộng: xem toàn bộ nhà hàng / chi nhánh
+  searchRestaurants:  (params)  => api.get('/admin/restaurants', { params }),
+  searchBranches:     (params)  => api.get('/admin/branches', { params }),
+
+  // F41: kiểm duyệt đánh giá
+  listReviews:        (params)  => api.get('/admin/reviews', { params }),
+  hideReview:         (id, d)   => api.post(`/admin/reviews/${id}/hide`, d),
+  unhideReview:       (id)      => api.post(`/admin/reviews/${id}/unhide`),
+  deleteReview:       (id)      => api.delete(`/admin/reviews/${id}`),
+
+  // F45: danh mục hệ thống
+  listCategories:     (type)    => api.get('/admin/categories', { params: { type } }),
+  createCategory:     (d)       => api.post('/admin/categories', d),
+  updateCategory:     (id, d)   => api.put(`/admin/categories/${id}`, d),
+  deleteCategory:     (id)      => api.delete(`/admin/categories/${id}`),
+
+  // F46: giám sát hoạt động
+  recentActivity:     (limit)   => api.get('/admin/activity/recent', { params: { limit } }),
+
+  // F47-F49: thống kê & báo cáo
   platformSummary:    ()        => api.get('/admin/statistics/platform/summary'),
+  revenueByRestaurant:()        => api.get('/admin/statistics/revenue-by-restaurant'),
+  bookingsDaily:      (days)    => api.get('/admin/statistics/bookings-daily', { params: { days } }),
+
+  // F50: xuất báo cáo
+  exportReportUrl:    (type)    => `/api/admin/reports/export?type=${type}`,
 }
 
 export default api
