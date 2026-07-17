@@ -15,7 +15,7 @@ import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
-import com.dabana.backend.modules.restaurant.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.RestaurantRepository;
 import com.dabana.backend.modules.review.Review;
 import com.dabana.backend.modules.review.ReviewRepository;
@@ -172,8 +172,8 @@ public class AdminController {
     // ======================================================
     @GetMapping("/restaurants/pending")
     public ResponseEntity<List<Restaurant>> listPendingRestaurants() {
-        List<Restaurant> pending = new ArrayList<>(restaurantRepository.findByStatus(ApprovalStatus.PENDING));
-        pending.addAll(restaurantRepository.findByStatus(ApprovalStatus.PENDING_UPDATE));
+        List<Restaurant> pending = new ArrayList<>(restaurantRepository.findByApprovalStatus(ApprovalStatus.PENDING));
+        pending.addAll(restaurantRepository.findByApprovalStatus(ApprovalStatus.PENDING_UPDATE));
         return ResponseEntity.ok(pending);
     }
 
@@ -185,7 +185,7 @@ public class AdminController {
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Restaurant> result = status != null
-                ? restaurantRepository.findByStatus(status, pageable)
+                ? restaurantRepository.findByApprovalStatus(status, pageable)
                 : restaurantRepository.searchByKeyword(blankToNull(keyword), pageable);
         return ResponseEntity.ok(result);
     }
@@ -197,19 +197,20 @@ public class AdminController {
                 .orElseThrow(() -> new BusinessException(AdminErrorCode.RESTAURANT_NOT_FOUND));
 
         if (Boolean.TRUE.equals(req.getApproved())) {
-            restaurant.setStatus(ApprovalStatus.APPROVED);
-            restaurant.setRejectionReason(null);
-            if (restaurant.getPendingLogoUrl() != null) {
-                restaurant.setLogoUrl(restaurant.getPendingLogoUrl());
-                restaurant.setPendingLogoUrl(null);
-            }
-            if (restaurant.getPendingDescription() != null) {
-                restaurant.setDescription(restaurant.getPendingDescription());
-                restaurant.setPendingDescription(null);
-            }
+            restaurant.setApprovalStatus(ApprovalStatus.APPROVED);
+            
+            //lúc đăng ký đã có logo với mô tả r ko cần phải update lại 
+            // if (restaurant.getLogoUrl() != null) {
+            //     restaurant.setLogoUrl(restaurant.getPendingLogoUrl());
+                
+            // }
+            // if (restaurant.getPendingDescription() != null) {
+            //     restaurant.setDescription(restaurant.getPendingDescription());
+            //     restaurant.setPendingDescription(null);
+            // }
         } else {
-            restaurant.setStatus(ApprovalStatus.REJECTED);
-            restaurant.setRejectionReason(req.getReason());
+            restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
+            // restaurant.setRejectionReason(req.getReason());
         }
 
         return ResponseEntity.ok(restaurantRepository.save(restaurant));
@@ -357,7 +358,7 @@ public class AdminController {
 
         restaurantRepository.findAll(PageRequest.of(0, limit, Sort.by("createdAt").descending()))
                 .forEach(r -> events.add(activityEvent("RESTAURANT_SUBMITTED", r.getCreatedAt(),
-                        "Nhà hàng \"" + r.getBrandName() + "\" nộp hồ sơ (" + r.getStatus() + ")")));
+                        "Nhà hàng \"" + r.getRestaurantName() + "\" nộp hồ sơ (" + r.getApprovalStatus() + ")")));
 
         branchRepository.findAll(PageRequest.of(0, limit, Sort.by("createdAt").descending()))
                 .forEach(b -> events.add(activityEvent("BRANCH_SUBMITTED", b.getCreatedAt(),
@@ -397,7 +398,7 @@ public class AdminController {
         summary.put("totalReviews", reviewRepository.count());
 
         summary.put("pendingUserApprovals", userRepository.countByStatus(AccountStatus.PENDING_ADMIN.getStatus()));
-        summary.put("pendingRestaurantApprovals", restaurantRepository.countByStatus(ApprovalStatus.PENDING));
+        summary.put("pendingRestaurantApprovals", restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
         summary.put("pendingBranchApprovals", branchRepository.countByApprovalStatus(ApprovalStatus.PENDING));
         summary.put("hiddenReviews", reviewRepository.countByHidden(true));
 
@@ -442,7 +443,7 @@ public class AdminController {
             }
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("restaurantId", restaurant.getId());
-            row.put("restaurantName", restaurant.getBrandName());
+            row.put("restaurantName", restaurant.getRestaurantName());
             row.put("branchCount", branches.size());
             row.put("completedBookings", completedBookings);
             row.put("revenue", revenue);
@@ -487,10 +488,10 @@ public class AdminController {
 
         switch (type) {
             case "restaurants" -> {
-                writer.println("ID,Ten nha hang,Loai am thuc,Trang thai,Ngay tao");
+                writer.println("ID,Ten nha hang,Trang thai,Ngay tao");
                 for (Restaurant r : restaurantRepository.findAll()) {
-                    writer.println(csvRow(r.getId(), r.getBrandName(), r.getCuisineType(),
-                            r.getStatus(), r.getCreatedAt() == null ? "" : r.getCreatedAt().format(fmt)));
+                    writer.println(csvRow(r.getId(), r.getRestaurantName(), 
+                            r.getApprovalStatus(), r.getCreatedAt() == null ? "" : r.getCreatedAt().format(fmt)));
                 }
             }
             case "revenue" -> {
