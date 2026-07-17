@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { authApi } from '../../api'
+
+const RESEND_COOLDOWN_SECONDS = 60
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -9,6 +11,15 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [step, setStep]   = useState('form') // form | otp
   const [otp, setOtp]     = useState('')
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resending, setResending] = useState(false)
+
+  // Đếm ngược cho phép gửi lại OTP
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setInterval(() => setResendCooldown(s => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(timer)
+  }, [resendCooldown])
 
   const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }))
 
@@ -18,8 +29,9 @@ export default function RegisterPage() {
     try {
       await authApi.register(form)
       if (form.role === 'RESTAURANT_PARTNER') {
-        toast.success('Đăng ký thành công! Vui lòng nhập mã OTP được gửi về email/SĐT.')
+        toast.success('Đăng ký thành công! Mã OTP đã được gửi đến email của bạn.')
         setStep('otp')
+        setResendCooldown(RESEND_COOLDOWN_SECONDS)
       } else {
         toast.success('Đăng ký thành công! Bạn có thể đăng nhập ngay.')
         navigate('/login')
@@ -46,12 +58,27 @@ export default function RegisterPage() {
     }
   }
 
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || resending) return
+    setResending(true)
+    try {
+      const identifier = form.email || form.phone
+      await authApi.resendOtp({ identifier })
+      toast.success('Đã gửi lại mã OTP, vui lòng kiểm tra email.')
+      setResendCooldown(RESEND_COOLDOWN_SECONDS)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gửi lại OTP thất bại')
+    } finally {
+      setResending(false)
+    }
+  }
+
   if (step === 'otp') return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="card" style={{ width: '100%', maxWidth: 380 }}>
         <h2 style={{ marginBottom: '1rem' }}>Xác thực OTP</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '.9rem' }}>
-          Mã OTP đã được gửi đến <strong>{form.email || form.phone}</strong>. Hiệu lực 5 phút.
+          Mã OTP đã được gửi đến email <strong>{form.email || form.phone}</strong>. Vui lòng kiểm tra hộp thư đến (và cả mục Spam). Mã có hiệu lực 5 phút.
         </p>
         <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
           <input value={otp} onChange={e => setOtp(e.target.value)} placeholder="Nhập mã 6 số" maxLength={6} required />
@@ -59,6 +86,22 @@ export default function RegisterPage() {
             {loading ? 'Đang xác thực...' : 'Xác nhận OTP'}
           </button>
         </form>
+        <button
+          type="button"
+          onClick={handleResendOtp}
+          disabled={resendCooldown > 0 || resending}
+          style={{
+            marginTop: '.9rem', width: '100%', background: 'none', border: 'none',
+            color: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--brand)',
+            fontWeight: 600, fontSize: '.85rem', cursor: resendCooldown > 0 ? 'default' : 'pointer',
+          }}
+        >
+          {resending
+            ? 'Đang gửi lại...'
+            : resendCooldown > 0
+              ? `Gửi lại mã sau ${resendCooldown}s`
+              : 'Không nhận được email? Gửi lại mã OTP'}
+        </button>
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 package com.dabana.backend.modules.reservation_policy.dto.response;
 
 import com.dabana.backend.modules.reservation_policy.util.DepositType;
+import com.dabana.backend.modules.reservation_policy.util.PolicyApplyType;
 import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,16 +21,16 @@ public class BranchPolicyResponse {
 
     private Long policyId;
 
+    private String policyCode;
+
     private String policyName;
 
-    private DepositType depositType;
-
-    private BigDecimal depositAmount;
-
-    private LocalDateTime effectiveFrom;
-
-    private LocalDateTime effectiveTo;
+    private Integer priority;
 
     private PolicyStatus status;
+
+    private Boolean hasDepositOverride;
+
+    private Boolean hasScheduleOverride;
 
 }

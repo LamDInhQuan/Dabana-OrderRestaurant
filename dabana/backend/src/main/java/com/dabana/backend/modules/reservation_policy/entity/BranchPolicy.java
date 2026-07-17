@@ -2,42 +2,50 @@ package com.dabana.backend.modules.reservation_policy.entity;
 
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.branch2.entity.Branch;
-import com.dabana.backend.modules.reservation_policy.util.DepositType;
 import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
-import com.dabana.backend.modules.restaurant.Restaurant;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
-@Table(name = "rt_branch_policies")
+@Table(
+        name = "rt_branch_policies",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_branch_policy",
+                        columnNames = {"branch_id", "policy_id"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BranchPolicy extends BaseEntity{
+public class BranchPolicy extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id")
+    @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "policy_id")
+    @JoinColumn(name = "policy_id", nullable = false)
     private ReservationPolicy policy;
 
-    @Enumerated(EnumType.STRING)
-    private DepositType depositType;
-
-    private BigDecimal depositAmount;
-
-    private LocalDateTime effectiveFrom;
-
-    private LocalDateTime effectiveTo;
+    @Column(nullable = false)
+    private Integer priority;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private PolicyStatus status;
 
+    @OneToMany(mappedBy = "branchPolicy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<BranchPolicyDepositRule> depositRules = new HashSet<>();
+
+    @OneToMany(mappedBy = "branchPolicy", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<BranchPolicySchedule> schedules = new HashSet<>();
 }

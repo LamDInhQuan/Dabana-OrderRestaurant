@@ -2,6 +2,7 @@ package com.dabana.backend.modules.reservation_policy.service;
 
 import com.dabana.backend.modules.reservation_policy.dto.request.CreateReservationPolicyRequest;
 import com.dabana.backend.modules.reservation_policy.dto.request.UpdateReservationPolicyRequest;
+import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyDetailResponse;
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyResponse;
 
 import java.util.List;
@@ -18,7 +19,7 @@ public interface IReservationPolicyService {
             UpdateReservationPolicyRequest request
     );
 
-    ReservationPolicyResponse getDetail(
+    ReservationPolicyDetailResponse getDetail(
             Long restaurantId,
             Long policyId
     );

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import Navbar from '../../components/Navbar'
+import AdminLayout from './AdminLayout'
 import { adminApi } from '../../api'
 
 function ApprovalCard({ item, type, onApprove, onReject }) {
@@ -53,7 +53,13 @@ export default function ApprovalPanel() {
 
   const load = () => {
     setLoading(true)
-    loaders[tab]().then(r => { setData(r.data || []); setLoading(false) })
+    loaders[tab]()
+      .then(r => setData(r.data || []))
+      .catch((err) => {
+        setData([])
+        toast.error(err.response?.data?.message || 'Không thể tải danh sách chờ duyệt')
+      })
+      .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [tab])
 
@@ -85,40 +91,35 @@ export default function ApprovalPanel() {
   ]
 
   return (
-    <>
-      <Navbar />
-      <div className="page-container" style={{ padding: '2rem 1rem' }}>
-        <h1 style={{ fontWeight: 800, fontSize: '1.4rem', marginBottom: '1.5rem' }}>Phê duyệt nội dung</h1>
-
-        {/* Tabs */}
-        <div className="flex gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {TABS.map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)}
-              style={{ padding: '.5rem 1rem', borderRadius: 99, fontWeight: 600, fontSize: '.85rem',
-                background: tab === k ? 'var(--brand)' : 'var(--white)',
-                color: tab === k ? '#fff' : 'var(--text-muted)',
-                border: '1.5px solid', borderColor: tab === k ? 'var(--brand)' : 'var(--border)' }}>
-              {l}
-            </button>
-          ))}
-        </div>
-
-        {loading ? <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p>
-          : data.length === 0
-            ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>✅</div>
-                <p>Không có mục nào chờ phê duyệt.</p>
-              </div>
-            : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {data.map(item => (
-                  <ApprovalCard key={item.id} item={item} type={tab}
-                    onApprove={approve} onReject={reject} />
-                ))}
-              </div>
-            )
-        }
+    <AdminLayout title="Phê duyệt nội dung" subtitle="F43 · B02–B04: xét duyệt hồ sơ đối tác, nhà hàng và chi nhánh">
+      {/* Sub-tabs */}
+      <div className="flex gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        {TABS.map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)}
+            style={{ padding: '.5rem 1rem', borderRadius: 99, fontWeight: 600, fontSize: '.85rem',
+              background: tab === k ? 'var(--brown-mid)' : 'var(--cream-dark)',
+              color: tab === k ? '#fff' : 'var(--text-muted)',
+              border: '1.5px solid', borderColor: tab === k ? 'var(--brown-mid)' : 'var(--border)' }}>
+            {l}
+          </button>
+        ))}
       </div>
-    </>
+
+      {loading ? <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p>
+        : data.length === 0
+          ? <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>✅</div>
+              <p>Không có mục nào chờ phê duyệt.</p>
+            </div>
+          : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {data.map(item => (
+                <ApprovalCard key={item.id} item={item} type={tab}
+                  onApprove={approve} onReject={reject} />
+              ))}
+            </div>
+          )
+      }
+    </AdminLayout>
   )
 }
