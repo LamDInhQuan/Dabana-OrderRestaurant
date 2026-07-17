@@ -3,7 +3,8 @@ package com.dabana.backend.modules.reservation_policy.entity;
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.reservation_policy.util.PolicyScheduleType;
 import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
-import com.dabana.backend.modules.restaurant.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.Restaurant;
+
 import jakarta.persistence.*;
 import lombok.*;
 
