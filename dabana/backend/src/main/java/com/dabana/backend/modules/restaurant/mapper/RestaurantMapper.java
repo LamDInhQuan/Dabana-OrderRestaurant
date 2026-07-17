@@ -5,22 +5,37 @@ import org.springframework.stereotype.Component;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.Dto.OwnerDto;
-import com.dabana.backend.modules.restaurant.Dto.RestaurantResponse;
-import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRequest;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
+import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 
 @Component
 public class RestaurantMapper {
-    public Restaurant toEntity(RestaurantRequest request) {
+
+    public Restaurant toEntity(RestaurantRegisterRequest request) {
         Restaurant restaurant = new Restaurant();
 
-        restaurant.setBrandName(request.getBrandName());
+        restaurant.setRestaurantName(request.getRestaurantName());
         restaurant.setLogoUrl(request.getLogoUrl());
         restaurant.setDescription(request.getDescription());
-        restaurant.setCuisineType(request.getCuisineType());
-        restaurant.setStatus(restaurant.getStatus());
+        restaurant.setEmail(request.getEmail());
+        restaurant.setPhone(request.getPhone());
+        restaurant.setWebsite(request.getWebsite());
         return restaurant;
     }
+    public Restaurant toEntity(RestaurantUpdateRequest request) {
+        Restaurant restaurant = new Restaurant();
+
+        restaurant.setRestaurantName(request.getRestaurantName());
+        restaurant.setLogoUrl(request.getLogoUrl());
+        restaurant.setDescription(request.getDescription());
+        restaurant.setEmail(request.getEmail());
+        restaurant.setPhone(request.getPhone());
+        restaurant.setWebsite(request.getWebsite());
+        return restaurant;
+    }
+
     public RestaurantResponse toResponse(Restaurant restaurant) {
         RestaurantResponse response = new RestaurantResponse();
         User user = restaurant.getOwner();
@@ -33,10 +48,9 @@ public class RestaurantMapper {
         ownerdto.setFullName(user.getFullName());
 
         response.setOwner(ownerdto);
-        response.setBrandName(restaurant.getBrandName());
+        response.setRestaurantName(restaurant.getRestaurantName());
         response.setLogoUrl(restaurant.getLogoUrl());
         response.setDescription(restaurant.getDescription());
-        response.setCuisineType(restaurant.getCuisineType());
        
         return response;    
     }

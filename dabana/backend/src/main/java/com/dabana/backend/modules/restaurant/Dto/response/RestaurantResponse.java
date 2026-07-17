@@ -1,7 +1,8 @@
-package com.dabana.backend.modules.restaurant.Dto;
+package com.dabana.backend.modules.restaurant.Dto.response;
 
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
+import com.dabana.backend.modules.restaurant.Dto.OwnerDto;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Enumerated;
@@ -14,7 +15,7 @@ public class RestaurantResponse {
 
     private OwnerDto owner; 
 
-    private String brandName;
+    private String restaurantName;
 
     private String logoUrl;
 
@@ -22,7 +23,7 @@ public class RestaurantResponse {
     private String description;
 
 
-    private String cuisineType; 
+  
 
 
 }

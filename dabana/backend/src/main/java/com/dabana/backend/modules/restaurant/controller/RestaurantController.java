@@ -9,8 +9,9 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
-import com.dabana.backend.modules.restaurant.Dto.RestaurantResponse;
-import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRequest;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
+import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.security.CustomUserDetail;
@@ -48,7 +49,7 @@ public class RestaurantController {
 
      }
      @PostMapping
-     public ResponseEntity<ApiResponse<RestaurantResponse>> RegisterRestaurant(@RequestBody RestaurantRequest request) {
+     public ResponseEntity<ApiResponse<RestaurantResponse>> RegisterRestaurant(@RequestBody RestaurantRegisterRequest request) {
           User owner = getLoggedOwner();
           return ResponseEntity.ok(
                     ResponseBuilder.
@@ -56,7 +57,7 @@ public class RestaurantController {
 
    }
      @PutMapping
-     public ResponseEntity<ApiResponse<RestaurantResponse>> UpdateRestaurant(@RequestBody RestaurantRequest request) {
+     public ResponseEntity<ApiResponse<RestaurantResponse>> UpdateRestaurant(@RequestBody RestaurantUpdateRequest request) {
           User owner = getLoggedOwner();  
           return ResponseEntity.ok(
                     ResponseBuilder.
