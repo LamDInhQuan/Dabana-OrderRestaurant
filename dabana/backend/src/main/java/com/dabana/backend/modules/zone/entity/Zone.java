@@ -1,32 +1,34 @@
-package com.dabana.backend.modules.table_layout;
+package com.dabana.backend.modules.zone.entity;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.branch.BranchOperatingStatus;
 import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * B07 Buoc 1: Khu vuc phuc vu (Trong nha, Ngoai troi, VIP, San vuon...).
- */
+import java.util.ArrayList;
+import java.util.List;
+
 @Getter
 @Setter
 @Entity
 @Table(name = "rt_layout_zones")
 public class Zone extends BaseEntity {
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
 
     @NotBlank
-    @Column(nullable = false, length = 100)
-    private String name;
+    @Column(name = "zone_name", nullable = false, length = 100)
+    private String zoneName;
 
-    @Column(length = 500)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    private Boolean active = true; // B07 AF02: tam ngung khu vuc
+    @OneToMany(mappedBy = "zone")
+    @OrderBy("id ASC")
+    private List<DiningTable> tables = new ArrayList<>();
 }
