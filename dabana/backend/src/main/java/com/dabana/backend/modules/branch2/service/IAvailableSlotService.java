@@ -16,4 +16,11 @@ public interface IAvailableSlotService {
             Long branchId,
             OperatingDay operatingDay) ;
 
+    List<OperatingPeriod> applyCloseTimeRange(
+            List<OperatingPeriod> periods,
+            List<BranchScheduleException> exceptions) ;
+
+    List<OperatingPeriod> applyAddTimeRange(
+            List<OperatingPeriod> periods,
+            List<BranchScheduleException> exceptions) ;
 }

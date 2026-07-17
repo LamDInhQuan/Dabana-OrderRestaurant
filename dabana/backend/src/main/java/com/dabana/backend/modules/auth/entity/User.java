@@ -40,9 +40,6 @@ public class User extends BaseEntity {
     @Column(name = "notification_preferences", columnDefinition = "LONGTEXT")
     private String notificationPreferences;
 
-      @Column(name = "status_reason", length = 500)
-    private String statusReason;
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserRole> userRoles = new HashSet<>();
 

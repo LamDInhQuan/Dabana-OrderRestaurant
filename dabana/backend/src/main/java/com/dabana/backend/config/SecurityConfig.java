@@ -65,16 +65,14 @@ public class SecurityConfig {
                 // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
                 .requestMatchers("/api/auth/**").permitAll()
 
-                // B03/B04: quan ly ho so & chi nhanh - chi nha hang doi tac
-                // (phai khai bao TRUOC rule permitAll ben duoi, vi Spring Security
-                //  khop rule theo thu tu khai bao - rule dau tien khop se duoc ap dung)
-                .requestMatchers("/api/restaurants/me/**", "/api/branchs/me/**")
-                    .hasRole("RESTAURANT_PARTNER")
-
                 // Tim kiem & xem nha hang/chi nhanh - cong khai (B01 buoc 1-2)
-                .requestMatchers("GET", "/api/restaurants/**", "/api/branchs/**").permitAll()
+                .requestMatchers("GET", "/api/restaurants/**", "/api/branches/**").permitAll()
                 .requestMatchers("GET", "/api/menu-items/branch/**").permitAll()
                 .requestMatchers("GET", "/api/reviews/branch/**").permitAll()
+
+                // B03/B04: quan ly ho so & chi nhanh - chi nha hang doi tac
+                .requestMatchers("/api/restaurants/me/**", "/api/branches/**")
+                    .hasRole("CUSTOMER")
 
                 // B05/B06/B07: chinh sach, thuc don, so do ban - nha hang doi tac
                 .requestMatchers("/api/policies/**", "/api/menu-items/manage/**",
@@ -82,14 +80,7 @@ public class SecurityConfig {
                     .hasRole("RESTAURANT_PARTNER")
                 .requestMatchers(HttpMethod.POST, "/api/menu/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/menu/**").permitAll()
-                .requestMatchers(HttpMethod.PUT, "/api/menu/**").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/api/menu/**").permitAll()
-                .requestMatchers(HttpMethod.PATCH, "/api/menu/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/zones/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/zones/**").permitAll()
-                .requestMatchers(HttpMethod.PUT, "/api/zones/**").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/api/zones/**").permitAll()
-                // .requestMatchers(HttpMethod.PATCH, "/api/zones/**").permitAll()
+
 
                 // B08: cap nhat trang thai ban (check-in/out) - nha hang doi tac
                 .requestMatchers("/api/tables/*/status", "/api/bookings/*/check-in",

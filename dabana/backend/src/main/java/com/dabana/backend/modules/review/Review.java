@@ -50,12 +50,4 @@ public class Review extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String comment;
-
-    /** F41: Quan tri vien kiem duyet, an danh gia ao/vi pham thay vi xoa cung. */
-    @Column(nullable = false)
-    private Boolean hidden = false;
-
-    /** F41/F42: ly do bi an (khi quan tri vien kiem duyet) hoac bi bao cao. */
-    @Column(length = 500)
-    private String moderationNote;
 }
