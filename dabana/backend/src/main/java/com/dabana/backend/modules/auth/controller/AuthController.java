@@ -5,7 +5,9 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
+import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
+import com.dabana.backend.modules.auth.dto.request.ResendOtpRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
@@ -38,15 +40,23 @@ public class AuthController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
     }
 
+    /** Gui lai OTP qua email khi ma cu het han hoac chua nhan duoc email. */
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<Boolean>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        Boolean result = authService.resendOtp(request.getIdentifier());
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
+
     //
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<UserResponse>> login(@Valid @RequestBody LoginRequest request) {
         UserResponse result = authService.login(request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
     }
-//
-//    @PostMapping("/refresh")
-//    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-//        return ResponseEntity.ok(authService.refresh(request));
-//    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<UserResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        UserResponse result = authService.refresh(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
 }

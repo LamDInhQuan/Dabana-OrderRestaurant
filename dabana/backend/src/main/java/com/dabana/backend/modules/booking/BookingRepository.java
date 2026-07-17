@@ -38,4 +38,31 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     boolean existsByTableIdAndReservationTimeAndStatusIn(
             Long tableId, LocalDateTime reservationTime, List<BookingStatus> statuses);
+
+    // ======================================================
+    // F47/F48/F49: Thong ke & bao cao (Quan tri vien)
+    // ======================================================
+
+    long countByStatus(BookingStatus status);
+
+    List<Booking> findByCreatedAtAfter(LocalDateTime from);
+
+    /** F47: doanh thu (tam tinh tu tien coc) theo chi nhanh, don da hoan tat. */
+    @Query("""
+        SELECT b.branch.id, COALESCE(SUM(b.snapshotDepositAmount), 0), COUNT(b)
+        FROM Booking b
+        WHERE b.status = 'COMPLETED'
+        GROUP BY b.branch.id
+        """)
+    List<Object[]> sumDepositRevenueByBranch();
+
+    /** F48: thong ke luot dat ban theo ngay trong khoang thoi gian. */
+    @Query("""
+        SELECT FUNCTION('DATE', b.createdAt), COUNT(b)
+        FROM Booking b
+        WHERE b.createdAt >= :from
+        GROUP BY FUNCTION('DATE', b.createdAt)
+        ORDER BY FUNCTION('DATE', b.createdAt)
+        """)
+    List<Object[]> countBookingsPerDaySince(@Param("from") LocalDateTime from);
 }
