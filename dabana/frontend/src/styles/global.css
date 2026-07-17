@@ -111,6 +111,9 @@ input:focus, select:focus, textarea:focus {
 
 .page-container { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
 
+/* Offset fixed navbar (height 70px) so page content is clickable */
+.page-with-navbar { padding-top: calc(70px + 1.5rem) !important; }
+
 /* Flex helpers */
 .flex           { display: flex; }
 .flex-col       { display: flex; flex-direction: column; }
