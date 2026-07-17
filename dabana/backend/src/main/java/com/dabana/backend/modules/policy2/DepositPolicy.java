@@ -1,8 +1,6 @@
-package com.dabana.backend.modules.policy;
+package com.dabana.backend.modules.policy2;
 
 import com.dabana.backend.common.BaseEntity;
-import com.dabana.backend.modules.branch.BranchOperatingStatus;
-import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

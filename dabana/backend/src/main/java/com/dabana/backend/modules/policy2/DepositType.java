@@ -1,4 +1,4 @@
-package com.dabana.backend.modules.policy;
+package com.dabana.backend.modules.policy2;
 
 public enum DepositType {
     FIXED_AMOUNT,  // So tien co dinh

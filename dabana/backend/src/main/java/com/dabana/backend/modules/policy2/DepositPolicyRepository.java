@@ -1,4 +1,4 @@
-package com.dabana.backend.modules.policy;
+package com.dabana.backend.modules.policy2;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
