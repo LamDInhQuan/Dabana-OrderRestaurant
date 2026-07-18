@@ -1,4 +1,4 @@
-package com.dabana.backend.modules.booking;
+package com.dabana.backend.modules.booking.entity;
 
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;

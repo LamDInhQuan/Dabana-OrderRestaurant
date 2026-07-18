@@ -95,7 +95,8 @@ public class SecurityConfig {
                     .hasAnyRole("RESTAURANT_PARTNER", "ADMIN")
 
                 // B01: dat ban - khach hang da dang nhap
-                .requestMatchers("/api/bookings/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER", "ADMIN")
+                .requestMatchers("/api/bookings/**", "/api/reservations/**")
+                    .hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER", "ADMIN")
 
                 // B10: hang cho
                 .requestMatchers("/api/waitlists/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER")

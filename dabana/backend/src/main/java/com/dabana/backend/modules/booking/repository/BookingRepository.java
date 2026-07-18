@@ -1,5 +1,7 @@
-package com.dabana.backend.modules.booking;
+package com.dabana.backend.modules.booking.repository;
 
+import com.dabana.backend.modules.booking.entity.Booking;
+import com.dabana.backend.modules.booking.util.BookingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,7 +11,7 @@ import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    List<Booking> findByCustomerIdOrderByReservationTimeDesc(Long customerId);
+    List<Booking> findByUserIdOrderByReservationTimeDesc(Long userId);
 
     List<Booking> findByBranchIdAndStatus(Long branchId, BookingStatus status);
 
@@ -47,6 +49,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         """)
     boolean existsByTableIdAndReservationTimeAndStatusIn(
             @Param("tableId") Long tableId,
+            @Param("reservationTime") LocalDateTime reservationTime,
+            @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("""
+        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        FROM Booking b
+        JOIN b.bookingTables bt
+        JOIN bt.diningTable dt
+        WHERE dt.id IN :tableIds
+        AND b.reservationTime = :reservationTime
+        AND b.status IN :statuses
+        """)
+    boolean existsByTableIdInAndReservationTimeAndStatusIn(
+            @Param("tableIds") List<Long> tableIds,
             @Param("reservationTime") LocalDateTime reservationTime,
             @Param("statuses") List<BookingStatus> statuses);
 

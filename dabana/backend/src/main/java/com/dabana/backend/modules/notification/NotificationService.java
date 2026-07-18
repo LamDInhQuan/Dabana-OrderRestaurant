@@ -2,9 +2,9 @@ package com.dabana.backend.modules.notification;
 
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
-import com.dabana.backend.modules.booking.Booking;
-import com.dabana.backend.modules.booking.BookingRepository;
-import com.dabana.backend.modules.booking.BookingStatus;
+import com.dabana.backend.modules.booking.entity.Booking;
+import com.dabana.backend.modules.booking.repository.BookingRepository;
+import com.dabana.backend.modules.booking.util.BookingStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -136,8 +136,8 @@ public class NotificationService {
                     booking.getReservationTime(),
                     resolveTableLabel(booking));
 
-            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
-            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "EMAIL");
+            sendImmediate(booking.getUser(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
+            sendImmediate(booking.getUser(), NotificationType.BOOKING_REMINDER, content, "EMAIL");
 
             booking.setReminderSent(true);
             bookingRepository.save(booking);

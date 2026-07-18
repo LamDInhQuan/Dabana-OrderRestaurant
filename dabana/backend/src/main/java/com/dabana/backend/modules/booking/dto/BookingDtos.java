@@ -1,7 +1,8 @@
 package com.dabana.backend.modules.booking.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
@@ -12,40 +13,32 @@ import java.util.List;
 
 public class BookingDtos {
 
-    /** B01 Buoc 3-7: tao yeu cau giu ban tam thoi */
     @Data
-    public static class CreateHoldRequest {
+    public static class ReservationHoldRequest {
+        @JsonProperty("branch_id")
         @NotNull
         private Long branchId;
 
+        @JsonProperty("reservation_time")
         @NotNull
-        private Long tableId; // null neu dung AF01 "goi y ban"
+        private LocalDateTime reservationTime;
 
+        @JsonProperty("guest_count")
         @NotNull
         @Min(1)
         private Integer guestCount;
 
-        @NotNull
-        private LocalDateTime reservationTime;
-
-        private Boolean useAutoSuggest = false; // AF01
+        @JsonProperty("table_ids")
+        @NotEmpty
+        private List<Long> tableIds;
     }
 
-    /** B01 Buoc 4: nhap thong tin lien he */
-    @Data
-    public static class ContactInfoRequest {
-        @NotBlank
-        private String contactName;
-        @NotBlank
-        private String contactPhone;
-        private String note;
-    }
-
-    /** B01 Buoc 5: dat mon truoc (tuy chon - AF02 neu bo qua) */
     @Data
     public static class PreOrderItemRequest {
+        @JsonProperty("menu_item_id")
         @NotNull
         private Long menuItemId;
+
         @NotNull
         @Min(1)
         private Integer quantity;
@@ -56,28 +49,37 @@ public class BookingDtos {
         private List<PreOrderItemRequest> items;
     }
 
-    /** B01 Buoc 8: ket qua thanh toan tu cong thanh toan (callback/webhook) */
     @Data
-    public static class PaymentResultRequest {
-        @NotBlank
-        private String transactionId;
-        @NotBlank
-        private String status; // SUCCESS / FAILED
+    @Builder
+    public static class ReservationHoldResponse {
+        @JsonProperty("reservation_id")
+        private Long reservationId;
+
+        @JsonProperty("hold_expires_at")
+        private LocalDateTime holdExpiresAt;
     }
 
     @Data
     @Builder
-    public static class BookingResponse {
-        private Long id;
-        private String branchName;
-        private String tableCode;
-        private Integer guestCount;
-        private LocalDateTime reservationTime;
-        private LocalDateTime holdExpiresAt;
+    public static class ReservationDetailResponse {
+        @JsonProperty("reservation_id")
+        private Long reservationId;
+
         private String status;
-        private BigDecimal depositAmount;
-        private BigDecimal totalPreOrderAmount;
+
+        @JsonProperty("estimated_total")
+        private BigDecimal estimatedTotal;
+
         private List<BookingItemResponse> items;
+    }
+
+    @Data
+    @Builder
+    public static class ReservationConfirmResponse {
+        @JsonProperty("reservation_id")
+        private Long reservationId;
+
+        private String status;
     }
 
     @Data
@@ -86,12 +88,5 @@ public class BookingDtos {
         private String name;
         private BigDecimal price;
         private Integer quantity;
-    }
-
-    /** B11: yeu cau huy don */
-    @Data
-    public static class CancelRequest {
-        private String reason;
-        private Boolean cancelledByRestaurant = false; // B11 buoc 4 vs buoc 3
     }
 }

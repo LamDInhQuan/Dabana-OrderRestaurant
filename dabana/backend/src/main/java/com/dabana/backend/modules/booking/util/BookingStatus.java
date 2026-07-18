@@ -1,4 +1,4 @@
-package com.dabana.backend.modules.booking;
+package com.dabana.backend.modules.booking.util;
 
 /**
  * Vong doi mot don dat ban, xuyen suot B01 (tao), B08 (lien ket trang thai

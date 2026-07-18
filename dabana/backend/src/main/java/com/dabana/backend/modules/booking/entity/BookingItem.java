@@ -1,6 +1,7 @@
-package com.dabana.backend.modules.booking;
+package com.dabana.backend.modules.booking.entity;
 
 import com.dabana.backend.common.BaseEntity;
+import com.dabana.backend.modules.menu.entity.MenuItem;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
