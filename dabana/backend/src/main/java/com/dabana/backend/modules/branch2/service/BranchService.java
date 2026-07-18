@@ -79,9 +79,10 @@ public class BranchService implements IBranchService {
     }
 
     @Override
-    public Optional<BranchResponse> findById(Long id) {
+    public BranchResponse findById(Long id) {
         return branchRepository.findById(id)
-                .map(branchMapper::toResponse);
+                .map(branch ->branchMapper.toResponse(branch))
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
     }
 
     @Override
@@ -106,7 +107,7 @@ public class BranchService implements IBranchService {
 
     @Override
     public List<BranchResponse> findBranchesByManager(Long managerId) {
-        Optional<Restaurant> restaurantOpt = restaurantRepository.findByOwner_Id(managerId);
+        Optional<Restaurant> restaurantOpt = restaurantRepository.findByOwnerUserId(managerId);
         if (restaurantOpt.isEmpty()) {
             return Collections.emptyList(); // Nếu user chưa tạo nhà hàng thì trả về danh sách rỗng
         }

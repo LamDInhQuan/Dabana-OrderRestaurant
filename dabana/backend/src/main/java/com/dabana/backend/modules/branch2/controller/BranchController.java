@@ -54,7 +54,8 @@ public class BranchController extends BaseController {
         List<BranchResponse> responses = branchService.findBranchesByManager(currentUser.getId());
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responses));
     }
-//    // 1. LẤY TẤT CẢ CHI NHÁNH
+
+    //    // 1. LẤY TẤT CẢ CHI NHÁNH
 //    @GetMapping
 //    public ResponseEntity<List<BranchResponse>> getAllBranches() {
 //        List<BranchResponse> responses = branchService.findAll().stream()
@@ -63,14 +64,13 @@ public class BranchController extends BaseController {
 //        return ResponseEntity.ok(responses);
 //    }
 //
-//    // 2. LẤY CHI NHÁNH THEO ID
-//    @GetMapping("/{id}")
-//    public ResponseEntity<BranchResponse> getBranchById(@PathVariable Long id) {
-//        return branchService.findById(id)
-//                .map(this::convertToResponse)
-//                .map(ResponseEntity::ok)
-//                .orElse(ResponseEntity.notFound().build());
-//    }
+    // 2. LẤY CHI NHÁNH THEO ID
+    @GetMapping("/{id}")
+    public ResponseEntity<BranchResponse> getBranchById(@PathVariable Long id) {
+        // Service sẽ xử lý việc tìm kiếm và convert, Controller chỉ việc trả về
+        BranchResponse response = branchService.findById(id);
+        return ResponseEntity.ok(response);
+    }
 
     // 3. TẠO MỚI CHI NHÁNH
     @PostMapping

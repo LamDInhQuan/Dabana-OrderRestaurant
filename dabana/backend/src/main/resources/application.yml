@@ -9,8 +9,8 @@ spring:
 
   datasource:
     url: jdbc:mysql://localhost:3306/dabana_order_restaurant?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
-    username: root
-    password: 1234
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -47,7 +47,7 @@ spring:
 app:
   jwt:
     secret: ${JWT_SECRET:dabana_super_secret_key_for_jwt_signing_change_in_production_2026}
-    access-token-expiration-ms: 3600000      # 1 gio
+    access-token-expiration-ms: 604800000      # 1 gio
     refresh-token-expiration-ms: 604800000   # 7 ngay
 
   # B01 BR03: giu ban tam thoi toi da 15 phut

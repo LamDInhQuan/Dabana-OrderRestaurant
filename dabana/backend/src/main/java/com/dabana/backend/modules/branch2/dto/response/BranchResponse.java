@@ -1,6 +1,7 @@
 package com.dabana.backend.modules.branch2.dto.response;
 
 import com.dabana.backend.modules.branch2.dto.BranchImageDto;
+import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;

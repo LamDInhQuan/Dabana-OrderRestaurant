@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface IBranchService {
     List<BranchResponse> findByRestaurant(Long restaurantId);
     List<BranchResponse> findAll();
-    Optional<BranchResponse> findById(Long id);
+    BranchResponse findById(Long id);
     BranchResponse create(BranchRequest branch);
     List<BranchResponse> findBranchesByManager(Long managerId) ;
 //    BranchResponse update(Long id, BranchResponse branch); // Hàm xử lý merge đè
