@@ -36,8 +36,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("now") LocalDateTime now,
             @Param("reminderWindow") LocalDateTime reminderWindow);
 
-    boolean existsByTable_IdAndReservationTimeAndStatusIn(
-            Long tableId, LocalDateTime reservationTime, List<BookingStatus> statuses);
+    @Query("SELECT COUNT(b) > 0 FROM Booking b " +
+            "JOIN b.bookingTables bt " +
+            "WHERE bt.diningTable.id = :tableId " +
+            "AND b.reservationTime = :reservationTime " +
+            "AND b.status IN :statuses")
+    boolean checkTableBookingExists(
+            @Param("tableId") Long tableId,
+            @Param("reservationTime") LocalDateTime reservationTime,
+            @Param("statuses") List<BookingStatus> statuses
+    );
 
     // ======================================================
     // F47/F48/F49: Thong ke & bao cao (Quan tri vien)
