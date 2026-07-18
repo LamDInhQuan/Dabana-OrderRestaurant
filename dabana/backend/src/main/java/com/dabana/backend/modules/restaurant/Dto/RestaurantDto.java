@@ -23,7 +23,7 @@ public class RestaurantDto {
     private String description;
 
 
-    private String cuisineType; // nganh am thuc chinh
+    private String cuisineType; 
 
 
 }

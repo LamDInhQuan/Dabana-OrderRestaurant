@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 //TODO: phan quyen cho chu nha hang
 @RestController
-@RequestMapping("/api/restaurants")
+@RequestMapping("/api/restaurants/me/")
 @RequiredArgsConstructor
 public class RestaurantController {
 
