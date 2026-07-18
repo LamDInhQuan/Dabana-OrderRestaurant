@@ -19,25 +19,26 @@ import lombok.Setter;
 public class RestaurantUpdateRequest {
 
 
-    @NotBlank(message = "")
-    @Size( max = 155) // Fix length = 150 theo ảnh (để 155 hoặc 150 đều được)
+     @NotBlank(message = "Tên nhà hàng không được trống")
+    @Size( max = 155,message = "Tên nhà hàng không được vượt quá 155 ký tự") 
     private String restaurantName;
 
-    private String description;
+    private String pendingDescription;
 
     @Size( max = 255) // Trong DB là Not Null [v] và varchar(255)
-    private String logoUrl;
+    private String pendingLogoUrl;
 
-    @Size(max = 20) // Mới bổ sung theo DB
+    @Size(max = 20,message = "Số điện thoại không được vượt quá 20 ký tự") // Mới bổ sung theo DB
     private String phone;
 
-    @Size(max = 150) // Mới bổ sung theo DB
+    @Size(max = 150,message = "Email không được vượt quá 150 ký tự") // Mới bổ sung theo DB
     private String email;
 
-    @Size(max = 255,message = "") // Mới bổ sung theo DB (có tag UNI)
+    @Size(max = 255,message = "Website không được vượt quá 255 ký tự")
 
     private String website;
 
+    private String cuisineType;
 
     
 

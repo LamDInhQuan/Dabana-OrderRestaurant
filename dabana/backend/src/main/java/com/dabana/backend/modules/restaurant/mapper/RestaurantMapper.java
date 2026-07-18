@@ -24,12 +24,11 @@ public class RestaurantMapper {
         restaurant.setWebsite(request.getWebsite());
         return restaurant;
     }
-    public Restaurant toEntity(RestaurantUpdateRequest request) {
-        Restaurant restaurant = new Restaurant();
-
+    public Restaurant toEntity(RestaurantUpdateRequest request,Restaurant restaurant) {
+       
         restaurant.setRestaurantName(request.getRestaurantName());
-        restaurant.setLogoUrl(request.getLogoUrl());
-        restaurant.setDescription(request.getDescription());
+        restaurant.setPendingLogoUrl(request.getPendingLogoUrl());
+        restaurant.setPendingDescription(request.getPendingDescription());
         restaurant.setEmail(request.getEmail());
         restaurant.setPhone(request.getPhone());
         restaurant.setWebsite(request.getWebsite());
