@@ -40,7 +40,11 @@ api.interceptors.response.use(
 
 // ===== Auth API =====
 export const authApi = {
+<<<<<<< HEAD
   register:  (data) => api.post('/auth/register/customer', data),
+=======
+   register:  (data) => api.post('/auth/register/customer', data),
+>>>>>>> 31fa0effd21bb31755e9c18dacb92a45a68ebfe6
   login:     (data) => api.post('/auth/login', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   resendOtp: (data) => api.post('/auth/resend-otp', data),
@@ -50,11 +54,11 @@ export const authApi = {
 // ===== Branch/Restaurant API =====
 export const branchApi = {
   getAll: () => api.get('/branchs/all'),
-  search: (params) => api.get('/branches', { params }),
-  getById: (id) => api.get(`/branches/${id}`),
-  getMyList: () => api.get('/branches/me'),
-  create: (data) => api.post('/branches/me', data),
-  update: (id, d) => api.put(`/branches/me/${id}`, d),
+  search: (params) => api.get('/branchs', { params }),
+  getById: (id) => api.get(`/branchs/${id}`),
+  getMyList: () => api.get('/branchs/me'),
+  create: (data) => api.post('/branchs/me', data),
+  update: (id, d) => api.put(`/branchs/me/${id}`, d),
 }
 
 // ===== Table Layout API (B07/B08) =====

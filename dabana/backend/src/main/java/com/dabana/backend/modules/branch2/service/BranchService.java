@@ -77,7 +77,8 @@ public class BranchService implements IBranchService {
 
     @Override
     public Optional<BranchResponse> findById(Long id) {
-        return Optional.empty();
+        return branchRepository.findById(id)
+                .map(branchMapper::toResponse);
     }
 
     @Override
