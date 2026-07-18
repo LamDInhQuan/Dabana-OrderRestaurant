@@ -8,13 +8,9 @@ import java.util.Optional;
 
 
 public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
-   Optional<Restaurant> findByOwnerId(Long ownerId);
+   Optional<Restaurant> findByOwner_Id(Long ownerId);
 
-   Optional<Restaurant> findByResTaurantName(String name);
-
-   void deleteById(Long id);
-
-   Optional<Restaurant> findById(Long id);
-
+   // Tìm nhà hàng theo đúng tên thuộc tính restaurantName
+   Optional<Restaurant> findByRestaurantName(String restaurantName);
 
 }

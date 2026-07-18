@@ -26,12 +26,12 @@ public class RestaurantService  {
     private final RestaurantMapper mapper;
 
    public RestaurantResponse findByOwnerId(Long ownerId) {
-       return mapper.toResponse( restaurantRepos.findByOwnerId(ownerId).
+       return mapper.toResponse( restaurantRepos.findByOwner_Id(ownerId).
        orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId)));
    }
 
    public Restaurant findByRestaurantName(String name) {
-       return restaurantRepos.findByResTaurantName(name).
+       return restaurantRepos.findByRestaurantName(name).
        orElseThrow(() -> new RuntimeException("Restaurant not found for name: " + name));
    }
 
@@ -45,7 +45,7 @@ public class RestaurantService  {
    }
 
    public RestaurantResponse updateRestaurantById(Long id, RestaurantUpdateRequest request) {
-        Restaurant restaurant = restaurantRepos.findByOwnerId(id)
+        Restaurant restaurant = restaurantRepos.findByOwner_Id(id)
         
                 .orElseThrow(() -> new RuntimeException("Restaurant not found for id: " + id));
 
@@ -59,7 +59,7 @@ public class RestaurantService  {
         Restaurant restaurant = new Restaurant();
         User user = userRepository.findById(ownerId)
                 .orElseThrow(() -> new RuntimeException("cannot found owner for id: " + ownerId));
-        if (restaurantRepos.findByOwnerId(ownerId) != null) {
+        if (restaurantRepos.findByOwner_Id(ownerId) != null) {
             throw new RuntimeException("owner already registered");
         }
         restaurant = mapper.toEntity(request);

@@ -49,19 +49,15 @@ public class Restaurant extends BaseEntity {
     @Column(name = "approval_status", nullable = false, length = 30) // Đổi tên cột từ status -> approval_status
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-    // Lưu ý: Các trường dưới đây không có trong ảnh MySQL của bạn.
-    // Nếu bạn thực sự cần chúng, hãy chạy lệnh ALTER TABLE trong DB để thêm cột,
-    // còn nếu không dùng nữa thì hãy XÓA HẲN chúng đi để tránh lỗi SQL tiếp theo:
+     @Column(length = 100)
+     private String cuisineType;
 
-    // @Column(length = 100)
-    // private String cuisineType;
+     @Column(length = 500)
+     private String rejectionReason;
 
-    // @Column(length = 500)
-    // private String rejectionReason;
+     @Column(length = 500)
+     private String pendingLogoUrl;
 
-    // @Column(length = 500)
-    // private String pendingLogoUrl;
-
-    // @Column(columnDefinition = "TEXT")
-    // private String pendingDescription;
+     @Column(columnDefinition = "TEXT")
+     private String pendingDescription;
 }
