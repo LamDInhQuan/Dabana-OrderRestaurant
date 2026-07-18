@@ -70,17 +70,18 @@ export const branchApi = {
 }
 
 // ===== Table Layout API (B07/B08) =====
+// Zones already come back with their `tables` nested (ZoneResponse.tables),
+// so a single call is enough to render the floor plan for booking.
 export const zoneApi = {
-  getByBranch: (branchId) => api.get(`/zones/branch/${branchId}`),
-  create: (data) => api.post('/zones', data),
+  getByBranch: (branchId) => api.get(`/zones/branches/${branchId}`),
+  create: (data) => api.post('/zones/create', data),
 }
 
 export const tableApi = {
-  getByZone: (zoneId) => api.get(`/tables/zone/${zoneId}`),
-  getByBranch: (bid) => api.get(`/tables/branch/${bid}`),
-  create: (data) => api.post('/tables/manage', data),
-  updateStatus: (id, s) => api.patch(`/tables/${id}/status`, { status: s }),
-  updateLayout: (id, pos) => api.patch(`/tables/manage/${id}/layout`, pos),
+  getByBranch: (bid, zoneId) => api.get('/dining-tables', { params: { branchId: bid, zoneId } }),
+  create: (data) => api.post('/dining-tables/create', data),
+  update: (id, data) => api.put(`/dining-tables/update/${id}`, data),
+  updateLayout: (positions) => api.put('/dining-tables/positions', positions),
 }
 
 // ===== Booking API (B01) =====
@@ -97,11 +98,13 @@ export const bookingApi = {
 }
 
 // ===== Menu API (B06) =====
+// Returns categories with items nested: [{ id, categoryName, items:[{ id, itemName, price, imageUrl, status }] }]
 export const menuApi = {
-  getByBranch: (bid) => api.get(`/menu-items/branch/${bid}`),
-  create: (data) => api.post('/menu-items/manage', data),
-  update: (id, d) => api.put(`/menu-items/manage/${id}`, d),
-  updateStatus: (id, s) => api.patch(`/menu-items/manage/${id}/status`, { status: s }),
+  getByBranch: (bid) => api.get(`/menu/branches/${bid}`),
+  getCategories: (bid) => api.get(`/menu/branches/${bid}/categories`),
+  createItem: (data) => api.post('/menu/items', data),
+  updateItem: (id, d) => api.put(`/menu/items/${id}`, d),
+  updateItemStatus: (id, s) => api.patch(`/menu/items/${id}/status`, { status: s }),
 }
 
 // ===== Waitlist API (B10) =====
@@ -132,9 +135,22 @@ export const restaurantApi = {
 
 // ===== BỔ SUNG: Operating Hour API =====
 // ===== Operating hours API (B04) =====
+// NOTE: backend (OperatingHourController) hiện chỉ có POST .../save, chưa có GET.
+// Cần bổ sung 1 endpoint GET /api/branchs/operating-hours/branch/{branchId} ở BE
+// để khung giờ đặt bàn lấy đúng giờ mở/đóng cửa thật; UI đã có fallback an toàn
+// nếu call này 404/lỗi (xem BookingFlow.jsx).
 export const operatingHourApi = {
   getByBranch: (branchId)      => api.get(`/branchs/operating-hours/branch/${branchId}`),
   save:        (branchId, arr) => api.post(`/branchs/operating-hours/branch/${branchId}/save`, arr),
+}
+
+// ===== Available slot API (B01) =====
+// Trả về danh sách khung giờ 60' đã tính sẵn cho 1 ngày cụ thể của 1 chi nhánh,
+// đã áp dụng exception (đóng cửa/thêm ca theo ngày do nhà hàng cấu hình).
+// date phải theo định dạng dd-MM-yyyy (khớp @DateTimeFormat ở BE).
+export const availableSlotApi = {
+  getShifts: (branchId, date) =>
+    api.get('/branches/available-slot/get-shifts', { params: { branchId, date } }),
 }
 // ===== BỔ SUNG: Deposit Policy API (Chính sách đặt cọc) =====
 // ===== Deposit/cancellation policy API (B05) =====
