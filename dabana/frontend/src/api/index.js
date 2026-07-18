@@ -40,10 +40,11 @@ api.interceptors.response.use(
 
 // ===== Auth API =====
 export const authApi = {
-  register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
+   register:  (data) => api.post('/auth/register/customer', data),
+  login:     (data) => api.post('/auth/login', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
-  refresh: (data) => api.post('/auth/refresh', data),
+  resendOtp: (data) => api.post('/auth/resend-otp', data),
+  refresh:   (data) => api.post('/auth/refresh', data),
 }
 
 // ===== Branch/Restaurant API =====
@@ -111,13 +112,45 @@ export const notificationApi = {
 
 // ===== Admin API =====
 export const adminApi = {
-  pendingUsers: () => api.get('/admin/users/pending'),
-  approveUser: (id, d) => api.post(`/admin/users/${id}/approve`, d),
-  pendingRestaurants: () => api.get('/admin/restaurants/pending'),
-  approveRestaurant: (id, d) => api.post(`/admin/restaurants/${id}/approve`, d),
-  pendingBranches: () => api.get('/admin/branches/pending'),
-  approveBranch: (id, d) => api.post(`/admin/branches/${id}/approve`, d),
-  platformSummary: () => api.get('/admin/statistics/platform/summary'),
+  // F43/B02-B04: phê duyệt
+  pendingUsers:       ()        => api.get('/admin/users/pending'),
+  approveUser:        (id, d)   => api.post(`/admin/users/${id}/approve`, d),
+  pendingRestaurants: ()        => api.get('/admin/restaurants/pending'),
+  approveRestaurant:  (id, d)   => api.post(`/admin/restaurants/${id}/approve`, d),
+  pendingBranches:    ()        => api.get('/admin/branches/pending'),
+  approveBranch:      (id, d)   => api.post(`/admin/branches/${id}/approve`, d),
+
+  // F44: quản lý tài khoản người dùng toàn hệ thống
+  searchUsers:        (params)  => api.get('/admin/users', { params }),
+  getUserDetail:      (id)      => api.get(`/admin/users/${id}`),
+  lockUser:           (id, d)   => api.post(`/admin/users/${id}/lock`, d),
+
+  // F43 mở rộng: xem toàn bộ nhà hàng / chi nhánh
+  searchRestaurants:  (params)  => api.get('/admin/restaurants', { params }),
+  searchBranches:     (params)  => api.get('/admin/branches', { params }),
+
+  // F41: kiểm duyệt đánh giá
+  listReviews:        (params)  => api.get('/admin/reviews', { params }),
+  hideReview:         (id, d)   => api.post(`/admin/reviews/${id}/hide`, d),
+  unhideReview:       (id)      => api.post(`/admin/reviews/${id}/unhide`),
+  deleteReview:       (id)      => api.delete(`/admin/reviews/${id}`),
+
+  // F45: danh mục hệ thống
+  listCategories:     (type)    => api.get('/admin/categories', { params: { type } }),
+  createCategory:     (d)       => api.post('/admin/categories', d),
+  updateCategory:     (id, d)   => api.put(`/admin/categories/${id}`, d),
+  deleteCategory:     (id)      => api.delete(`/admin/categories/${id}`),
+
+  // F46: giám sát hoạt động
+  recentActivity:     (limit)   => api.get('/admin/activity/recent', { params: { limit } }),
+
+  // F47-F49: thống kê & báo cáo
+  platformSummary:    ()        => api.get('/admin/statistics/platform/summary'),
+  revenueByRestaurant:()        => api.get('/admin/statistics/revenue-by-restaurant'),
+  bookingsDaily:      (days)    => api.get('/admin/statistics/bookings-daily', { params: { days } }),
+
+  // F50: xuất báo cáo
+  exportReportUrl:    (type)    => `/api/admin/reports/export?type=${type}`,
 }
 
 export default api
