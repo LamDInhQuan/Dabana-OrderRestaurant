@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi,
+  restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 import toast from 'react-hot-toast'
 
 // ── Google Font ─────────────────────────────────────────────────
@@ -44,9 +45,28 @@ const BOOKING_STATUS = {
 
 // ── Demo data ────────────────────────────────────────────────────
 const DEMO_BRANCHES = [
-  { id:1, name:'Nhà Hàng Sen Vàng – Chi nhánh Hoàn Kiếm', address:'12 Hồ Hoàn Kiếm, Hà Nội', approvalStatus:'APPROVED', operatingStatus:'ACTIVE' },
-  { id:2, name:'Nhà Hàng Sen Vàng – Chi nhánh Tây Hồ',   address:'88 Xuân Diệu, Tây Hồ, Hà Nội', approvalStatus:'APPROVED', operatingStatus:'ACTIVE' },
+  { id:1, name:'Nhà Hàng Sen Vàng – Chi nhánh Hoàn Kiếm', address:'12 Hồ Hoàn Kiếm, Hà Nội', province:'Hà Nội', phone:'0901234567', latitude:21.0285, longitude:105.8542, approvalStatus:'APPROVED', operatingStatus:'ACTIVE', status:2 },
+  { id:2, name:'Nhà Hàng Sen Vàng – Chi nhánh Tây Hồ',   address:'88 Xuân Diệu, Tây Hồ, Hà Nội', province:'Hà Nội', phone:'0907654321', latitude:21.0587, longitude:105.8228, approvalStatus:'APPROVED', operatingStatus:'ACTIVE', status:2 },
 ]
+// B03: hồ sơ thương hiệu chung của nhà hàng đối tác
+const DEMO_RESTAURANT = {
+  restaurantName:'Nhà Hàng Sen Vàng', logoUrl:'', description:'Ẩm thực Việt Nam truyền thống với không gian sang trọng, phục vụ các món đặc sản ba miền.',
+  cuisineType:'Ẩm thực Việt Nam', phone:'0901234567', email:'contact@senvang.vn', website:'https://senvang.vn',
+  approvalStatus:'APPROVED', isActive:true,
+}
+const WEEKDAYS = [
+  ['MONDAY','Thứ 2'],['TUESDAY','Thứ 3'],['WEDNESDAY','Thứ 4'],['THURSDAY','Thứ 5'],
+  ['FRIDAY','Thứ 6'],['SATURDAY','Thứ 7'],['SUNDAY','Chủ nhật'],
+]
+// B04: khung giờ hoạt động mặc định — mở/đóng cửa theo từng ngày trong tuần
+const DEMO_HOURS = WEEKDAYS.map(([day])=>({ dayOfWeek:day, openTime:'10:00', closeTime:'22:00', shiftName:'Cả ngày' }))
+const BRANCH_STATUS = {
+  1:{ label:'Ngừng hoạt động', color:C.muted },
+  2:{ label:'Đã duyệt - Hoạt động', color:C.green },
+  3:{ label:'Chờ duyệt', color:C.gold },
+  4:{ label:'Bị từ chối', color:C.red },
+  5:{ label:'Tạm ngưng', color:C.red },
+}
 const DEMO_ZONES = {
   1:[{ id:1, name:'Trong nhà', active:true },{ id:2, name:'Sân vườn', active:true },{ id:3, name:'Phòng VIP', active:true }],
   2:[{ id:4, name:'Tầng 1', active:true },{ id:5, name:'Tầng 2', active:true }],
@@ -106,6 +126,21 @@ const DEMO_MENU = [
 const DEMO_WAITLIST = [
   { id:1,customer:{fullName:'Vũ Quốc Bình'},guestCount:4,desiredTime:'2026-07-10T19:00:00',status:'WAITING',createdAt:'2026-07-10T17:30:00' },
   { id:2,customer:{fullName:'Hoàng Thị Mai'},guestCount:2,desiredTime:'2026-07-10T20:00:00',status:'INVITED',createdAt:'2026-07-10T18:00:00',inviteExpiresAt:new Date(Date.now()+8*60*1000).toISOString() },
+]
+// B13: Đánh giá và xếp hạng nhà hàng
+const DEMO_REVIEWS = [
+  { id:1,customer:{fullName:'Nguyễn Minh Châu'},rating:5,comment:'Món ăn tuyệt vời, phục vụ chu đáo. Sẽ quay lại!',createdAt:'2026-07-09T20:15:00',reply:null,hidden:false },
+  { id:2,customer:{fullName:'Trần Thu Hà'},rating:4,comment:'Không gian đẹp, đồ ăn ngon nhưng chờ hơi lâu vào giờ cao điểm.',createdAt:'2026-07-08T21:00:00',reply:'Cảm ơn anh/chị đã góp ý, nhà hàng sẽ cải thiện tốc độ phục vụ ạ!',hidden:false },
+  { id:3,customer:{fullName:'Phạm Văn Bình'},rating:2,comment:'Bàn không đúng như đặt trước, nhân viên xử lý chưa nhanh.',createdAt:'2026-07-06T19:40:00',reply:null,hidden:false },
+  { id:4,customer:{fullName:'Đỗ Thị Lan'},rating:5,comment:'Lẩu mắm ngon xuất sắc, không gian sang trọng.',createdAt:'2026-07-05T12:30:00',reply:null,hidden:false },
+]
+// B09: Thông báo, xác nhận và nhắc lịch hẹn
+const DEMO_NOTIFICATIONS = [
+  { id:1,type:'BOOKING_NEW',title:'Đặt bàn mới',message:'Nguyễn Minh Châu vừa đặt bàn A2 lúc 18:30 hôm nay',createdAt:new Date(Date.now()-15*60*1000).toISOString(),read:false },
+  { id:2,type:'WAITLIST_ACCEPTED',title:'Khách chấp nhận hàng chờ',message:'Hoàng Thị Mai đã xác nhận nhận bàn từ hàng chờ',createdAt:new Date(Date.now()-45*60*1000).toISOString(),read:false },
+  { id:3,type:'CANCEL',title:'Huỷ đặt bàn',message:'Đơn #998 đã bị khách huỷ trước 3 giờ (miễn phí cọc)',createdAt:new Date(Date.now()-3*60*60*1000).toISOString(),read:true },
+  { id:4,type:'REVIEW_NEW',title:'Đánh giá mới',message:'Phạm Văn Bình vừa để lại đánh giá 2 sao',createdAt:new Date(Date.now()-6*60*60*1000).toISOString(),read:true },
+  { id:5,type:'NO_SHOW',title:'Nghi vấn No-show',message:'Đơn #1004 quá 15 phút chưa check-in, cần xác nhận',createdAt:new Date(Date.now()-20*60*1000).toISOString(),read:false },
 ]
 
 // ── Shared UI helpers ────────────────────────────────────────────
@@ -181,6 +216,11 @@ export default function PartnerDashboard() {
   const [menu,     setMenu]       = useState([])
   const [menuCategories, setMenuCategories] = useState([]) // du lieu goc tu backend: [{id, categoryName, items:[...]}]
   const [waitlist, setWaitlist]   = useState([])
+  const [reviews,  setReviews]    = useState([])          // B13
+  const [notifications, setNotifications] = useState([])  // B09
+  const [customerQuery, setCustomerQuery] = useState('')  // B14
+  const [reviewFilter, setReviewFilter]   = useState('ALL')
+  const [replyDrafts, setReplyDrafts]     = useState({})  // { [reviewId]: text }
   const [activeZone, setActiveZone] = useState(null)
   const [bkFilter,  setBkFilter]  = useState('ALL')
   const [menuFilter,setMenuFilter]= useState('ALL')
@@ -198,8 +238,21 @@ export default function PartnerDashboard() {
   const [addZoneModal,setAddZoneModal]=useState(false)
   const [zoneForm,setZoneForm]      = useState({ name:'',description:'' })
   const [selectedTable,setSelectedTable]=useState(null)
-  const [branchForm,setBranchForm]  = useState({ name:'',address:'',phone:'',province:'' })
+  const [branchForm,setBranchForm]  = useState({ name:'',address:'',phone:'',province:'',latitude:'',longitude:'' })
   const [savingBranch,setSavingBranch]=useState(false)
+  const [changingStatus,setChangingStatus]=useState(false)
+
+  // B03: hồ sơ thương hiệu nhà hàng
+  const [restaurant,setRestaurant] = useState(null)
+  const [restaurantForm,setRestaurantForm] = useState({ restaurantName:'',logoUrl:'',description:'',cuisineType:'',phone:'',email:'',website:'' })
+  const [savingRestaurant,setSavingRestaurant] = useState(false)
+
+  // B04: khung giờ hoạt động & tạo chi nhánh mới
+  const [operatingHours,setOperatingHours] = useState(DEMO_HOURS)
+  const [savingHours,setSavingHours] = useState(false)
+  const [newBranchModal,setNewBranchModal] = useState(false)
+  const [newBranchForm,setNewBranchForm] = useState({ name:'',address:'',province:'',phone:'',latitude:'',longitude:'' })
+  const [creatingBranch,setCreatingBranch] = useState(false)
 
   const CATEGORIES = ['Khai vị','Món chính','Lẩu','Hải sản','Đồ uống','Tráng miệng','Khác']
 
@@ -208,17 +261,27 @@ export default function PartnerDashboard() {
     branchApi.getMyList()
       .then(r => { const list=r.data||DEMO_BRANCHES; setBranches(list); if(list.length) setActiveBranch(list[0]) })
       .catch(() => { setBranches(DEMO_BRANCHES); setActiveBranch(DEMO_BRANCHES[0]) })
+    // B03: hồ sơ thương hiệu chung của nhà hàng
+    restaurantApi.getMine()
+      .then(r => { const d=r.data||DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f=>({...f,...d})) })
+      .catch(() => { setRestaurant(DEMO_RESTAURANT); setRestaurantForm(f=>({...f,...DEMO_RESTAURANT})) })
   },[])
 
   useEffect(() => {
     if (!activeBranch) return
     const bid = activeBranch.id
     setBranchForm({
-      name:    activeBranch.name    || '',
-      address: activeBranch.address || '',
-      phone:   activeBranch.phone   || '',
-      province:activeBranch.province|| '',
+      name:     activeBranch.name      || '',
+      address:  activeBranch.address   || '',
+      phone:    activeBranch.phone     || '',
+      province: activeBranch.province  || '',
+      latitude: activeBranch.latitude  ?? '',
+      longitude:activeBranch.longitude ?? '',
     })
+    // B04: khung giờ hoạt động của chi nhánh
+    operatingHourApi.getByBranch(bid)
+      .then(r => setOperatingHours(r.data?.length ? r.data : DEMO_HOURS))
+      .catch(() => setOperatingHours(DEMO_HOURS))
     // zones & tables
     zoneApi.getByBranch(bid).then(async r => {
       const zList = r.data.length ? r.data : (DEMO_ZONES[bid]||DEMO_ZONES[1]||[])
@@ -255,7 +318,26 @@ export default function PartnerDashboard() {
     }).catch(() => { setMenuCategories([]); setMenu(DEMO_MENU) })
     // waitlist (demo)
     setWaitlist(DEMO_WAITLIST)
+    // reviews (B13)
+    reviewApi.getByBranch(bid).then(r=>{
+      const list = r.data?.content || r.data || []
+      setReviews(list.length ? list : DEMO_REVIEWS)
+    }).catch(()=>setReviews(DEMO_REVIEWS))
+    // B05: chính sách đặt cọc/hủy của chi nhánh
+    depositPolicyApi.getByBranch(bid).then(r=>{
+      if (r.data) setPolicy(p=>({...p,...r.data}))
+    }).catch(()=>{})
   },[activeBranch])
+
+  // notifications (B09) — nạp 1 lần khi vào trang
+  useEffect(() => {
+    notificationApi.getUnread()
+      .then(r => {
+        const unread = r.data || []
+        setNotifications(unread.length ? unread.map(n=>({ ...n, read:false })) : DEMO_NOTIFICATIONS)
+      })
+      .catch(() => setNotifications(DEMO_NOTIFICATIONS))
+  },[])
 
   // ── Computed stats ─────────────────────────────────
   const allTables = Object.values(tables).flat()
@@ -271,6 +353,46 @@ export default function PartnerDashboard() {
     totalRevenue: bookings.filter(b=>b.status==='COMPLETED').reduce((s,b)=>s+(b.depositAmount||0),0),
     noShowRate:  bookings.length ? Math.round((bookings.filter(b=>b.status==='NO_SHOW').length/bookings.length)*100) : 0,
   }
+  // B13: điểm đánh giá trung bình
+  const visibleReviews = reviews.filter(r=>!r.hidden)
+  const avgRating = visibleReviews.length
+    ? (visibleReviews.reduce((s,r)=>s+r.rating,0)/visibleReviews.length).toFixed(1) : '0.0'
+  const ratingBreakdown = [5,4,3,2,1].map(star=>({
+    star, count: visibleReviews.filter(r=>r.rating===star).length,
+  }))
+  const filteredReviews = reviewFilter==='ALL' ? visibleReviews
+    : reviewFilter==='UNREPLIED' ? visibleReviews.filter(r=>!r.reply)
+    : visibleReviews.filter(r=>String(r.rating)===reviewFilter)
+  // B09: thông báo chưa đọc
+  const unreadCount = notifications.filter(n=>!n.read).length
+  // B14: hồ sơ khách hàng & lịch sử đặt bàn (gộp từ bookings)
+  const customerProfiles = Object.values(
+    bookings.reduce((acc,b)=>{
+      const key = b.contactPhone || b.contactName
+      if(!acc[key]) acc[key] = { key, name:b.contactName, phone:b.contactPhone, bookings:[] }
+      acc[key].bookings.push(b)
+      return acc
+    },{})
+  ).map(c=>({
+    ...c,
+    totalBookings: c.bookings.length,
+    completed: c.bookings.filter(b=>b.status==='COMPLETED').length,
+    noShows:   c.bookings.filter(b=>b.status==='NO_SHOW').length,
+    cancelled: c.bookings.filter(b=>b.status?.startsWith('CANCELLED')).length,
+    totalSpent: c.bookings.reduce((s,b)=>s+(b.depositAmount||0),0),
+    lastVisit: c.bookings.reduce((max,b)=> new Date(b.reservationTime)>new Date(max) ? b.reservationTime : max, c.bookings[0].reservationTime),
+  })).filter(c => !customerQuery.trim() ||
+    c.name?.toLowerCase().includes(customerQuery.toLowerCase()) ||
+    c.phone?.includes(customerQuery)
+  ).sort((a,b)=> new Date(b.lastVisit)-new Date(a.lastVisit))
+  // B15: thống kê kinh doanh
+  const menuByCategory = CATEGORIES.map(cat=>({
+    cat, count: menu.filter(m=>m.category===cat).length,
+    revenue: menu.filter(m=>m.category===cat && m.status==='SELLING').reduce((s,m)=>s+m.price,0),
+  })).filter(x=>x.count>0)
+  const bookingStatusBreakdown = Object.keys(BOOKING_STATUS).map(k=>({
+    status:k, count: bookings.filter(b=>b.status===k).length, meta:BOOKING_STATUS[k],
+  })).filter(x=>x.count>0)
 
   // ── Actions ────────────────────────────────────────
   const updateTableStatus = async (tableId, newStatus) => {
@@ -284,9 +406,7 @@ export default function PartnerDashboard() {
     toast.success('Cập nhật trạng thái bàn thành công')
     setSelectedTable(null)
   }
-
-  // ── Kéo-thả bàn trên sơ đồ ───────────────────────────
-  const onTableDragStart = (e, table) => {
+const onTableDragStart = (e, table) => {
     setDraggingTable(table)
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -385,6 +505,50 @@ export default function PartnerDashboard() {
     }
   }
 
+  // ── B13: phản hồi đánh giá ───────────────────────────
+  const submitReply = (reviewId) => {
+    const text = (replyDrafts[reviewId]||'').trim()
+    if(!text){ toast.error('Vui lòng nhập nội dung phản hồi'); return }
+    setReviews(prev=>prev.map(r=>r.id===reviewId?{...r,reply:text}:r))
+    setReplyDrafts(prev=>({...prev,[reviewId]:''}))
+    toast.success('Đã gửi phản hồi đánh giá!')
+  }
+
+  // ── B09: xử lý thông báo ─────────────────────────────
+  const markNotificationRead = (id) => {
+    setNotifications(prev=>prev.map(n=>n.id===id?{...n,read:true}:n))
+  }
+  const markAllNotificationsRead = () => {
+    setNotifications(prev=>prev.map(n=>({...n,read:true})))
+    toast.success('Đã đánh dấu tất cả đã đọc')
+  }
+
+  // ── B03: hồ sơ thương hiệu chung ─────────────────────
+  const saveRestaurantInfo = async () => {
+    if (!restaurantForm.restaurantName.trim()) {
+      toast.error('Tên thương hiệu không được để trống'); return
+    }
+    setSavingRestaurant(true)
+    try {
+      const { data: res } = await restaurantApi.update(restaurantForm)
+      setRestaurant(res.data)
+      toast.success(
+        res.data?.approvalStatus === 'PENDING_UPDATE'
+          ? 'Đã lưu! Logo/mô tả mới đang chờ quản trị viên duyệt.'
+          : 'Đã lưu thông tin thương hiệu!'
+      )
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu thông tin thương hiệu')
+    } finally { setSavingRestaurant(false) }
+  }
+  const cancelRestaurantPendingUpdate = async () => {
+    try {
+      const { data: res } = await restaurantApi.cancelPendingUpdate()
+      setRestaurant(res.data); setRestaurantForm(f=>({...f,...res.data}))
+      toast.success('Đã huỷ yêu cầu cập nhật, khôi phục phiên bản đã duyệt trước đó')
+    } catch { toast.error('Không thể huỷ yêu cầu cập nhật') }
+  }
+
   const saveBranchInfo = async () => {
     if (!activeBranch) return
     if (!branchForm.name.trim() || !branchForm.address.trim()) {
@@ -393,7 +557,9 @@ export default function PartnerDashboard() {
     }
     setSavingBranch(true)
     try {
-      const { data: res } = await branchApi.update(activeBranch.id, branchForm)
+      const payload = { ...branchForm, latitude: branchForm.latitude===''?null:Number(branchForm.latitude),
+        longitude: branchForm.longitude===''?null:Number(branchForm.longitude) }
+      const { data: res } = await branchApi.update(activeBranch.id, payload)
       const updated = res.data
       setBranches(prev => prev.map(b => b.id === activeBranch.id ? { ...b, ...updated } : b))
       setActiveBranch(prev => ({ ...prev, ...updated }))
@@ -402,6 +568,89 @@ export default function PartnerDashboard() {
       toast.error(err.response?.data?.message || 'Không thể lưu thông tin chi nhánh')
     } finally {
       setSavingBranch(false)
+    }
+  }
+
+  // ── B04: khung giờ hoạt động ──────────────────────────
+  const updateHourField = (day, field, value) => {
+    setOperatingHours(prev => prev.map(h => h.dayOfWeek===day ? { ...h, [field]:value } : h))
+  }
+  const saveOperatingHours = async () => {
+    if (!activeBranch) return
+    const invalid = operatingHours.find(h => h.closeTime <= h.openTime)
+    if (invalid) { toast.error(`Giờ đóng cửa phải sau giờ mở cửa (${WEEKDAYS.find(w=>w[0]===invalid.dayOfWeek)?.[1]})`); return }
+    setSavingHours(true)
+    try {
+      await operatingHourApi.save(activeBranch.id, operatingHours.map(h=>({
+        dayOfWeek:h.dayOfWeek, openTime:h.openTime, closeTime:h.closeTime, shiftName:h.shiftName||'Cả ngày',
+      })))
+      toast.success('Đã lưu khung giờ hoạt động!')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Khung giờ không hợp lệ, vui lòng kiểm tra lại')
+    } finally { setSavingHours(false) }
+  }
+
+  // ── B04 AF03: tạm ngưng / mở lại chi nhánh ────────────
+  const toggleBranchStatus = async () => {
+    if (!activeBranch) return
+    const isSuspended = activeBranch.status === 5
+    const nextStatus = isSuspended ? 'ACTIVE' : 'SUSPENDED'
+    if (!isSuspended && !window.confirm('Tạm ngưng chi nhánh sẽ ẩn khỏi tìm kiếm, ngừng nhận đặt bàn mới và tự động đóng toàn bộ hàng chờ đang hoạt động. Tiếp tục?')) return
+    setChangingStatus(true)
+    try {
+      const { data: res } = await branchApi.updateStatus(activeBranch.id, nextStatus)
+      const updated = res.data || { status: isSuspended?2:5 }
+      setBranches(prev => prev.map(b => b.id===activeBranch.id ? {...b,...updated} : b))
+      setActiveBranch(prev => ({ ...prev, ...updated }))
+      toast.success(isSuspended ? 'Đã mở lại chi nhánh' : 'Đã tạm ngưng chi nhánh, hàng chờ đang hoạt động sẽ tự động đóng')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể đổi trạng thái chi nhánh')
+    } finally { setChangingStatus(false) }
+  }
+
+  // ── B04 bước 1: tạo chi nhánh mới ─────────────────────
+  const createBranch = async (e) => {
+    e.preventDefault()
+    if (!newBranchForm.name.trim() || !newBranchForm.address.trim()) {
+      toast.error('Tên chi nhánh và địa chỉ không được để trống'); return
+    }
+    setCreatingBranch(true)
+    try {
+      const payload = { ...newBranchForm, latitude: newBranchForm.latitude===''?null:Number(newBranchForm.latitude),
+        longitude: newBranchForm.longitude===''?null:Number(newBranchForm.longitude) }
+      const { data: res } = await branchApi.create(payload)
+      const created = res.data || { id:Date.now(), ...newBranchForm, status:3 }
+      setBranches(prev => [...prev, created])
+      setActiveBranch(created)
+      setNewBranchModal(false)
+      setNewBranchForm({ name:'',address:'',province:'',phone:'',latitude:'',longitude:'' })
+      toast.success('Đã tạo chi nhánh mới! Đang chờ quản trị viên duyệt.')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể tạo chi nhánh')
+    } finally { setCreatingBranch(false) }
+  }
+
+  // ── B05: lưu chính sách đặt cọc/hủy ───────────────────
+  const savePolicy = async (e) => {
+    e.preventDefault()
+    if (!activeBranch) return
+    if (policy.depositRequired && policy.depositType==='PERCENTAGE' && Number(policy.depositValue) > 100) {
+      toast.error('Tỷ lệ cọc không được vượt quá 100% (EF01)'); return
+    }
+    if (policy.depositRequired && Number(policy.depositValue) < 0) {
+      toast.error('Mức cọc không được âm (EF01)'); return
+    }
+    try {
+      await depositPolicyApi.upsert(activeBranch.id, {
+        ...policy,
+        depositValue: Number(policy.depositValue)||0,
+        freeCancellationHours: Number(policy.freeCancellationHours)||0,
+        lateCancellationPenaltyPercent: Number(policy.lateCancellationPenaltyPercent)||0,
+        noShowPenaltyPercent: Number(policy.noShowPenaltyPercent)||0,
+      })
+      toast.success('Đã lưu chính sách! Áp dụng ngay cho các đơn đặt bàn mới.')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể lưu chính sách')
     }
   }
 
@@ -438,13 +687,17 @@ export default function PartnerDashboard() {
 
   // ── TABS config ────────────────────────────────────
   const TABS = [
-    { id:'dashboard',  icon:'📊', label:'Tổng quan' },
-    { id:'bookings',   icon:'📋', label:'Đặt bàn' },
-    { id:'tables',     icon:'🪑', label:'Sơ đồ bàn' },
-    { id:'menu',       icon:'🍜', label:'Thực đơn' },
-    { id:'waitlist',   icon:'⏳', label:'Hàng chờ' },
-    { id:'policy',     icon:'💰', label:'Chính sách' },
-    { id:'settings',   icon:'⚙️', label:'Cài đặt' },
+    { id:'dashboard',    icon:'📊', label:'Tổng quan' },
+    { id:'bookings',     icon:'📋', label:'Đặt bàn' },
+    { id:'tables',       icon:'🪑', label:'Sơ đồ bàn' },
+    { id:'menu',         icon:'🍜', label:'Thực đơn' },
+    { id:'waitlist',     icon:'⏳', label:'Hàng chờ' },
+    { id:'customers',    icon:'👤', label:'Khách hàng' },
+    { id:'reviews',      icon:'⭐', label:'Đánh giá', badge: reviews.filter(r=>!r.reply&&!r.hidden).length },
+    { id:'reports',      icon:'📈', label:'Thống kê' },
+    { id:'policy',       icon:'💰', label:'Chính sách' },
+    { id:'notifications',icon:'🔔', label:'Thông báo', badge: unreadCount },
+    { id:'settings',     icon:'⚙️', label:'Cài đặt' },
   ]
 
   // ── Filtered bookings ──────────────────────────────
@@ -497,7 +750,11 @@ export default function PartnerDashboard() {
               transition:'all .15s',textAlign:'left'
             }}>
               <span style={{ fontSize:'1rem' }}>{tab.icon}</span>
-              {tab.label}
+              <span style={{ flex:1 }}>{tab.label}</span>
+              {!!tab.badge && (
+                <span style={{ background:C.gold,color:C.brown,fontSize:'.68rem',fontWeight:800,
+                  borderRadius:99,padding:'.05rem .45rem',minWidth:18,textAlign:'center' }}>{tab.badge}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -538,6 +795,11 @@ export default function PartnerDashboard() {
                 ⏳ Có lời mời hàng chờ đang chờ phản hồi
               </div>
             )}
+            <button onClick={()=>setActiveTab('notifications')} style={{ ...S.btnOut,padding:'.45rem .75rem',fontSize:'.9rem',position:'relative' }}>
+              🔔
+              {unreadCount>0 && <span style={{ position:'absolute',top:-4,right:-4,background:C.red,color:'#fff',
+                fontSize:'.62rem',fontWeight:800,borderRadius:99,padding:'.05rem .35rem' }}>{unreadCount}</span>}
+            </button>
             <button onClick={()=>navigate('/')} style={{ ...S.btnOut,padding:'.45rem 1rem',fontSize:'.78rem' }}>
               🌐 Về trang chủ
             </button>
@@ -559,6 +821,7 @@ export default function PartnerDashboard() {
                 <StatCard icon="📋" label="Bàn đã đặt" value={stats.reserved} sub="sắp có khách đến" color={C.blue}/>
                 <StatCard icon="⏳" label="Hàng chờ" value={waitlist.filter(w=>w.status==='WAITING').length} sub="đang chờ bàn trống" color={C.purple}/>
                 <StatCard icon="❌" label="Tỷ lệ No-show" value={`${stats.noShowRate}%`} sub="trong 30 ngày qua" color={C.red}/>
+                <StatCard icon="⭐" label="Đánh giá trung bình" value={avgRating} sub={`${visibleReviews.length} lượt đánh giá`} color={C.gold}/>
               </div>
 
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1.5rem' }}>
@@ -760,12 +1023,11 @@ export default function PartnerDashboard() {
                     const isSel=selectedTable?.id===t.id
                     const sz=t.capacity>6?96:t.capacity>4?84:74
                     return (
-                      <div key={t.id}
+                  <div key={t.id}
                         draggable
                         onDragStart={e=>onTableDragStart(e,t)}
                         onDragEnd={()=>setDraggingTable(null)}
-                        onClick={()=>setSelectedTable(isSel?null:t)} style={{
-                        position:'absolute',
+                        onClick={()=>setSelectedTable(isSel?null:t)} style={{                        position:'absolute',
                         left:`${t.positionX}%`,top:`${t.positionY}%`,
                         transform:'translate(-50%,-50%)',
                         width:sz,height:sz-10,
@@ -965,12 +1227,213 @@ export default function PartnerDashboard() {
             </div>
           )}
 
+          {/* ══════ CUSTOMERS (B14) ══════ */}
+          {activeTab==='customers' && (
+            <div>
+              <div style={{ marginBottom:'1.25rem' }}>
+                <input style={{ ...S.input,maxWidth:340 }} placeholder="🔍 Tìm theo tên hoặc số điện thoại..."
+                  value={customerQuery} onChange={e=>setCustomerQuery(e.target.value)}/>
+              </div>
+              <div style={{ display:'flex',flexDirection:'column',gap:'1rem' }}>
+                {customerProfiles.length===0 && (
+                  <div style={{ ...S.card,textAlign:'center',padding:'3rem',color:C.muted }}>Chưa có dữ liệu khách hàng</div>
+                )}
+                {customerProfiles.map(c=>(
+                  <div key={c.key} style={{ ...S.card,border:`1px solid ${C.border}` }}>
+                    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:'1rem' }}>
+                      <div style={{ display:'flex',gap:'.875rem',alignItems:'center' }}>
+                        <div style={{ width:42,height:42,borderRadius:'50%',background:C.goldSubtle,
+                          display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:C.goldDark,flexShrink:0 }}>
+                          {(c.name||'K')[0]}
+                        </div>
+                        <div>
+                          <p style={{ fontWeight:700,fontSize:'.92rem' }}>{c.name}</p>
+                          <p style={{ fontSize:'.78rem',color:C.muted }}>{c.phone}</p>
+                        </div>
+                      </div>
+                      <div style={{ display:'flex',gap:'1.5rem',flexWrap:'wrap',fontSize:'.8rem',textAlign:'center' }}>
+                        <div><div style={{ fontWeight:700,color:C.text }}>{c.totalBookings}</div><div style={{ color:C.muted,fontSize:'.72rem' }}>Lượt đặt</div></div>
+                        <div><div style={{ fontWeight:700,color:C.green }}>{c.completed}</div><div style={{ color:C.muted,fontSize:'.72rem' }}>Hoàn tất</div></div>
+                        <div><div style={{ fontWeight:700,color:C.red }}>{c.noShows+c.cancelled}</div><div style={{ color:C.muted,fontSize:'.72rem' }}>Huỷ/No-show</div></div>
+                        <div><div style={{ fontWeight:700,color:C.goldDark }}>{c.totalSpent.toLocaleString('vi-VN')}₫</div><div style={{ color:C.muted,fontSize:'.72rem' }}>Tổng cọc</div></div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop:'.875rem',paddingTop:'.875rem',borderTop:`1px solid ${C.creamDark}`,fontSize:'.78rem',color:C.muted }}>
+                      Lần đến gần nhất: {new Date(c.lastVisit).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                      {(c.noShows>=2) && <span style={{ marginLeft:'.75rem',color:C.red,fontWeight:700 }}>⚠ Khách hàng có tiền sử No-show</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ══════ REVIEWS (B13) ══════ */}
+          {activeTab==='reviews' && (
+            <div>
+              <div style={{ ...S.card,marginBottom:'1.25rem',display:'flex',gap:'2.5rem',flexWrap:'wrap',alignItems:'center' }}>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ ...serif,fontSize:'2.6rem',fontWeight:700,color:C.gold,lineHeight:1 }}>{avgRating}</div>
+                  <div style={{ color:C.gold,fontSize:'.9rem',marginTop:'.25rem' }}>{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5-Math.round(avgRating))}</div>
+                  <div style={{ fontSize:'.72rem',color:C.muted,marginTop:'.2rem' }}>{visibleReviews.length} đánh giá</div>
+                </div>
+                <div style={{ flex:1,minWidth:200,display:'flex',flexDirection:'column',gap:'.35rem' }}>
+                  {ratingBreakdown.map(({star,count})=>(
+                    <div key={star} style={{ display:'flex',alignItems:'center',gap:'.6rem' }}>
+                      <span style={{ fontSize:'.75rem',color:C.muted,width:34 }}>{star} ★</span>
+                      <div style={{ flex:1,height:8,borderRadius:99,background:C.creamDark,overflow:'hidden' }}>
+                        <div style={{ width:`${visibleReviews.length?count/visibleReviews.length*100:0}%`,height:'100%',background:C.gold }}/>
+                      </div>
+                      <span style={{ fontSize:'.75rem',color:C.muted,width:20 }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display:'flex',gap:'.5rem',marginBottom:'1.25rem',flexWrap:'wrap' }}>
+                {[['ALL','Tất cả'],['UNREPLIED','Chưa phản hồi'],['5','5 sao'],['4','4 sao'],['3','3 sao'],['2','2 sao'],['1','1 sao']].map(([k,l])=>(
+                  <button key={k} onClick={()=>setReviewFilter(k)} style={{ ...S.btnSm,
+                    background:reviewFilter===k?C.brown:C.white, color:reviewFilter===k?'#fff':C.muted,
+                    border:`1.5px solid ${reviewFilter===k?C.brown:C.border}` }}>{l}</button>
+                ))}
+              </div>
+
+              <div style={{ display:'flex',flexDirection:'column',gap:'1rem' }}>
+                {filteredReviews.length===0 && (
+                  <div style={{ ...S.card,textAlign:'center',padding:'3rem',color:C.muted }}>Không có đánh giá phù hợp</div>
+                )}
+                {filteredReviews.map(r=>(
+                  <div key={r.id} style={{ ...S.card,border:`1px solid ${C.border}` }}>
+                    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:'.5rem' }}>
+                      <div>
+                        <p style={{ fontWeight:700,fontSize:'.9rem' }}>{r.customer?.fullName || r.customerName}</p>
+                        <p style={{ color:C.gold,fontSize:'.85rem' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</p>
+                      </div>
+                      <span style={{ fontSize:'.75rem',color:C.muted }}>
+                        {new Date(r.createdAt).toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})}
+                      </span>
+                    </div>
+                    <p style={{ fontSize:'.87rem',color:C.text,margin:'.75rem 0',lineHeight:1.6 }}>{r.comment}</p>
+                    {r.reply ? (
+                      <div style={{ background:C.cream,borderLeft:`3px solid ${C.gold}`,borderRadius:4,padding:'.75rem 1rem' }}>
+                        <p style={{ fontSize:'.72rem',fontWeight:700,color:C.goldDark,marginBottom:'.2rem' }}>PHẢN HỒI TỪ NHÀ HÀNG</p>
+                        <p style={{ fontSize:'.83rem',color:C.muted }}>{r.reply}</p>
+                      </div>
+                    ) : (
+                      <div style={{ display:'flex',gap:'.5rem',marginTop:'.5rem' }}>
+                        <input style={{ ...S.input,flex:1 }} placeholder="Viết phản hồi tới khách hàng..."
+                          value={replyDrafts[r.id]||''} onChange={e=>setReplyDrafts(p=>({...p,[r.id]:e.target.value}))}/>
+                        <button onClick={()=>submitReply(r.id)} style={{ ...S.btnGold,padding:'.6rem 1.2rem' }}>Gửi</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ══════ REPORTS / THỐNG KÊ (B15) ══════ */}
+          {activeTab==='reports' && (
+            <div>
+              <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:'1.25rem',marginBottom:'1.5rem' }}>
+                <StatCard icon="💰" label="Doanh thu cọc (tổng)" value={`${stats.totalRevenue.toLocaleString('vi-VN')}₫`} sub="từ đơn hoàn tất" color={C.gold}/>
+                <StatCard icon="📋" label="Tổng lượt đặt" value={bookings.length} sub={`${todayBookings.length} hôm nay`} color={C.blue}/>
+                <StatCard icon="👥" label="Khách hàng" value={customerProfiles.length} sub="đã từng đặt bàn" color={C.purple}/>
+                <StatCard icon="🍽️" label="Món đang bán" value={menu.filter(m=>m.status==='SELLING').length} sub={`/${menu.length} món`} color={C.green}/>
+              </div>
+
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1.5rem' }}>
+                <div style={S.card}>
+                  <div style={{ ...S.eyebrow,marginBottom:'1rem' }}>Tỷ trọng trạng thái đặt bàn</div>
+                  <div style={{ display:'flex',flexDirection:'column',gap:'.6rem' }}>
+                    {bookingStatusBreakdown.map(({status,count,meta})=>(
+                      <div key={status} style={{ display:'flex',alignItems:'center',gap:'.6rem' }}>
+                        <span style={{ fontSize:'.78rem',color:C.muted,width:120 }}>{meta.label}</span>
+                        <div style={{ flex:1,height:10,borderRadius:99,background:C.creamDark,overflow:'hidden' }}>
+                          <div style={{ width:`${bookings.length?count/bookings.length*100:0}%`,height:'100%',background:meta.color }}/>
+                        </div>
+                        <span style={{ fontSize:'.78rem',fontWeight:700,color:meta.color,width:24,textAlign:'right' }}>{count}</span>
+                      </div>
+                    ))}
+                    {bookingStatusBreakdown.length===0 && <p style={{ color:C.muted,fontSize:'.85rem' }}>Chưa có dữ liệu</p>}
+                  </div>
+                </div>
+
+                <div style={S.card}>
+                  <div style={{ ...S.eyebrow,marginBottom:'1rem' }}>Thực đơn theo danh mục</div>
+                  <div style={{ display:'flex',flexDirection:'column',gap:'.6rem' }}>
+                    {menuByCategory.map(({cat,count,revenue})=>(
+                      <div key={cat} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',
+                        padding:'.5rem 0',borderBottom:`1px solid ${C.creamDark}` }}>
+                        <span style={{ fontSize:'.85rem',color:C.text }}>{cat}</span>
+                        <span style={{ fontSize:'.78rem',color:C.muted }}>{count} món · giá TB {(revenue/(count||1)).toLocaleString('vi-VN',{maximumFractionDigits:0})}₫</span>
+                      </div>
+                    ))}
+                    {menuByCategory.length===0 && <p style={{ color:C.muted,fontSize:'.85rem' }}>Chưa có dữ liệu</p>}
+                  </div>
+                </div>
+
+                <div style={{ ...S.card,gridColumn:'1/-1' }}>
+                  <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Doanh thu tiền cọc 7 ngày gần nhất</div>
+                  <div style={{ display:'flex',alignItems:'flex-end',gap:'.625rem',height:120 }}>
+                    {[65,45,80,55,90,70,100].map((h,i)=>(
+                      <div key={i} style={{ flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:'.35rem' }}>
+                        <div style={{ width:'100%',background:`linear-gradient(to top,${C.gold},${C.goldLight})`,
+                          height:`${h}%`,borderRadius:'4px 4px 0 0',minHeight:4 }}
+                          title={`${(h*5000).toLocaleString('vi-VN')}₫`}/>
+                        <span style={{ fontSize:'.65rem',color:C.muted }}>{['T2','T3','T4','T5','T6','T7','CN'][i]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════ NOTIFICATIONS (B09) ══════ */}
+          {activeTab==='notifications' && (
+            <div style={{ maxWidth:640 }}>
+              <div style={{ display:'flex',justifyContent:'flex-end',marginBottom:'1rem' }}>
+                <button onClick={markAllNotificationsRead} style={{ ...S.btnOut,fontSize:'.78rem',padding:'.45rem 1rem' }}>
+                  ✓ Đánh dấu đã đọc tất cả
+                </button>
+              </div>
+              <div style={{ display:'flex',flexDirection:'column',gap:'.75rem' }}>
+                {notifications.length===0 && (
+                  <div style={{ ...S.card,textAlign:'center',padding:'3rem',color:C.muted }}>Không có thông báo</div>
+                )}
+                {notifications.map(n=>{
+                  const iconMap={ BOOKING_NEW:'📋',WAITLIST_ACCEPTED:'⏳',CANCEL:'🚫',REVIEW_NEW:'⭐',NO_SHOW:'❗' }
+                  return (
+                    <div key={n.id} onClick={()=>markNotificationRead(n.id)} style={{
+                      ...S.card, cursor:'pointer', display:'flex', gap:'.875rem', alignItems:'flex-start',
+                      border:`1px solid ${n.read?C.border:C.goldBorder}`,
+                      background: n.read ? C.white : C.goldSubtle,
+                    }}>
+                      <div style={{ fontSize:'1.3rem' }}>{iconMap[n.type]||'🔔'}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ display:'flex',justifyContent:'space-between',gap:'.5rem' }}>
+                          <p style={{ fontWeight:700,fontSize:'.87rem',color:C.text }}>{n.title}</p>
+                          {!n.read && <span style={{ width:8,height:8,borderRadius:'50%',background:C.gold,flexShrink:0,marginTop:5 }}/>}
+                        </div>
+                        <p style={{ fontSize:'.82rem',color:C.muted,marginTop:'.15rem' }}>{n.message}</p>
+                        <p style={{ fontSize:'.7rem',color:C.muted,marginTop:'.3rem' }}>
+                          {new Date(n.createdAt).toLocaleString('vi-VN',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ══════ POLICY ══════ */}
           {activeTab==='policy' && (
             <div style={{ maxWidth:700 }}>
               <div style={{ ...S.card,marginBottom:'1.5rem' }}>
                 <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Chính sách đặt cọc & huỷ bàn</div>
-                <form onSubmit={e=>{e.preventDefault();toast.success('Đã lưu chính sách!');setPolicyModal(false)}}
+                <form onSubmit={savePolicy}
                   style={{ display:'flex',flexDirection:'column',gap:'1.25rem' }}>
                   {/* Deposit required */}
                   <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',
@@ -1042,19 +1505,122 @@ export default function PartnerDashboard() {
             </div>
           )}
 
-          {/* ══════ SETTINGS ══════ */}
+          {/* ══════ SETTINGS: B03 + B04 ══════ */}
           {activeTab==='settings' && (
-            <div style={{ maxWidth:700 }}>
-              <div style={{ ...S.card,marginBottom:'1.25rem' }}>
-                <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Thông tin chi nhánh</div>
+            <div style={{ maxWidth:760, display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+
+              {/* ── B03: Thương hiệu nhà hàng ───────────────────── */}
+              <div style={S.card}>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem',flexWrap:'wrap',gap:'.5rem' }}>
+                  <div style={S.eyebrow}>Thương hiệu nhà hàng (áp dụng chung mọi chi nhánh)</div>
+                  {restaurant?.approvalStatus && (
+                    <span style={{ fontSize:'.72rem',fontWeight:700,padding:'.25rem .7rem',borderRadius:99,
+                      background: restaurant.approvalStatus==='APPROVED' ? 'rgba(34,150,89,.12)'
+                        : restaurant.approvalStatus==='REJECTED' ? C.redBg : C.goldSubtle,
+                      color: restaurant.approvalStatus==='APPROVED' ? C.green
+                        : restaurant.approvalStatus==='REJECTED' ? C.red : C.goldDark }}>
+                      {{ APPROVED:'✓ Đã duyệt', PENDING:'⏳ Chờ duyệt', PENDING_UPDATE:'⏳ Chờ duyệt cập nhật', REJECTED:'✕ Bị từ chối' }[restaurant.approvalStatus] || restaurant.approvalStatus}
+                    </span>
+                  )}
+                </div>
+
+                {restaurant?.approvalStatus === 'PENDING_UPDATE' && (
+                  <div style={{ background:C.goldSubtle,border:`1px solid ${C.goldBorder}`,borderRadius:4,
+                    padding:'.875rem 1rem',marginBottom:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:'1rem',flexWrap:'wrap' }}>
+                    <p style={{ fontSize:'.82rem',color:C.goldDark }}>
+                      Logo/mô tả mới đang chờ quản trị viên duyệt. Khách hàng vẫn thấy phiên bản đã duyệt trước đó.
+                    </p>
+                    <button onClick={cancelRestaurantPendingUpdate} style={{ ...S.btnOut,fontSize:'.78rem',padding:'.4rem .9rem',whiteSpace:'nowrap' }}>
+                      Huỷ yêu cầu cập nhật
+                    </button>
+                  </div>
+                )}
+                {restaurant?.approvalStatus === 'REJECTED' && restaurant?.rejectionReason && (
+                  <div style={{ background:C.redBg,borderRadius:4,padding:'.875rem 1rem',marginBottom:'1.25rem' }}>
+                    <p style={{ fontSize:'.82rem',color:C.red }}>Lý do từ chối: {restaurant.rejectionReason}</p>
+                  </div>
+                )}
+
                 <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1.25rem' }}>
                   <div style={{ gridColumn:'1/-1' }}>
-                    <label style={S.label}>Tên chi nhánh</label>
+                    <label style={S.label}>Tên thương hiệu *</label>
+                    <input style={S.input} value={restaurantForm.restaurantName}
+                      onChange={e=>setRestaurantForm(p=>({...p,restaurantName:e.target.value}))}/>
+                  </div>
+                  <div style={{ gridColumn:'1/-1' }}>
+                    <label style={S.label}>Logo (URL ảnh)</label>
+                    <input style={S.input} placeholder="https://..." value={restaurantForm.logoUrl}
+                      onChange={e=>setRestaurantForm(p=>({...p,logoUrl:e.target.value}))}/>
+                  </div>
+                  <div style={{ gridColumn:'1/-1' }}>
+                    <label style={S.label}>Mô tả tổng quan</label>
+                    <textarea style={{ ...S.input,resize:'vertical' }} rows={3} value={restaurantForm.description}
+                      onChange={e=>setRestaurantForm(p=>({...p,description:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <label style={S.label}>Ngành ẩm thực chính</label>
+                    <input style={S.input} placeholder="VD: Ẩm thực Việt Nam" value={restaurantForm.cuisineType}
+                      onChange={e=>setRestaurantForm(p=>({...p,cuisineType:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <label style={S.label}>Số điện thoại</label>
+                    <input style={S.input} value={restaurantForm.phone}
+                      onChange={e=>setRestaurantForm(p=>({...p,phone:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <label style={S.label}>Email liên hệ</label>
+                    <input style={S.input} type="email" value={restaurantForm.email}
+                      onChange={e=>setRestaurantForm(p=>({...p,email:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <label style={S.label}>Website</label>
+                    <input style={S.input} placeholder="https://..." value={restaurantForm.website}
+                      onChange={e=>setRestaurantForm(p=>({...p,website:e.target.value}))}/>
+                  </div>
+                </div>
+                <button onClick={saveRestaurantInfo} disabled={savingRestaurant}
+                  style={{ ...S.btnGold,marginTop:'1.25rem' }}>
+                  {savingRestaurant ? 'Đang lưu...' : '✦ Lưu thương hiệu'}
+                </button>
+              </div>
+
+              {/* ── B04: Danh sách & chuyển đổi chi nhánh ────────── */}
+              <div style={S.card}>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem' }}>
+                  <div style={S.eyebrow}>Chi nhánh ({branches.length})</div>
+                  <button onClick={()=>setNewBranchModal(true)} style={{ ...S.btnOut,fontSize:'.78rem',padding:'.4rem .9rem' }}>+ Thêm chi nhánh</button>
+                </div>
+                <div style={{ display:'flex',flexDirection:'column',gap:'.6rem' }}>
+                  {branches.map(b=>{
+                    const st = BRANCH_STATUS[b.status] || BRANCH_STATUS[2]
+                    return (
+                      <div key={b.id} onClick={()=>setActiveBranch(b)} style={{
+                        display:'flex',justifyContent:'space-between',alignItems:'center',gap:'1rem',cursor:'pointer',
+                        padding:'.8rem 1rem',borderRadius:4,border:`1.5px solid ${activeBranch?.id===b.id?C.gold:C.border}`,
+                        background:activeBranch?.id===b.id?C.goldSubtle:C.white }}>
+                        <div>
+                          <p style={{ fontWeight:700,fontSize:'.87rem' }}>{b.name}</p>
+                          <p style={{ fontSize:'.76rem',color:C.muted }}>{b.address}</p>
+                        </div>
+                        <span style={{ fontSize:'.7rem',fontWeight:700,color:st.color,whiteSpace:'nowrap' }}>● {st.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {activeBranch && (
+              <>
+              <div style={S.card}>
+                <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Thông tin chi nhánh: {activeBranch.name}</div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1.25rem' }}>
+                  <div style={{ gridColumn:'1/-1' }}>
+                    <label style={S.label}>Tên chi nhánh *</label>
                     <input style={S.input} value={branchForm.name}
                       onChange={e=>setBranchForm(p=>({...p,name:e.target.value}))}/>
                   </div>
                   <div style={{ gridColumn:'1/-1' }}>
-                    <label style={S.label}>Địa chỉ</label>
+                    <label style={S.label}>Địa chỉ *</label>
                     <input style={S.input} value={branchForm.address}
                       onChange={e=>setBranchForm(p=>({...p,address:e.target.value}))}/>
                   </div>
@@ -1068,33 +1634,74 @@ export default function PartnerDashboard() {
                     <input style={S.input} value={branchForm.phone}
                       onChange={e=>setBranchForm(p=>({...p,phone:e.target.value}))}/>
                   </div>
+                  <div>
+                    <label style={S.label}>Vĩ độ (latitude)</label>
+                    <input style={S.input} type="number" step="0.000001" placeholder="21.028511" value={branchForm.latitude}
+                      onChange={e=>setBranchForm(p=>({...p,latitude:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <label style={S.label}>Kinh độ (longitude)</label>
+                    <input style={S.input} type="number" step="0.000001" placeholder="105.854167" value={branchForm.longitude}
+                      onChange={e=>setBranchForm(p=>({...p,longitude:e.target.value}))}/>
+                  </div>
                 </div>
+                <p style={{ fontSize:'.74rem',color:C.muted,marginTop:'.5rem' }}>
+                  💡 Vĩ độ/kinh độ dùng để hiển thị vị trí chi nhánh trên bản đồ khi khách tìm kiếm.
+                </p>
                 <button onClick={saveBranchInfo} disabled={savingBranch}
                   style={{ ...S.btnGold,marginTop:'1.25rem' }}>
                   {savingBranch ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </div>
 
-              <div style={{ ...S.card,marginBottom:'1.25rem' }}>
-                <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Trạng thái hoạt động</div>
-                {[
-                  { label:'Nhận đặt bàn trực tuyến', sub:'Cho phép khách đặt bàn qua Dabana', key:'acceptBooking' },
-                  { label:'Hiện trên kết quả tìm kiếm', sub:'Chi nhánh xuất hiện khi khách tìm kiếm', key:'visible' },
-                  { label:'Hàng chờ tự động', sub:'Tự động mời khách trong hàng chờ khi có bàn trống', key:'autoWaitlist' },
-                ].map(({ label,sub,key })=>(
-                  <div key={key} style={{ display:'flex',justifyContent:'space-between',alignItems:'center',
-                    padding:'.875rem 0',borderBottom:`1px solid ${C.creamDark}`,gap:'1rem' }}>
-                    <div>
-                      <p style={{ fontWeight:600,fontSize:'.88rem' }}>{label}</p>
-                      <p style={{ fontSize:'.78rem',color:C.muted }}>{sub}</p>
-                    </div>
-                    <div style={{ width:44,height:24,borderRadius:99,background:C.green,position:'relative',cursor:'pointer',flexShrink:0 }}>
-                      <div style={{ width:18,height:18,borderRadius:'50%',background:'#fff',
-                        position:'absolute',top:3,left:23,boxShadow:'0 1px 4px rgba(0,0,0,.2)' }}/>
-                    </div>
-                  </div>
-                ))}
+              {/* Khung giờ hoạt động */}
+              <div style={S.card}>
+                <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Khung giờ hoạt động</div>
+                <div style={{ display:'flex',flexDirection:'column',gap:'.6rem' }}>
+                  {WEEKDAYS.map(([day,label])=>{
+                    const h = operatingHours.find(x=>x.dayOfWeek===day) || { dayOfWeek:day,openTime:'10:00',closeTime:'22:00' }
+                    return (
+                      <div key={day} style={{ display:'grid',gridTemplateColumns:'90px 1fr 1fr',gap:'.75rem',alignItems:'center' }}>
+                        <span style={{ fontSize:'.82rem',fontWeight:600,color:C.text }}>{label}</span>
+                        <input type="time" style={S.input} value={h.openTime?.slice(0,5)||''}
+                          onChange={e=>updateHourField(day,'openTime',e.target.value)}/>
+                        <input type="time" style={S.input} value={h.closeTime?.slice(0,5)||''}
+                          onChange={e=>updateHourField(day,'closeTime',e.target.value)}/>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p style={{ fontSize:'.74rem',color:C.muted,margin:'.75rem 0' }}>
+                  ⚠ Nếu giờ mới ảnh hưởng tới đơn đặt bàn đã xác nhận nằm ngoài khung giờ, hệ thống sẽ từ chối lưu và yêu cầu xử lý các đơn liên quan trước.
+                </p>
+                <button onClick={saveOperatingHours} disabled={savingHours} style={S.btnGold}>
+                  {savingHours ? 'Đang lưu...' : 'Lưu khung giờ hoạt động'}
+                </button>
               </div>
+
+              {/* Trạng thái hoạt động / Tạm ngưng */}
+              <div style={S.card}>
+                <div style={{ ...S.eyebrow,marginBottom:'1.25rem' }}>Trạng thái hoạt động</div>
+                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',gap:'1rem',flexWrap:'wrap' }}>
+                  <div>
+                    <p style={{ fontWeight:600,fontSize:'.88rem' }}>
+                      {activeBranch.status===5 ? '⏸ Chi nhánh đang tạm ngưng' : '● Chi nhánh đang hoạt động'}
+                    </p>
+                    <p style={{ fontSize:'.78rem',color:C.muted,marginTop:'.2rem',maxWidth:440 }}>
+                      {activeBranch.status===5
+                        ? 'Chi nhánh không hiển thị trong tìm kiếm và không nhận đơn mới. Mở lại để tiếp tục nhận đặt bàn.'
+                        : 'Tạm ngưng sẽ ẩn chi nhánh khỏi tìm kiếm, ngừng nhận đặt bàn mới và tự động đóng hàng chờ. Đơn đã xác nhận vẫn được giữ nguyên.'}
+                    </p>
+                  </div>
+                  <button onClick={toggleBranchStatus} disabled={changingStatus} style={{
+                    ...S.btnOut, borderColor: activeBranch.status===5 ? C.green : C.red,
+                    color: activeBranch.status===5 ? C.green : C.red, whiteSpace:'nowrap' }}>
+                    {changingStatus ? '...' : activeBranch.status===5 ? '▶ Mở lại chi nhánh' : '⏸ Tạm ngưng chi nhánh'}
+                  </button>
+                </div>
+              </div>
+              </>
+              )}
             </div>
           )}
 
@@ -1102,6 +1709,62 @@ export default function PartnerDashboard() {
       </main>
 
       {/* ════════ MODALS ════════ */}
+
+      {/* New Branch Modal (B04 bước 1) */}
+      {newBranchModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:200,
+          display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem' }}>
+          <div style={{ background:C.white,borderRadius:4,width:'100%',maxWidth:480,overflow:'hidden' }}>
+            <div style={{ background:`linear-gradient(135deg,${C.brown},${C.brownMid})`,padding:'1.25rem 1.5rem' }}>
+              <h2 style={{ ...serif,fontWeight:700,color:'#fff',fontSize:'1.25rem' }}>Thêm chi nhánh mới</h2>
+            </div>
+            <form onSubmit={createBranch} style={{ padding:'1.5rem',display:'flex',flexDirection:'column',gap:'1rem' }}>
+              <div>
+                <label style={S.label}>Tên chi nhánh *</label>
+                <input style={S.input} value={newBranchForm.name} required
+                  onChange={e=>setNewBranchForm(p=>({...p,name:e.target.value}))}/>
+              </div>
+              <div>
+                <label style={S.label}>Địa chỉ *</label>
+                <input style={S.input} value={newBranchForm.address} required
+                  onChange={e=>setNewBranchForm(p=>({...p,address:e.target.value}))}/>
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem' }}>
+                <div>
+                  <label style={S.label}>Tỉnh/Thành phố</label>
+                  <input style={S.input} value={newBranchForm.province}
+                    onChange={e=>setNewBranchForm(p=>({...p,province:e.target.value}))}/>
+                </div>
+                <div>
+                  <label style={S.label}>Số điện thoại</label>
+                  <input style={S.input} value={newBranchForm.phone}
+                    onChange={e=>setNewBranchForm(p=>({...p,phone:e.target.value}))}/>
+                </div>
+                <div>
+                  <label style={S.label}>Vĩ độ</label>
+                  <input style={S.input} type="number" step="0.000001" value={newBranchForm.latitude}
+                    onChange={e=>setNewBranchForm(p=>({...p,latitude:e.target.value}))}/>
+                </div>
+                <div>
+                  <label style={S.label}>Kinh độ</label>
+                  <input style={S.input} type="number" step="0.000001" value={newBranchForm.longitude}
+                    onChange={e=>setNewBranchForm(p=>({...p,longitude:e.target.value}))}/>
+                </div>
+              </div>
+              <p style={{ fontSize:'.76rem',color:C.muted }}>
+                Chi nhánh mới sẽ ở trạng thái "Chờ duyệt" cho đến khi quản trị viên xác thực hình ảnh và mô tả.
+                Sau khi tạo, hãy thiết lập khung giờ hoạt động và chính sách đặt cọc riêng cho chi nhánh này.
+              </p>
+              <div style={{ display:'flex',gap:'.75rem',justifyContent:'flex-end' }}>
+                <button type="button" onClick={()=>setNewBranchModal(false)} style={S.btnOut}>Huỷ</button>
+                <button type="submit" disabled={creatingBranch} style={S.btnGold}>
+                  {creatingBranch ? 'Đang tạo...' : '✦ Tạo chi nhánh'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Menu Modal */}
       {menuModal!==null && (

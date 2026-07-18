@@ -54,13 +54,35 @@ export const authApi = {
   refresh:   (data) => api.post('/auth/refresh', data),
 }
 
-// ===== Branch/Restaurant API =====
+// ===== Restaurant brand API (B03) =====
+export const restaurantApi = {
+  getMine:           ()     => api.get('/restaurants'),
+  register:          (data) => api.post('/restaurants', data),
+  update:            (data) => api.put('/restaurants', data),
+  cancelPendingUpdate:()    => api.post('/restaurants/cancel-pending-update'),
+}
+
+// ===== Branch/Restaurant API (B04) =====
 export const branchApi = {
-  search:    (params) => api.get('/branchs', { params }),
-  getById:   (id)     => api.get(`/branchs/${id}`),
-  getMyList: ()       => api.get('/branchs/me'),
-  create:    (data)   => api.post('/branchs/me', data),
-  update:    (id, d)  => api.put(`/branchs/me/${id}`, d),
+  search:      (params) => api.get('/branchs', { params }),
+  getById:     (id)     => api.get(`/branchs/${id}`),
+  getMyList:   ()       => api.get('/branchs/me'),
+  getMyDetail: (id)     => api.get(`/branchs/me/${id}`),
+  create:      (data)   => api.post('/branchs/me', data),
+  update:      (id, d)  => api.put(`/branchs/me/${id}`, d),
+  updateStatus:(id, s)  => api.patch(`/branchs/me/${id}/status`, { status: s }),
+}
+
+// ===== Operating hours API (B04) =====
+export const operatingHourApi = {
+  getByBranch: (branchId)      => api.get(`/branchs/operating-hours/branch/${branchId}`),
+  save:        (branchId, arr) => api.post(`/branchs/operating-hours/branch/${branchId}/save`, arr),
+}
+
+// ===== Deposit/cancellation policy API (B05) =====
+export const depositPolicyApi = {
+  getByBranch: (branchId)      => api.get(`/branches/${branchId}/deposit-policy`),
+  upsert:      (branchId, d)   => api.put(`/branches/${branchId}/deposit-policy`, d),
 }
 
 // ===== Table Layout API (B07/B08) =====
@@ -74,7 +96,7 @@ export const tableApi = {
   getByBranch:  (bid)    => api.get(`/tables/branch/${bid}`),
   create:       (data)   => api.post('/tables/manage', data),
   updateStatus: (id, s)  => api.patch(`/tables/${id}/status`, { status: s }),
-  updateLayout: (id, pos) => api.put(`/dining-tables/positions`, {
+    updateLayout: (id, pos) => api.put(`/dining-tables/positions`, {
     tables: [{ tableId: id, positionX: Math.round(pos.positionX), positionY: Math.round(pos.positionY) }]
   }),
 }
