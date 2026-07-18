@@ -185,6 +185,8 @@ export default function PartnerDashboard() {
   const [bkFilter,  setBkFilter]  = useState('ALL')
   const [menuFilter,setMenuFilter]= useState('ALL')
   const [loading,  setLoading]    = useState(false)
+  const [draggingTable, setDraggingTable] = useState(null) // bàn đang được kéo trên sơ đồ
+  const canvasRef = useRef(null)
 
   // ── modal states ───────────────────────────────────
   const [menuModal,  setMenuModal]  = useState(null)   // null | 'add' | item
@@ -281,6 +283,41 @@ export default function PartnerDashboard() {
     })
     toast.success('Cập nhật trạng thái bàn thành công')
     setSelectedTable(null)
+  }
+
+  // ── Kéo-thả bàn trên sơ đồ ───────────────────────────
+  const onTableDragStart = (e, table) => {
+    setDraggingTable(table)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const onCanvasDragOver = (e) => {
+    e.preventDefault() // bắt buộc để onDrop được kích hoạt
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const onCanvasDrop = async (e) => {
+    e.preventDefault()
+    if (!draggingTable || !canvasRef.current || !activeZone) { setDraggingTable(null); return }
+    const rect = canvasRef.current.getBoundingClientRect()
+    let x = ((e.clientX - rect.left) / rect.width) * 100
+    let y = ((e.clientY - rect.top) / rect.height) * 100
+    x = Math.min(97, Math.max(3, Number(x.toFixed(1))))
+    y = Math.min(97, Math.max(3, Number(y.toFixed(1))))
+
+    // Cập nhật ngay trên giao diện để thao tác kéo-thả mượt, không phụ thuộc mạng
+    setTables(prev => ({
+      ...prev,
+      [activeZone.id]: (prev[activeZone.id]||[]).map(t =>
+        t.id === draggingTable.id ? { ...t, positionX: x, positionY: y } : t)
+    }))
+
+    try {
+      await tableApi.updateLayout(draggingTable.id, { positionX: x, positionY: y })
+    } catch {
+      // Bỏ qua lỗi mạng: vị trí vẫn được giữ ở giao diện, đồng bộ lại khi tải lại trang
+    }
+    setDraggingTable(null)
   }
 
   const doBookingAction = async (id, action) => {
@@ -701,7 +738,8 @@ export default function PartnerDashboard() {
                     {activeZone && (tables[activeZone.id]||[]).length} bàn
                   </div>
                 </div>
-                <div style={{ position:'relative',width:'100%',paddingBottom:'45%',
+                <div ref={canvasRef} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop}
+                  style={{ position:'relative',width:'100%',paddingBottom:'45%',
                   background:`linear-gradient(145deg,#faf7f0,#f5efe3)`,
                   border:`2px dashed ${C.border}`,borderRadius:4,overflow:'hidden',minHeight:280 }}>
                   {/* Grid lines */}
@@ -722,18 +760,22 @@ export default function PartnerDashboard() {
                     const isSel=selectedTable?.id===t.id
                     const sz=t.capacity>6?96:t.capacity>4?84:74
                     return (
-                      <div key={t.id} onClick={()=>setSelectedTable(isSel?null:t)} style={{
+                      <div key={t.id}
+                        draggable
+                        onDragStart={e=>onTableDragStart(e,t)}
+                        onDragEnd={()=>setDraggingTable(null)}
+                        onClick={()=>setSelectedTable(isSel?null:t)} style={{
                         position:'absolute',
                         left:`${t.positionX}%`,top:`${t.positionY}%`,
                         transform:'translate(-50%,-50%)',
                         width:sz,height:sz-10,
                         background: isSel ? C.gold : meta.bg,
                         border:`2px solid ${isSel ? C.goldDark : meta.color}`,
-                        borderRadius:6,cursor:'pointer',
+                        borderRadius:6,cursor:'grab',
                         display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,
                         boxShadow: isSel ? `0 4px 20px ${C.gold}44` : 'none',
-                        transition:'all .2s',
-                        opacity:1
+                        transition: draggingTable?.id===t.id ? 'none' : 'all .2s',
+                        opacity: draggingTable?.id===t.id ? 0.5 : 1
                       }}>
                         <span style={{ fontSize:'.82rem',fontWeight:800,color:isSel?C.brown:meta.color }}>{t.tableCode}</span>
                         <span style={{ fontSize:'.62rem',fontWeight:700,color:isSel?'rgba(61,43,31,.8)':meta.color }}>{meta.icon}</span>

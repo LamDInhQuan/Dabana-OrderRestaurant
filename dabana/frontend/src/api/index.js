@@ -74,7 +74,9 @@ export const tableApi = {
   getByBranch:  (bid)    => api.get(`/tables/branch/${bid}`),
   create:       (data)   => api.post('/tables/manage', data),
   updateStatus: (id, s)  => api.patch(`/tables/${id}/status`, { status: s }),
-  updateLayout: (id, pos) => api.patch(`/tables/manage/${id}/layout`, pos),
+  updateLayout: (id, pos) => api.put(`/dining-tables/positions`, {
+    tables: [{ tableId: id, positionX: Math.round(pos.positionX), positionY: Math.round(pos.positionY) }]
+  }),
 }
 
 // ===== Booking API (B01) =====
