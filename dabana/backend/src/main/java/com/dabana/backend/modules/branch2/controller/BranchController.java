@@ -38,6 +38,12 @@ public class BranchController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responses));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<BranchResponse>>> getAllBranches() {
+        List<BranchResponse> responses = branchService.findAll();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responses));
+    }
+
 //    // 1. LẤY TẤT CẢ CHI NHÁNH
 //    @GetMapping
 //    public ResponseEntity<List<BranchResponse>> getAllBranches() {

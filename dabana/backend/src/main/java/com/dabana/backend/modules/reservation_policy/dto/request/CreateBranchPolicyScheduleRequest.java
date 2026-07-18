@@ -7,27 +7,21 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Getter
 @Setter
 public class CreateBranchPolicyScheduleRequest {
 
-    @NotBlank
-    @Size(max = 255)
-    private String name;
+    private Integer dayOfWeek;
 
-    private String description;
+    private LocalDate dateFrom;
 
-    @NotNull
-    private LocalDateTime startDatetime;
+    private LocalDate dateTo;
 
-    @NotNull
-    private LocalDateTime endDatetime;
+    private LocalTime timeFrom;
 
-    @NotNull
-    private Integer priority;
-
-    @NotNull
-    private PolicyStatus status;
+    private LocalTime timeTo;
 }

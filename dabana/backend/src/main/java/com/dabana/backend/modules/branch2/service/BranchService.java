@@ -69,7 +69,10 @@ public class BranchService implements IBranchService {
 
     @Override
     public List<BranchResponse> findAll() {
-        return List.of();
+        List<Branch> branches = branchRepository.findAll();
+        return branches.stream()
+                .map(branch -> branchMapper.toResponse(branch)) // Hoặc dùng new BranchResponse(branch) tuỳ dự án của bạn
+                .toList();
     }
 
     @Override
@@ -79,11 +82,11 @@ public class BranchService implements IBranchService {
 
     @Override
     public BranchResponse create(BranchRequest request) {
-        if(branchRepository.existsByPhone(request.getPhone())){
+        if (branchRepository.existsByPhone(request.getPhone())) {
             throw new BusinessException(BranchErrorCode.DUPLICATE_PHONE);
         }
         com.dabana.backend.modules.branch2.entity.Branch branch = branchMapper.toEntity(request);
-        initializeAdditionalData(branch,request);
+        initializeAdditionalData(branch, request);
         return branchMapper.toResponse(branchRepository.save(branch));
     }
 

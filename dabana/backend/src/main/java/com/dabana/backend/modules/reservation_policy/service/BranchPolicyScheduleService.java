@@ -13,11 +13,14 @@ import com.dabana.backend.modules.reservation_policy.mapper.BranchPolicySchedule
 import com.dabana.backend.modules.reservation_policy.repository.BranchPolicyRepository;
 import com.dabana.backend.modules.reservation_policy.repository.BranchPolicyScheduleRepository;
 import com.dabana.backend.modules.reservation_policy.util.PolicyErrorCode;
+import com.dabana.backend.modules.reservation_policy.util.PolicyScheduleType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -39,8 +42,18 @@ public class BranchPolicyScheduleService implements IBranchPolicyScheduleService
         BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
-        validateSchedule(request);
-        assertNoScheduleOverlap(branchPolicy.getId(), request.getStartDatetime(), request.getEndDatetime(), request.getPriority(), null);
+        validateSchedule(branchPolicy.getPolicy().getScheduleType(), request);
+
+        assertNoScheduleOverlap(
+                branchPolicy.getId(),
+                branchPolicy.getPolicy().getScheduleType(),
+                request.getDayOfWeek(),
+                request.getDateFrom(),
+                request.getDateTo(),
+                request.getTimeFrom(),
+                request.getTimeTo(),
+                null
+        );
 
         BranchPolicySchedule entity = branchPolicyScheduleMapper.toEntity(request, branchPolicy);
         return branchPolicyScheduleMapper.toResponse(branchPolicyScheduleRepository.save(entity));
@@ -58,16 +71,25 @@ public class BranchPolicyScheduleService implements IBranchPolicyScheduleService
         BranchPolicySchedule entity = branchPolicyScheduleRepository.findByIdAndBranchPolicyId(scheduleId, branchPolicy.getId())
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.SCHEDULE_NOT_FOUND));
 
-        validateSchedule(request);
-        assertNoScheduleOverlap(branchPolicy.getId(), request.getStartDatetime(), request.getEndDatetime(), request.getPriority(), scheduleId);
+        validateSchedule(branchPolicy.getPolicy().getScheduleType(), request);
 
-        entity.setName(request.getName().trim());
-        entity.setDescription(request.getDescription());
-        entity.setStartDatetime(request.getStartDatetime());
-        entity.setEndDatetime(request.getEndDatetime());
-        entity.setPriority(request.getPriority());
+        assertNoScheduleOverlap(
+                branchPolicy.getId(),
+                branchPolicy.getPolicy().getScheduleType(),
+                request.getDayOfWeek(),
+                request.getDateFrom(),
+                request.getDateTo(),
+                request.getTimeFrom(),
+                request.getTimeTo(),
+                scheduleId
+        );
+
+        entity.setDayOfWeek(request.getDayOfWeek());
+        entity.setDateFrom(request.getDateFrom());
+        entity.setDateTo(request.getDateTo());
+        entity.setTimeFrom(request.getTimeFrom());
+        entity.setTimeTo(request.getTimeTo());
         entity.setStatus(request.getStatus());
-
         return branchPolicyScheduleMapper.toResponse(branchPolicyScheduleRepository.save(entity));
     }
 
@@ -110,33 +132,126 @@ public class BranchPolicyScheduleService implements IBranchPolicyScheduleService
         BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
-        return branchPolicyScheduleRepository.findAllByBranchPolicyIdOrderByPriorityDesc(branchPolicy.getId())
+        return branchPolicyScheduleRepository
+                .findAllByBranchPolicyIdOrderByIdAsc(branchPolicy.getId())
                 .stream()
                 .map(branchPolicyScheduleMapper::toResponse)
                 .toList();
     }
 
-    private void validateSchedule(CreateBranchPolicyScheduleRequest request) {
-        if (request.getStartDatetime() == null || request.getEndDatetime() == null || !request.getStartDatetime().isBefore(request.getEndDatetime())) {
+    private void validateSchedule(
+            PolicyScheduleType scheduleType,
+            CreateBranchPolicyScheduleRequest request) {
+
+        validateScheduleType(
+                scheduleType,
+                request.getDayOfWeek(),
+                request.getDateFrom(),
+                request.getDateTo(),
+                request.getTimeFrom(),
+                request.getTimeTo()
+        );
+    }
+
+    private void validateSchedule(
+            PolicyScheduleType scheduleType,
+            UpdateBranchPolicyScheduleRequest request) {
+
+        validateScheduleType(
+                scheduleType,
+                request.getDayOfWeek(),
+                request.getDateFrom(),
+                request.getDateTo(),
+                request.getTimeFrom(),
+                request.getTimeTo()
+        );
+    }
+
+    private void validateScheduleType(
+            PolicyScheduleType scheduleType,
+            Integer dayOfWeek,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            LocalTime timeFrom,
+            LocalTime timeTo) {
+
+        if (scheduleType == null) {
             throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
+        }
+
+        if (timeFrom != null && timeTo != null && !timeFrom.isBefore(timeTo)) {
+            throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
+        }
+
+        switch (scheduleType) {
+
+            case ALWAYS -> {
+                if (dayOfWeek != null || dateFrom != null || dateTo != null) {
+                    throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
+                }
+            }
+
+            case DAY_OF_WEEK -> {
+                if (dayOfWeek == null || dateFrom != null || dateTo != null) {
+                    throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
+                }
+            }
+
+            case DATE_RANGE -> {
+                if (dateFrom == null
+                        || dateTo == null
+                        || dateFrom.isAfter(dateTo)
+                        || dayOfWeek != null) {
+                    throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
+                }
+            }
+
+            default -> throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
         }
     }
 
-    private void validateSchedule(UpdateBranchPolicyScheduleRequest request) {
-        if (request.getStartDatetime() == null || request.getEndDatetime() == null || !request.getStartDatetime().isBefore(request.getEndDatetime())) {
-            throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
-        }
-    }
+    private void assertNoScheduleOverlap(
+            Long branchPolicyId,
+            PolicyScheduleType scheduleType,
+            Integer dayOfWeek,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            LocalTime timeFrom,
+            LocalTime timeTo,
+            Long excludeId) {
 
-    private void assertNoScheduleOverlap(Long branchPolicyId, LocalDateTime startDatetime, LocalDateTime endDatetime, Integer priority, Long excludeId) {
-        List<BranchPolicySchedule> existingSchedules = branchPolicyScheduleRepository.findAllByBranchPolicyIdOrderByPriorityDesc(branchPolicyId);
-
-        for (BranchPolicySchedule existing : existingSchedules) {
+        List<BranchPolicySchedule> schedules =
+                branchPolicyScheduleRepository.findAllByBranchPolicyIdOrderByIdAsc(branchPolicyId);
+        for (BranchPolicySchedule existing : schedules) {
             if (excludeId != null && existing.getId().equals(excludeId)) {
                 continue;
             }
-            if (existing.getPriority().equals(priority) && startDatetime.isBefore(existing.getEndDatetime()) && existing.getStartDatetime().isBefore(endDatetime)) {
-                throw new BusinessException(PolicyErrorCode.INVALID_SCHEDULE);
+            switch (scheduleType) {
+                case ALWAYS -> {
+                    throw new BusinessException(
+                            PolicyErrorCode.ALWAYS_SCHEDULE_ALREADY_EXISTS);
+                }
+                case DAY_OF_WEEK -> {
+                    if (!existing.getDayOfWeek().equals(dayOfWeek)) {
+                        continue;
+                    }
+                    if (timeFrom == null || existing.getTimeFrom() == null) {
+                        throw new BusinessException(
+                                PolicyErrorCode.DAY_OF_WEEK_SCHEDULE_OVERLAPPED);
+                    }
+                    if (timeFrom.isBefore(existing.getTimeTo())
+                            && existing.getTimeFrom().isBefore(timeTo)) {
+                        throw new BusinessException(
+                                PolicyErrorCode.DAY_OF_WEEK_SCHEDULE_OVERLAPPED);
+                    }
+                }
+                case DATE_RANGE -> {
+                    if (!dateFrom.isAfter(existing.getDateTo())
+                            && !existing.getDateFrom().isAfter(dateTo)) {
+                        throw new BusinessException(
+                                PolicyErrorCode.DATE_RANGE_SCHEDULE_OVERLAPPED);
+                    }
+                }
             }
         }
     }

@@ -10,7 +10,7 @@ import java.util.Optional;
 @Repository
 public interface BranchPolicyScheduleRepository extends JpaRepository<BranchPolicySchedule, Long> {
 
-    List<BranchPolicySchedule> findAllByBranchPolicyIdOrderByPriorityDesc(Long branchPolicyId);
+    List<BranchPolicySchedule> findAllByBranchPolicyIdOrderByIdAsc(Long branchPolicyId);
 
     Optional<BranchPolicySchedule> findByIdAndBranchPolicyId(Long id, Long branchPolicyId);
 }

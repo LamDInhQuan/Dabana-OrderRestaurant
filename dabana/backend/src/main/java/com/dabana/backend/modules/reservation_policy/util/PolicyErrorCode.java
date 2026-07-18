@@ -111,6 +111,20 @@ public enum PolicyErrorCode implements ErrorCode {
     POLICY_SCHEDULE_DATE_RANGE_OVERLAP(
             "POLICY_SCHEDULE_DATE_RANGE_OVERLAP",
             "Khoảng ngày bị chồng chéo"
+    ) ,
+    ALWAYS_SCHEDULE_ALREADY_EXISTS(
+            "BRANCH_POLICY_001",
+            "Chính sách ALWAYS chỉ được phép có một lịch áp dụng."
+    ),
+
+    DAY_OF_WEEK_SCHEDULE_OVERLAPPED(
+            "BRANCH_POLICY_002",
+            "Khung giờ của ngày trong tuần bị trùng với một lịch đã tồn tại."
+    ),
+
+    DATE_RANGE_SCHEDULE_OVERLAPPED(
+            "BRANCH_POLICY_003",
+            "Khoảng ngày áp dụng bị chồng chéo với một lịch đã tồn tại."
     );
 
     private final String code;

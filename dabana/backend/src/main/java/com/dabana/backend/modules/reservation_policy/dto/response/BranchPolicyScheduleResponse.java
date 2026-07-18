@@ -5,7 +5,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Getter
 @Setter
@@ -16,15 +18,15 @@ public class BranchPolicyScheduleResponse {
 
     private Long branchPolicyId;
 
-    private String name;
+    private Integer dayOfWeek;
 
-    private String description;
+    private LocalDate dateFrom;
 
-    private LocalDateTime startDatetime;
+    private LocalDate dateTo;
 
-    private LocalDateTime endDatetime;
+    private LocalTime timeFrom;
 
-    private Integer priority;
+    private LocalTime timeTo;
 
     private PolicyStatus status;
 }

@@ -9,7 +9,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Getter
@@ -24,20 +26,20 @@ public class BranchPolicySchedule extends BaseEntity {
     @JoinColumn(name = "branch_policy_id", nullable = false)
     private BranchPolicy branchPolicy;
 
-    @Column(nullable = false)
-    private String name;
+    @Column(name = "day_of_week")
+    private Integer dayOfWeek;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "date_from")
+    private LocalDate dateFrom;
 
-    @Column(name = "start_datetime", nullable = false)
-    private LocalDateTime startDatetime;
+    @Column(name = "date_to")
+    private LocalDate dateTo;
 
-    @Column(name = "end_datetime", nullable = false)
-    private LocalDateTime endDatetime;
+    @Column(name = "time_from")
+    private LocalTime timeFrom;
 
-    @Column(nullable = false)
-    private Integer priority;
+    @Column(name = "time_to")
+    private LocalTime timeTo;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

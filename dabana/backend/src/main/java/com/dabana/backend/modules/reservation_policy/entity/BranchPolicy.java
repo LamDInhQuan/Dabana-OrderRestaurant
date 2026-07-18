@@ -43,9 +43,11 @@ public class BranchPolicy extends BaseEntity {
     @Column(nullable = false)
     private PolicyStatus status;
 
+    @Builder.Default
     @OneToMany(mappedBy = "branchPolicy", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BranchPolicyDepositRule> depositRules = new HashSet<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "branchPolicy", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BranchPolicySchedule> schedules = new HashSet<>();
 }
