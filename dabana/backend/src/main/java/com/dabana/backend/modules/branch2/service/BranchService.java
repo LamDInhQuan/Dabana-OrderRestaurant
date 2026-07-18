@@ -29,6 +29,7 @@ import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.util.BranchErrorCode;
 import com.dabana.backend.modules.branch2.util.BranchStatus;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
+import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;
@@ -41,6 +42,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +58,7 @@ public class BranchService implements IBranchService {
     private final BranchRepository branchRepository;
     private final BranchImageRepository branchImageRepository;
     private final BranchMapper branchMapper;
+    private final RestaurantRepository restaurantRepository ;
 
     @Override
     public List<BranchResponse> findByRestaurant(Long restaurantId) {
@@ -99,6 +102,17 @@ public class BranchService implements IBranchService {
     @Override
     public void delete(Long id) {
 
+    }
+
+    @Override
+    public List<BranchResponse> findBranchesByManager(Long managerId) {
+        Optional<Restaurant> restaurantOpt = restaurantRepository.findByOwner_Id(managerId);
+        if (restaurantOpt.isEmpty()) {
+            return Collections.emptyList(); // Nếu user chưa tạo nhà hàng thì trả về danh sách rỗng
+        }
+        Long restaurantId = restaurantOpt.get().getId();
+        // 2. Có restaurantId rồi thì tận dụng luôn hàm findByRestaurant bạn đã viết sẵn ở trên kìa!
+        return this.findByRestaurant(restaurantId);
     }
 
     private void initializeAdditionalData(Branch branch, BranchRequest request) {

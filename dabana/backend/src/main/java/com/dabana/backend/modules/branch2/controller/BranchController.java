@@ -1,10 +1,10 @@
 package com.dabana.backend.modules.branch2.controller;
 
 import com.dabana.backend.common.ApiResponse;
+import com.dabana.backend.common.BaseController;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
-import com.dabana.backend.exception.BusinessException;
-import com.dabana.backend.modules.branch2.util.BranchErrorCode;
+import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/branchs")
 @RequiredArgsConstructor
-public class BranchController {
+public class BranchController extends BaseController {
 
     private final BranchService branchService;
 
@@ -46,13 +46,31 @@ public class BranchController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responses));
     }
 
-    // 2. LẤY CHI NHÁNH THEO ID
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BranchResponse>> getBranchById(@PathVariable Long id) {
-        BranchResponse response = branchService.findById(id)
-                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
-        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, response));
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<BranchResponse>>> getMyList() {
+        // 1. Lấy thông tin User hiện tại từ SecurityContext thông qua BaseController
+        User currentUser = getCurrentUser();
+        // 2. Gọi Service xử lý lấy danh sách theo User ID
+        List<BranchResponse> responses = branchService.findBranchesByManager(currentUser.getId());
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responses));
     }
+//    // 1. LẤY TẤT CẢ CHI NHÁNH
+//    @GetMapping
+//    public ResponseEntity<List<BranchResponse>> getAllBranches() {
+//        List<BranchResponse> responses = branchService.findAll().stream()
+//                .map(this::convertToResponse)
+//                .collect(Collectors.toList());
+//        return ResponseEntity.ok(responses);
+//    }
+//
+//    // 2. LẤY CHI NHÁNH THEO ID
+//    @GetMapping("/{id}")
+//    public ResponseEntity<BranchResponse> getBranchById(@PathVariable Long id) {
+//        return branchService.findById(id)
+//                .map(this::convertToResponse)
+//                .map(ResponseEntity::ok)
+//                .orElse(ResponseEntity.notFound().build());
+//    }
 
     // 3. TẠO MỚI CHI NHÁNH
     @PostMapping
@@ -60,5 +78,24 @@ public class BranchController {
         BranchResponse branchResponse = branchService.create(request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, branchResponse));
     }
+
+//    // 4. CẬP NHẬT (MERGE ĐÈ HOÀN TOÀN)
+//    @PutMapping("/{id}")
+//    public ResponseEntity<BranchResponse> updateBranch(
+//            @PathVariable Long id,
+//            @Valid @RequestBody BranchRequest request) {
+//
+//        Branch newBranchData = convertToEntity(request);
+//        Branch updatedBranch = branchService.update(id, newBranchData);
+//        return ResponseEntity.ok(convertToResponse(updatedBranch));
+//    }
+//
+//    // 5. XÓA CHI NHÁNH
+//    @DeleteMapping("/{id}")
+//    public ResponseEntity<Void> deleteBranch(@PathVariable Long id) {
+//        branchService.delete(id);
+//        return ResponseEntity.noContent().build();
+//    }
+
 
 }

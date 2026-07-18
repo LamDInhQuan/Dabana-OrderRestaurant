@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi , reservationPolicyApi } from '../../api'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 
@@ -268,11 +268,12 @@ export default function PartnerDashboard() {
   // ── Load data ──────────────────────────────────────
   useEffect(() => {
     branchApi.getMyList()
-      .then(r => { const list = r.data || DEMO_BRANCHES; setBranches(list); if (list.length) setActiveBranch(list[0]) })
+      .then(r => { console.log("r",r);
+       const list = r.data.data || DEMO_BRANCHES; setBranches(list); if (list.length) setActiveBranch(list[0]) })
       .catch(() => { setBranches(DEMO_BRANCHES); setActiveBranch(DEMO_BRANCHES[0]) })
     // B03: hồ sơ thương hiệu chung của nhà hàng
     restaurantApi.getMine()
-      .then(r => { const d = r.data || DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...d })) })
+      .then(r => { console.log("r",r); const d = r.data || DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...d })) })
       .catch(() => { setRestaurant(DEMO_RESTAURANT); setRestaurantForm(f => ({ ...f, ...DEMO_RESTAURANT })) })
   }, [])
 
@@ -307,7 +308,7 @@ export default function PartnerDashboard() {
       setZones(zList); setActiveZone(zList[0] || null)
       const tMap = {}; zList.forEach(z => { tMap[z.id] = DEMO_TABLES[z.id] || [] }); setTables(tMap)
     })
-    // bookings
+    bookings
     bookingApi.myBookings().then(r => setBookings(r.data || DEMO_BOOKINGS)).catch(() => setBookings(DEMO_BOOKINGS))
     // menu
     // menu (backend tra ve theo Danh muc -> Mon an, can flatten cho UI dang phang)
@@ -333,9 +334,9 @@ export default function PartnerDashboard() {
       setReviews(list.length ? list : DEMO_REVIEWS)
     }).catch(() => setReviews(DEMO_REVIEWS))
     // B05: chính sách đặt cọc/hủy của chi nhánh
-    depositPolicyApi.getByBranch(bid).then(r => {
-      if (r.data) setPolicy(p => ({ ...p, ...r.data }))
-    }).catch(() => { })
+    // depositPolicyApi.getByBranch(bid).then(r => {
+    //   if (r.data) setPolicy(p => ({ ...p, ...r.data }))
+    // }).catch(() => { })
   }, [activeBranch])
 
   // notifications (B09) — nạp 1 lần khi vào trang

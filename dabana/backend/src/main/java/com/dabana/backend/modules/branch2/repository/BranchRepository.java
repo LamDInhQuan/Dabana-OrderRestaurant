@@ -16,6 +16,7 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 
     boolean existsByPhone(String phone);
 
+
 //    List<Branch> findByApprovalStatus(ApprovalStatus status);
 //
 //    Page<Branch> findByApprovalStatus(ApprovalStatus status, Pageable pageable);

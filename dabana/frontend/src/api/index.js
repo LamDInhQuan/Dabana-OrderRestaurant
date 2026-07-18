@@ -13,6 +13,7 @@ api.interceptors.request.use((config) => {
 })
 
 // Response interceptor: tự động refresh token nếu 401
+// Response interceptor: tự động refresh token nếu 401
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -24,14 +25,25 @@ api.interceptors.response.use(
         if (!stored) return Promise.reject(error)
 
         const { refreshToken } = JSON.parse(stored)
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken })
-        const updated = { ...JSON.parse(stored), accessToken: data.accessToken }
-        localStorage.setItem('dabana_auth', JSON.stringify(updated))
-        original.headers.Authorization = `Bearer ${data.accessToken}`
-        return api(original)
-      } catch {
+        
+        // Gọi API refresh token
+        const res = await axios.post('/api/auth/refresh', { refreshToken })
+        
+        if (res.data && res.data.code === 'SUCCESS') {
+          const backendData = res.data.data; 
+          const newAccessToken = backendData.accessToken;
+
+          const updated = { ...JSON.parse(stored), accessToken: newAccessToken }
+          localStorage.setItem('dabana_auth', JSON.stringify(updated))
+          
+          original.headers.Authorization = `Bearer ${newAccessToken}`
+          return api(original)
+        }
+        
+      } catch (refreshError) {
         localStorage.removeItem('dabana_auth')
         window.location.href = '/login'
+        return Promise.reject(refreshError)
       }
     }
     return Promise.reject(error)
@@ -40,11 +52,7 @@ api.interceptors.response.use(
 
 // ===== Auth API =====
 export const authApi = {
-<<<<<<< HEAD
-  register:  (data) => api.post('/auth/register/customer', data),
-=======
    register:  (data) => api.post('/auth/register/customer', data),
->>>>>>> 31fa0effd21bb31755e9c18dacb92a45a68ebfe6
   login:     (data) => api.post('/auth/login', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   resendOtp: (data) => api.post('/auth/resend-otp', data),
@@ -130,10 +138,87 @@ export const operatingHourApi = {
 }
 // ===== BỔ SUNG: Deposit Policy API (Chính sách đặt cọc) =====
 // ===== Deposit/cancellation policy API (B05) =====
-export const depositPolicyApi = {
-  getByBranch: (branchId)      => api.get(`/branches/${branchId}/deposit-policy`),
-  upsert:      (branchId, d)   => api.put(`/branches/${branchId}/deposit-policy`, d),
-}
+export const branchPolicyApi = {
+  // --- CORE POLICIES ---
+  getAll: (branchId) => 
+    api.get(`/branches/${branchId}/policies`),
+    
+  getDetail: (branchId, policyId) => 
+    api.get(`/branches/${branchId}/policies/${policyId}`),
+    
+  create: (branchId, data) => 
+    api.post(`/branches/${branchId}/policies`, data),
+    
+  update: (branchId, policyId, data) => 
+    api.put(`/branches/${branchId}/policies/${policyId}`, data),
+    
+  delete: (branchId, policyId) => 
+    api.delete(`/branches/${branchId}/policies/${policyId}`),
+
+  // --- DEPOSIT RULES (Quy tắc cọc) ---
+  createDepositRule: (branchId, policyId, data) => 
+    api.post(`/branches/${branchId}/policies/${policyId}/deposit-rules`, data),
+    
+  updateDepositRule: (branchId, policyId, ruleId, data) => 
+    api.put(`/branches/${branchId}/policies/${policyId}/deposit-rules/${ruleId}`, data),
+    
+  deleteDepositRule: (branchId, policyId, ruleId) => 
+    api.delete(`/branches/${branchId}/policies/${policyId}/deposit-rules/${ruleId}`),
+
+  // --- SCHEDULES (Lịch trình áp dụng) ---
+  createSchedule: (branchId, policyId, data) => 
+    api.post(`/branches/${branchId}/policies/${policyId}/schedules`, data),
+    
+  updateSchedule: (branchId, policyId, scheduleId, data) => 
+    api.put(`/branches/${branchId}/policies/${policyId}/schedules/${scheduleId}`, data),
+    
+  deleteSchedule: (branchId, policyId, scheduleId) => 
+    api.delete(`/branches/${branchId}/policies/${policyId}/schedules/${scheduleId}`),
+};
+
+export const reservationPolicyApi = {
+  // --- CORE POLICIES ---
+  getAll: (restaurantId) => 
+    api.get(`/restaurants/${restaurantId}/reservation-policies`),
+    
+  getDetail: (restaurantId, policyId) => 
+    api.get(`/restaurants/${restaurantId}/reservation-policies/${policyId}`),
+    
+  create: (restaurantId, data) => 
+    api.post(`/restaurants/${restaurantId}/reservation-policies`, data),
+    
+  update: (restaurantId, policyId, data) => 
+    api.put(`/restaurants/${restaurantId}/reservation-policies/${policyId}`, data),
+    
+  delete: (restaurantId, policyId) => 
+    api.delete(`/restaurants/${restaurantId}/reservation-policies/${policyId}`),
+
+  // --- DEPOSIT RULES (Quy tắc cọc) ---
+  getAllDepositRules: (restaurantId, policyId) => 
+    api.get(`/restaurants/${restaurantId}/reservation-policies/${policyId}/deposit-rules`),
+
+  createDepositRule: (restaurantId, policyId, data) => 
+    api.post(`/restaurants/${restaurantId}/reservation-policies/${policyId}/deposit-rules`, data),
+    
+  updateDepositRule: (restaurantId, policyId, ruleId, data) => 
+    api.put(`/restaurants/${restaurantId}/reservation-policies/${policyId}/deposit-rules/${ruleId}`, data),
+    
+  deleteDepositRule: (restaurantId, policyId, ruleId) => 
+    api.delete(`/restaurants/${restaurantId}/reservation-policies/${policyId}/deposit-rules/${ruleId}`),
+
+  // --- SCHEDULES (Lịch trình áp dụng) ---
+  getAllSchedules: (restaurantId, policyId) => 
+    api.get(`/restaurants/${restaurantId}/reservation-policies/${policyId}/schedules`),
+
+  createSchedule: (restaurantId, policyId, data) => 
+    api.post(`/restaurants/${restaurantId}/reservation-policies/${policyId}/schedules`, data),
+    
+  updateSchedule: (restaurantId, policyId, scheduleId, data) => 
+    api.put(`/restaurants/${restaurantId}/reservation-policies/${policyId}/schedules/${scheduleId}`, data),
+    
+  deleteSchedule: (restaurantId, policyId, scheduleId) => 
+    api.delete(`/restaurants/${restaurantId}/reservation-policies/${policyId}/schedules/${scheduleId}`),
+};
 // ===== Admin API =====
 export const adminApi = {
   // F43/B02-B04: phê duyệt
