@@ -4,19 +4,37 @@ import Navbar from '../../components/Navbar'
 import { branchApi, menuApi, reviewApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 
+function unwrap(res) {
+  const d = res?.data
+  if (d && typeof d === 'object' && 'code' in d && 'data' in d) return d.data
+  return d
+}
+
+const DAY_LABEL = {
+  MONDAY: 'Thứ 2', TUESDAY: 'Thứ 3', WEDNESDAY: 'Thứ 4', THURSDAY: 'Thứ 5',
+  FRIDAY: 'Thứ 6', SATURDAY: 'Thứ 7', SUNDAY: 'Chủ nhật',
+}
+
 export default function BranchDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { auth } = useAuth()
   const [branch, setBranch]     = useState(null)
-  const [menu, setMenu]         = useState([])
+  const [categories, setCategories] = useState([])
+  const [hours, setHours]       = useState([])
   const [reviews, setReviews]   = useState([])
   const [tab, setTab]           = useState('info') // info | menu | reviews
 
   useEffect(() => {
-    branchApi.getById(id).then(r => setBranch(r.data))
-    menuApi.getByBranch(id).then(r => setMenu(r.data || []))
-    reviewApi.getByBranch(id, { page: 0, size: 10 }).then(r => setReviews(r.data.content || r.data || []))
+    branchApi.getById(id).then(r => setBranch(unwrap(r)))
+    menuApi.getByBranch(id).then(r => setCategories(
+      (unwrap(r) || []).map(c => ({ ...c, items: (c.items || []).filter(i => i.status === 'SELLING') }))
+    )).catch(() => setCategories([]))
+//    operatingHourApi.getByBranch(id).then(r => setHours(unwrap(r) || [])).catch(() => setHours([]))
+    reviewApi.getByBranch(id, { page: 0, size: 10 }).then(r => {
+      const d = unwrap(r)
+      setReviews(d?.content || d || [])
+    })
   }, [id])
 
   if (!branch) return (
@@ -66,16 +84,30 @@ export default function BranchDetail() {
             <div className="card" style={{ marginBottom: '1rem' }}>
               <h2 style={{ fontWeight: 700, marginBottom: '.75rem' }}>Giới thiệu</h2>
               <p style={{ color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                {branch.shortDescription || 'Chi nhánh chưa cập nhật mô tả.'}
+                📍 {branch.address || 'Chưa cập nhật địa chỉ.'}
               </p>
+              {branch.phone && (
+                <p style={{ color: 'var(--text-muted)', marginTop: '.4rem' }}>☎️ {branch.phone}</p>
+              )}
             </div>
             <div className="card">
               <h2 style={{ fontWeight: 700, marginBottom: '.75rem' }}>Giờ mở cửa</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}>
-                {branch.operatingHoursJson
-                  ? <pre style={{ fontFamily: 'inherit', margin: 0 }}>{JSON.stringify(JSON.parse(branch.operatingHoursJson), null, 2)}</pre>
-                  : 'Chưa cập nhật giờ mở cửa.'}
-              </p>
+              {hours.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}>Chưa cập nhật giờ mở cửa.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+                  {hours.map(h => (
+                    <div key={h.id} className="flex justify-between" style={{ fontSize: '.88rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {DAY_LABEL[h.dayOfWeek] || h.dayOfWeek}{h.shiftName ? ` · ${h.shiftName}` : ''}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>
+                        {String(h.openTime).slice(0, 5)} – {String(h.closeTime).slice(0, 5)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -83,25 +115,30 @@ export default function BranchDetail() {
         {/* TAB: Thực đơn */}
         {tab === 'menu' && (
           <div>
-            {menu.length === 0
+            {categories.length === 0
               ? <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Thực đơn đang được cập nhật.</p>
-              : (
-                <div className="grid-2">
-                  {menu.map(item => (
-                    <div key={item.id} className="card flex gap-3" style={{ padding: '1rem' }}>
-                      <div style={{
-                        width: 72, height: 72, borderRadius: 8, flexShrink: 0,
-                        background: 'var(--brand-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem'
-                      }}>🍜</div>
-                      <div>
-                        <h3 style={{ fontWeight: 700, fontSize: '.95rem' }}>{item.name}</h3>
-                        <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginBottom: '.4rem' }}>{item.category}</p>
-                        <p style={{ color: 'var(--brand)', fontWeight: 700 }}>{Number(item.price).toLocaleString('vi-VN')}₫</p>
+              : categories.map(cat => (
+                <div key={cat.id} style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontWeight: 700, marginBottom: '.75rem', color: 'var(--text-muted)' }}>{cat.categoryName}</h3>
+                  <div className="grid-2">
+                    {cat.items.map(item => (
+                      <div key={item.id} className="card flex gap-3" style={{ padding: '1rem' }}>
+                        <div style={{
+                          width: 72, height: 72, borderRadius: 8, flexShrink: 0, overflow: 'hidden',
+                          background: 'var(--brand-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem'
+                        }}>
+                          {item.imageUrl ? <img src={item.imageUrl} alt={item.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🍜'}
+                        </div>
+                        <div>
+                          <h3 style={{ fontWeight: 700, fontSize: '.95rem' }}>{item.itemName}</h3>
+                          {item.description && <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginBottom: '.4rem' }}>{item.description}</p>}
+                          <p style={{ color: 'var(--brand)', fontWeight: 700 }}>{Number(item.price).toLocaleString('vi-VN')}₫</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              )
+              ))
             }
           </div>
         )}

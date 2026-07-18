@@ -49,6 +49,8 @@ export default function App() {
             Không cần route /booking/:id riêng nữa
           */}
           <Route path="/branch/:id" element={<BranchDetail />} />
+          <Route path="/booking/:id"
+            element={<ProtectedRoute role="CUSTOMER"><BookingFlow /></ProtectedRoute>} />
           <Route path="/my-bookings"
             element={<ProtectedRoute role="CUSTOMER"><MyBookings /></ProtectedRoute>} />
 

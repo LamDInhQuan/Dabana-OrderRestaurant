@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
-import { bookingApi, reviewApi } from '../../api'
+import { bookingApi, reviewApi, operatingHourApi } from '../../api'
 
 const STATUS_META = {
   HOLDING:                { label: 'Đang giữ bàn', badge: 'badge-yellow' },
