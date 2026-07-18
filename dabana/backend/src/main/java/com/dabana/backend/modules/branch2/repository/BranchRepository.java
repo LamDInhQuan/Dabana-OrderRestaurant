@@ -14,11 +14,13 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 
     List<Branch> findByRestaurantId(Long restaurantId);
 
-    List<Branch> findByApprovalStatus(ApprovalStatus status);
+    boolean existsByPhone(String phone);
 
-    Page<Branch> findByApprovalStatus(ApprovalStatus status, Pageable pageable);
-
-    long countByApprovalStatus(ApprovalStatus status);
+//    List<Branch> findByApprovalStatus(ApprovalStatus status);
+//
+//    Page<Branch> findByApprovalStatus(ApprovalStatus status, Pageable pageable);
+//
+//    long countByApprovalStatus(ApprovalStatus status);
 
     /**
      * B01 Buoc 1: tim kiem da tieu chi tren toan nen tang - chi tra ve
