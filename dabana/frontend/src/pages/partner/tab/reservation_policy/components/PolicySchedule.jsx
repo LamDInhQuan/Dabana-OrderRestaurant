@@ -11,32 +11,37 @@ const DAYS = [
   { key: "SUNDAY", label: "CN" },
 ];
 
-/**
- * Controlled component for PolicyApplyType: ALWAYS / DAY_OF_WEEK / DATE_RANGE
- *
- * Props:
- *  - applyType: "ALWAYS" | "DAY_OF_WEEK" | "DATE_RANGE"
- *  - onApplyTypeChange(type)
- *  - daysOfWeek: string[]  (subset of DAYS keys)
- *  - onDaysOfWeekChange(days)
- *  - dateFrom, dateTo: "YYYY-MM-DD"
- *  - onDateFromChange(v), onDateToChange(v)
- */
 export default function PolicySchedule({
   applyType,
   onApplyTypeChange,
-  daysOfWeek,
+  daysOfWeek = [], // Khởi tạo mảng rỗng mặc định để tránh lỗi .includes khi undefined
   onDaysOfWeekChange,
   dateFrom,
   onDateFromChange,
   dateTo,
   onDateToChange,
 }) {
+  
   const toggleDay = (key) => {
     if (daysOfWeek.includes(key)) {
       onDaysOfWeekChange(daysOfWeek.filter((d) => d !== key));
     } else {
       onDaysOfWeekChange([...daysOfWeek, key]);
+    }
+  };
+
+  // 🎯 Tối ưu hàm đổi loại áp dụng: Clear sạch state không liên quan để tránh rác dữ liệu gửi lên Spring Boot
+  const handleTypeChange = (newType) => {
+    onApplyTypeChange(newType);
+    if (newType === "ALWAYS") {
+      onDaysOfWeekChange([]);
+      onDateFromChange("");
+      onDateToChange("");
+    } else if (newType === "DAY_OF_WEEK") {
+      onDateFromChange("");
+      onDateToChange("");
+    } else if (newType === "DATE_RANGE") {
+      onDaysOfWeekChange([]);
     }
   };
 
@@ -48,7 +53,7 @@ export default function PolicySchedule({
 
   return (
     <div>
-      <label style={S.label}>Kiểu áp dụng</label>
+      <label style={S.label}>Kiểu áp dụng lịch trình</label>
 
       <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem" }}>
         {radioRow.map((opt) => (
@@ -67,7 +72,7 @@ export default function PolicySchedule({
               type="radio"
               name="applyType"
               checked={applyType === opt.value}
-              onChange={() => onApplyTypeChange(opt.value)}
+              onChange={() => handleTypeChange(opt.value)} // ✅ Sử dụng hàm thay đổi an toàn mới
             />
             {opt.label}
           </label>
@@ -129,6 +134,7 @@ export default function PolicySchedule({
               style={S.input}
               value={dateFrom || ""}
               onChange={(e) => onDateFromChange(e.target.value)}
+              required={applyType === "DATE_RANGE"} // Bắt buộc nhập nếu đang mở Tab khoảng ngày
             />
           </div>
           <div>
@@ -137,7 +143,9 @@ export default function PolicySchedule({
               type="date"
               style={S.input}
               value={dateTo || ""}
+              min={dateFrom || ""} // 🎯 Chặn không cho chọn ngày kết thúc nhỏ hơn ngày bắt đầu
               onChange={(e) => onDateToChange(e.target.value)}
+              required={applyType === "DATE_RANGE"}
             />
           </div>
         </div>

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi , reservationPolicyApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi } from '../../api'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 
 import toast from 'react-hot-toast'
-import PolicyTab from './tab/policy/PolicyTab'
+import PolicyResTab from './tab/reservation_policy/policyRestaurant/PolicyResTab'
+import PolicyBranchTab from './tab/reservation_policy/policyBranch/PolicyBranchTab'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -268,15 +269,17 @@ export default function PartnerDashboard() {
   // ── Load data ──────────────────────────────────────
   useEffect(() => {
     branchApi.getMyList()
-      .then(r => { console.log("r",r);
-       const list = r.data.data || DEMO_BRANCHES; setBranches(list); if (list.length) setActiveBranch(list[0]) })
+      .then(r => {
+        console.log("r", r);
+        const list = r.data.data || DEMO_BRANCHES; setBranches(list); if (list.length) setActiveBranch(list[0])
+      })
       .catch(() => { setBranches(DEMO_BRANCHES); setActiveBranch(DEMO_BRANCHES[0]) })
     // B03: hồ sơ thương hiệu chung của nhà hàng
     restaurantApi.getMine()
-      .then(r => { console.log("r",r); const d = r.data || DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...d })) })
+      .then(r => { console.log("r", r); const d = r.data || DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...d })) })
       .catch(() => { setRestaurant(DEMO_RESTAURANT); setRestaurantForm(f => ({ ...f, ...DEMO_RESTAURANT })) })
   }, [])
-
+          console.log("activeBranch",activeBranch);
   useEffect(() => {
     if (!activeBranch) return
     const bid = activeBranch.id
@@ -749,13 +752,24 @@ export default function PartnerDashboard() {
             fontSize: '.68rem', fontWeight: 600, letterSpacing: '.15em', textTransform: 'uppercase',
             color: 'rgba(255,255,255,.3)', marginBottom: '.5rem'
           }}>Chi nhánh</div>
-          <select value={activeBranch?.id || ''} onChange={e => {
-            const b = branches.find(x => x.id === Number(e.target.value)); if (b) setActiveBranch(b)
-          }} style={{
-            width: '100%', padding: '.55rem .75rem', borderRadius: 4, border: 'none',
-            background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.85)', fontSize: '.82rem', fontFamily: 'inherit', cursor: 'pointer'
-          }}>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          <select
+            value={activeBranch?.id || ''}
+            onChange={e => {
+              const b = branches.find(x => x.id == e.target.value);
+              if (b) setActiveBranch(b);
+            }}
+            style={{
+              width: '100%', padding: '.55rem .75rem', borderRadius: 4, border: 'none',
+              background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.85)', fontSize: '.82rem', fontFamily: 'inherit', cursor: 'pointer'
+            }}
+          >
+            {branches.map((b, index) => (
+              // Dùng b.id + index để đảm bảo key không bao giờ bị trùng, 
+              // và thêm style color để tránh chữ bị tàng hình trên một số trình duyệt
+              <option key={`${b.id}-${index}`} value={b.id} style={{ color: '#333' }}>
+                {b.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -1491,7 +1505,7 @@ export default function PartnerDashboard() {
 
           {/* ══════ POLICY ══════ */}
           {activeTab === "policy" && (
-            <PolicyTab />
+            <PolicyBranchTab branch={activeBranch} branches={branches} />
           )}
 
           {/* ══════ SETTINGS: B03 + B04 ══════ */}
@@ -1695,6 +1709,8 @@ export default function PartnerDashboard() {
                       </button>
                     </div>
                   </div>
+                  {/* policy restaurant  */}
+                  <PolicyResTab restaurantId={activeBranch.restaurantId}/>
                 </>
               )}
             </div>

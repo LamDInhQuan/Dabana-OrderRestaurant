@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { C, S, GoldDivider } from '../../../theme'
-import PolicySchedule, { DAYS } from "../component/PolicySchedule";
+import { C, S, GoldDivider } from '../../../../theme'
+import PolicySchedule from "../../components/PolicySchedule";
+
 
 const emptyAssignment = (policyId) => ({
   id: null,

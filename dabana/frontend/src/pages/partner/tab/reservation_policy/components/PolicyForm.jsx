@@ -1,14 +1,7 @@
 import React from "react";
 import { C, S, GoldDivider } from "../../../theme";
-import PolicyPreview from "../common/PolicyPreview";
 
-/**
- * Props:
- *  - policy: the editingPolicy object (controlled by parent)
- *  - onChange(nextPolicy)
- *  - onSubmit(e)
- *  - onCancel()
- */
+
 export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
   const set = (patch) => onChange({ ...policy, ...patch });
 
@@ -26,7 +19,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
           <label style={S.label}>Tên chính sách</label>
           <input
             style={S.input}
-            value={policy.name}
+            value={policy.name || ""}
             onChange={(e) => set({ name: e.target.value })}
             required
           />
@@ -37,7 +30,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
           <textarea
             rows={3}
             style={S.input}
-            value={policy.description}
+            value={policy.description || ""}
             onChange={(e) => set({ description: e.target.value })}
           />
         </div>
@@ -65,7 +58,29 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
 
           <button
             type="button"
-            onClick={() => set({ depositRequired: !policy.depositRequired })}
+            onClick={() => {
+              const nextRequired = !policy.depositRequired;
+              if (!nextRequired) {
+                // 🟢 Reset sạch dữ liệu khi tắt toggle cọc
+                set({
+                  depositRequired: false,
+                  depositType: "FIXED_AMOUNT",
+                  depositValue: 0,
+                  freeCancellationHours: 0,
+                  lateCancellationPenaltyPercent: 0,
+                  noShowPenaltyPercent: 0
+                });
+              } else {
+                set({
+                  depositRequired: true,
+                  depositType: "FIXED_AMOUNT",
+                  depositValue: "",
+                  freeCancellationHours: 24,
+                  lateCancellationPenaltyPercent: 50,
+                  noShowPenaltyPercent: 100
+                });
+              }
+            }}
             style={{
               width: 54,
               height: 28,
@@ -118,7 +133,9 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 type="number"
                 min={0}
                 value={policy.depositValue}
-                onChange={(e) => set({ depositValue: e.target.value })}
+                // 🟢 Ép về kiểu Number tránh lỗi chuỗi trống
+                onChange={(e) => set({ depositValue: e.target.value === "" ? "" : +e.target.value })}
+                required
               />
             </div>
 
@@ -129,7 +146,8 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 type="number"
                 min={0}
                 value={policy.freeCancellationHours}
-                onChange={(e) => set({ freeCancellationHours: e.target.value })}
+                onChange={(e) => set({ freeCancellationHours: e.target.value === "" ? 0 : +e.target.value })}
+                required
               />
             </div>
 
@@ -141,9 +159,8 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 min={0}
                 max={100}
                 value={policy.lateCancellationPenaltyPercent}
-                onChange={(e) =>
-                  set({ lateCancellationPenaltyPercent: e.target.value })
-                }
+                onChange={(e) => set({ lateCancellationPenaltyPercent: e.target.value === "" ? 0 : +e.target.value })}
+                required
               />
             </div>
 
@@ -155,7 +172,8 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 min={0}
                 max={100}
                 value={policy.noShowPenaltyPercent}
-                onChange={(e) => set({ noShowPenaltyPercent: e.target.value })}
+                onChange={(e) => set({ noShowPenaltyPercent: e.target.value === "" ? 0 : +e.target.value })}
+                required
               />
             </div>
           </div>
@@ -174,7 +192,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
 
         <GoldDivider />
 
-        <PolicyPreview policy={policy} title="Xem trước" />
+        {/* <PolicyPreview policy={policy} title="Xem trước" /> */}
 
         <div
           style={{
