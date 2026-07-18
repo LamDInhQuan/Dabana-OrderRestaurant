@@ -36,7 +36,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("now") LocalDateTime now,
             @Param("reminderWindow") LocalDateTime reminderWindow);
 
-    boolean existsByTableIdAndReservationTimeAndStatusIn(
+    boolean existsByTable_IdAndReservationTimeAndStatusIn(
             Long tableId, LocalDateTime reservationTime, List<BookingStatus> statuses);
 
     // ======================================================

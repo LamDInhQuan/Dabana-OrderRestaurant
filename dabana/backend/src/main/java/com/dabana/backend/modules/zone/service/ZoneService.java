@@ -118,9 +118,9 @@ public class ZoneService implements IZoneService {
             throw new BusinessException(ZoneErrorCode.ZONE_HAS_TABLES);
         }
 
-        if (bookingRepository.existsFutureBookingsByZoneId(zoneId, LocalDateTime.now(), ACTIVE_BOOKING_STATUSES)) {
-            throw new BusinessException(ZoneErrorCode.ZONE_HAS_FUTURE_BOOKINGS);
-        }
+//        if (bookingRepository.existsFutureBookingsByZoneId(zoneId, LocalDateTime.now(), ACTIVE_BOOKING_STATUSES)) {
+//            throw new BusinessException(ZoneErrorCode.ZONE_HAS_FUTURE_BOOKINGS);
+//        }
 
         zoneRepository.delete(zone);
     }

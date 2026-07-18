@@ -5,7 +5,8 @@ import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPol
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyResponse;
 import com.dabana.backend.modules.reservation_policy.entity.ReservationPolicy;
 import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
-import com.dabana.backend.modules.restaurant.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.Restaurant;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

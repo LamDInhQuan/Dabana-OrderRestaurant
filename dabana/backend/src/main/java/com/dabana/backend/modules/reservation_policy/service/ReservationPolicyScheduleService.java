@@ -12,7 +12,7 @@ import com.dabana.backend.modules.reservation_policy.repository.ReservationPolic
 import com.dabana.backend.modules.reservation_policy.util.PolicyErrorCode;
 import com.dabana.backend.modules.reservation_policy.util.PolicyScheduleType;
 import com.dabana.backend.modules.restaurant.RestaurantErrorCode;
-import com.dabana.backend.modules.restaurant.RestaurantRepository;
+import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

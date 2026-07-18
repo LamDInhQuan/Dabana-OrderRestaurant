@@ -185,9 +185,9 @@ public class DiningTableService implements IDiningTableService {
     }
 
     private void ensureNoFutureBookings(Long tableId) {
-        if (bookingRepository.existsFutureBookingsByTableId(tableId, LocalDateTime.now(), ACTIVE_BOOKING_STATUSES)) {
-            throw new BusinessException(DiningTableErrorCode.TABLE_HAS_FUTURE_BOOKING);
-        }
+//        if (bookingRepository.existsFutureBookingsByTableId(tableId, LocalDateTime.now(), ACTIVE_BOOKING_STATUSES)) {
+//            throw new BusinessException(DiningTableErrorCode.TABLE_HAS_FUTURE_BOOKING);
+//        }
     }
 
     private void validateNoOverlap(List<DiningTable> tables) {
