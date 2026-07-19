@@ -11,7 +11,7 @@ import LoginPage      from './pages/auth/LoginPage'
 import RegisterPage   from './pages/auth/RegisterPage'
 
 import PartnerDashboard from './pages/partner/PartnerDashboard'
-import TableLayout      from './pages/partner/TableLayout'
+// import TableLayout      from './pages/partner/TableLayout'
 import ManageBookings   from './pages/partner/ManageBookings'
 import MenuManager      from './pages/partner/MenuManager'
 

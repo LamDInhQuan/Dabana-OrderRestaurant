@@ -75,15 +75,19 @@ export const branchApi = {
 export const zoneApi = {
   getByBranch: (branchId) => api.get(`/zones/branches/${branchId}`),
   create: (data) => api.post('/zones/create', data),
+  update: (zoneId, data) => api.put(`/zones/update/${zoneId}`, data),
+  delete: (zoneId) => api.delete(`/zones/delete/${zoneId}`),
+  getFloorPlan: (zoneId) => api.get(`/zones/${zoneId}/floor-plan`),
+  saveFloorPlan: (data) => api.post('/zones/floor-plan', data),
 }
 
 export const tableApi = {
   getByBranch: (bid, zoneId) => api.get('/dining-tables', { params: { branchId: bid, zoneId } }),
   create: (data) => api.post('/dining-tables/create', data),
   update: (id, data) => api.put(`/dining-tables/update/${id}`, data),
-  updateLayout: (positions) => api.put('/dining-tables/positions', positions),
+  updateLayout: (payload) => api.put('/dining-tables/positions', payload),
+  delete: (id) => api.delete(`/dining-tables/delete/${id}`),
 }
-
 // ===== Booking API (B01) =====
 export const bookingApi = {
   createHold: (data) => api.post('/bookings/hold', data),
