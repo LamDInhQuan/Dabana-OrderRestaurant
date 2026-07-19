@@ -2,6 +2,7 @@ package com.dabana.backend.modules.booking.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
@@ -17,18 +18,18 @@ public class BookingDtos {
     public static class CreateHoldRequest {
         @NotNull
         private Long branchId;
-
-        @NotNull
-        private Long tableId; // null neu dung AF01 "goi y ban"
-
+        @NotEmpty
+        private List<Long> tableIds;
         @NotNull
         @Min(1)
         private Integer guestCount;
 
         @NotNull
         private LocalDateTime reservationTime;
-
-        private Boolean useAutoSuggest = false; // AF01
+        private String contactName;
+        private String contactPhone;
+        private String note;
+        private List<PreOrderItemRequest> items;
     }
 
     /** B01 Buoc 4: nhap thong tin lien he */

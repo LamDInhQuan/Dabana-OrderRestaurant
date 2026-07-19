@@ -22,6 +22,8 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Long> 
 
     List<DiningTable> findByZoneBranchId(Long branchId);
 
+    List<DiningTable> findByZoneBranchIdAndZoneId(Long branchId, Long zoneId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM DiningTable t WHERE t.id = :id")
     Optional<DiningTable> findByIdForUpdate(@Param("id") Long id);

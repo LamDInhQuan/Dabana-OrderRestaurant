@@ -7,12 +7,16 @@ import com.dabana.backend.modules.diningtable.dto.request.BulkUpdateDiningTableP
 import com.dabana.backend.modules.diningtable.dto.request.CreateDiningTableRequest;
 import com.dabana.backend.modules.diningtable.dto.request.UpdateDiningTableRequest;
 import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
+import com.dabana.backend.modules.diningtable.dto.response.TableAvailabilityResponse;
+import com.dabana.backend.modules.diningtable.service.DiningTableAvailabilityService;
 import com.dabana.backend.modules.diningtable.service.IDiningTableService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -21,6 +25,7 @@ import java.util.List;
 public class DiningTableController {
 
     private final IDiningTableService diningTableService;
+    private final DiningTableAvailabilityService diningTableAvailabilityService ;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<DiningTableResponse>>> getTablesByBranchAndZone(
@@ -50,5 +55,16 @@ public class DiningTableController {
     public ResponseEntity<ApiResponse<Boolean>> deleteDiningTable(@PathVariable Long tableId) {
         diningTableService.deleteDiningTable(tableId);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.DELETED, true));
+    }
+
+    // available table
+    @GetMapping("/available-tables")
+    public ResponseEntity<ApiResponse<List<TableAvailabilityResponse>>> getAvailableTables(
+            @RequestParam("branchId") Long branchId,
+            @RequestParam("zoneId") Long zoneId,
+            @RequestParam("reservationTime")  @DateTimeFormat(pattern = "dd-MM-yyyy HH:mm") LocalDateTime reservationTime) {
+
+        List<TableAvailabilityResponse> tables = diningTableAvailabilityService.getAvailability(branchId,zoneId , reservationTime);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, tables));
     }
 }

@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,6 +87,22 @@ public class AvailableSlotService implements IAvailableSlotService {
                         .operatingHourId(hour.getId().intValue())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+        @Override
+        public boolean isReservationTimeAvailable(Long branchId, LocalDateTime reservationTime) {
+            List<OperatingPeriod> periods = getEffectiveOperatingPeriods(
+                    branchId,
+                    reservationTime.toLocalDate()
+            );
+            if (periods.isEmpty()) {
+                return false;
+            }
+            LocalTime reservationTimeOnly = reservationTime.toLocalTime();
+            return periods.stream().anyMatch(period ->
+                    !reservationTimeOnly.isBefore(period.getStartTime())
+                            && reservationTimeOnly.isBefore(period.getEndTime())
+            );
     }
 
     public List<OperatingPeriod> applyCloseTimeRange(List<OperatingPeriod> periods, List<BranchScheduleException> exceptions) {

@@ -13,14 +13,18 @@ import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyDe
 import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyDetailResponse;
 import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyResponse;
 import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyScheduleResponse;
+import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.IBranchPolicyDepositRuleService;
+import com.dabana.backend.modules.reservation_policy.service.IBranchPolicyResolver;
 import com.dabana.backend.modules.reservation_policy.service.IBranchPolicyScheduleService;
 import com.dabana.backend.modules.reservation_policy.service.IBranchPolicyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -31,6 +35,7 @@ public class BranchPolicyController {
     private final IBranchPolicyService branchPolicyService;
     private final IBranchPolicyDepositRuleService branchPolicyDepositRuleService;
     private final IBranchPolicyScheduleService branchPolicyScheduleService;
+    private final IBranchPolicyResolver branchPolicyResolver;
 
     @PostMapping
     public ResponseEntity<ApiResponse<BranchPolicyResponse>> create(
@@ -54,12 +59,12 @@ public class BranchPolicyController {
     }
 
     @GetMapping("/{branchPolicyId}")
-    public ResponseEntity<ApiResponse<BranchPolicyDetailResponse>> getDetail(@PathVariable Long branchId, @PathVariable Long branchPolicyId){
+    public ResponseEntity<ApiResponse<BranchPolicyDetailResponse>> getDetail(@PathVariable Long branchId, @PathVariable Long branchPolicyId) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, branchPolicyService.getDetail(branchId, branchPolicyId)));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<BranchPolicyResponse>>> getAll(@PathVariable Long branchId){
+    public ResponseEntity<ApiResponse<List<BranchPolicyResponse>>> getAll(@PathVariable Long branchId) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, branchPolicyService.getAll(branchId)));
     }
 
@@ -153,4 +158,11 @@ public class BranchPolicyController {
 //                branchPolicyScheduleService.getAll(branchId, branchPolicyId)));
 //    }
 
+    @GetMapping("/active-policy")
+    public ResponseEntity<ApiResponse<BranchPolicyDetailResponse>> getActivePolicy(
+            @PathVariable Long branchId,
+            @RequestParam  @DateTimeFormat(pattern = "dd-MM-yyyy HH:mm") LocalDateTime reservationTime) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
+                branchPolicyResolver.getActivePolicy(branchId, reservationTime)));
+    }
 }

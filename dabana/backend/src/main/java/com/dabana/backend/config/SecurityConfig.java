@@ -77,6 +77,7 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/api/reviews/branch/**").permitAll()
 
                 // B05/B06/B07: chinh sach, thuc don, so do ban - nha hang doi tac
+                    .requestMatchers(HttpMethod.GET, "/api/zones/**").hasAnyRole("CUSTOMER", "STAFF", "RESTAURANT_PARTNER")
                 .requestMatchers("/api/policies/**", "/api/menu-items/manage/**",
                                   "/api/zones/**", "/api/tables/manage/**")
                     .hasRole("RESTAURANT_PARTNER")

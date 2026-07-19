@@ -5,6 +5,7 @@ import com.dabana.backend.modules.branch2.entity.BranchScheduleException;
 import com.dabana.backend.modules.branch2.util.OperatingDay;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface IAvailableSlotService {
@@ -16,4 +17,8 @@ public interface IAvailableSlotService {
             Long branchId,
             OperatingDay operatingDay) ;
 
+    boolean isReservationTimeAvailable(
+            Long branchId,
+            LocalDateTime reservationTime
+    );
 }

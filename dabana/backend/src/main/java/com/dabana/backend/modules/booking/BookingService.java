@@ -1,119 +1,124 @@
-//package com.dabana.backend.modules.booking;
-//
-//import com.dabana.backend.exception.BusinessException;
-//import com.dabana.backend.modules.auth.entity.User;
-//import com.dabana.backend.modules.auth.repository.UserRepository;
-//import com.dabana.backend.modules.booking.dto.BookingDtos.*;
-//import com.dabana.backend.modules.branch.Branch;
-//import com.dabana.backend.modules.branch.BranchRepository;
+package com.dabana.backend.modules.booking;
+
+import com.dabana.backend.exception.BusinessException;
+import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.mapper.BookingMapper;
+import com.dabana.backend.modules.booking.service.BookingItemService;
+import com.dabana.backend.modules.booking.service.BookingTableService;
+import com.dabana.backend.modules.branch2.dto.OperatingPeriod;
+import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.branch2.repository.BranchRepository;
+import com.dabana.backend.modules.branch2.service.AvailableSlotService;
+import com.dabana.backend.modules.branch2.util.BranchErrorCode;
+import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
 //import com.dabana.backend.modules.menu.MenuItem;
-//import com.dabana.backend.modules.menu.MenuItemRepository;
 //import com.dabana.backend.modules.menu.MenuItemStatus;
-//import com.dabana.backend.modules.policy.DepositPolicy;
-//import com.dabana.backend.modules.policy.DepositPolicyRepository;
-//import com.dabana.backend.modules.policy.DepositType;
-//import com.dabana.backend.modules.diningtable.entity.DiningTable;
-//import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
-//import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//
-//import java.math.BigDecimal;
-//import java.math.RoundingMode;
-//import java.time.LocalDateTime;
-//import java.util.Comparator;
-//import java.util.List;
-//import java.util.stream.Collectors;
-//
-///**
-// * Trien khai day du dac ta B01: Dat ban truc tuyen.
-// * Main Flow buoc 1-10, Alternative Flow AF01-AF03, Exception Flow EF01-EF04,
-// * Business Rules BR01-BR09 - bam sat Bang 2.7.1 trong bao cao.
-// */
-//@Service
-//@RequiredArgsConstructor
-//public class BookingService {
-//
-//    private final BookingRepository bookingRepository;
-//    private final BranchRepository branchRepository;
-//    private final RestaurantTableRepository tableRepository;
-//    private final DepositPolicyRepository policyRepository;
-//    private final MenuItemRepository menuItemRepository;
-//    private final UserRepository userRepository;
-//
-//    private static final int HOLD_MINUTES = 15; // BR03
-//
-//    // ============================================================
-//    // B01 Buoc 3 + AF01: chon ban hoac de he thong goi y
-//    // ============================================================
-//    @Transactional
-//    public BookingResponse createHold(Long customerId, CreateHoldRequest req) {
-//        User customer = userRepository.findById(customerId)
-//                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Khong tim thay khach hang"));
-//
-//        Branch branch = branchRepository.findById(req.getBranchId())
-//                .orElseThrow(() -> new BusinessException("BRANCH_NOT_FOUND", "Khong tim thay chi nhanh"));
-//
-//        RestaurantTable table;
-//        if (Boolean.TRUE.equals(req.getUseAutoSuggest()) || req.getTableId() == null) {
-//            // ===== AF01: He thong goi y ban =====
-//            table = suggestTable(req.getBranchId(), req.getGuestCount(), req.getReservationTime());
-//        } else {
-//            // Khoa ban ghi de tranh race condition (B01 EF01/EF02, B08 buoc 4)
-//            table = tableRepository.findByIdForUpdate(req.getTableId())
-//                    .orElseThrow(() -> new BusinessException("TABLE_NOT_FOUND", "Khong tim thay ban"));
-//        }
-//
-//        // BR02: suc chua phai >= so khach
-//        if (table.getCapacity() < req.getGuestCount()) {
-//            throw new BusinessException("TABLE_CAPACITY_INSUFFICIENT",
-//                    "Ban khong du suc chua cho so luong khach yeu cau (BR02)");
-//        }
-//
-//        // EF01: ban da duoc khach khac xac nhan truoc
-//        if (table.getStatus() == TableStatus.RESERVED || table.getStatus() == TableStatus.OCCUPIED) {
-//            throw new BusinessException("TABLE_UNAVAILABLE",
-//                    "Ban khong con kha dung, vui long chon ban khac (EF01)");
-//        }
-//        // EF02: ban dang giu cho hang cho
-//        if (table.getStatus() == TableStatus.HELD_FOR_WAITLIST) {
-//            throw new BusinessException("TABLE_HELD_FOR_WAITLIST",
-//                    "Ban dang duoc uu tien giu cho mot luot cho truoc. " +
-//                    "Vui long chon ban khac hoac tham gia dang ky hang cho (EF02)");
-//        }
-//        // BR01: khong duoc trung dat tai cung khung gio (kiem tra muc nghiep vu,
-//        // rang buoc that su nam o unique constraint tang CSDL)
-//        if (bookingRepository.existsByTableIdAndReservationTimeAndStatusIn(
-//                table.getId(), req.getReservationTime(),
-//                List.of(BookingStatus.HOLDING, BookingStatus.AWAITING_PAYMENT, BookingStatus.CONFIRMED))) {
-//            throw new BusinessException("TIMESLOT_TAKEN",
-//                    "Khung gio nay tai ban da co don khac (BR01)");
-//        }
-//
-//        // ===== Buoc 6: xac dinh muc dat coc theo chinh sach rieng cua chi nhanh =====
-//        DepositPolicy policy = policyRepository.findByBranchId(branch.getId()).orElse(null);
-//
-//        Booking booking = new Booking();
-//        booking.setCustomer(customer);
-//        booking.setBranch(branch);
-//        booking.setTable(table);
-//        booking.setGuestCount(req.getGuestCount());
-//        booking.setReservationTime(req.getReservationTime());
-//        booking.setHoldExpiresAt(LocalDateTime.now().plusMinutes(HOLD_MINUTES)); // BR03
-//        booking.setStatus(BookingStatus.HOLDING);
-//
-//        applyDepositSnapshot(booking, policy); // BR06 cua B05 / BR04 cua B01: chot snapshot tai day
-//
-//        // ===== Buoc 7: giu ban tam thoi - an khoi tim kiem cong khai =====
-//        table.setStatus(TableStatus.RESERVED);
-//        tableRepository.save(table);
-//
-//        bookingRepository.save(booking);
-//        return toResponse(booking);
-//    }
-//
-//    /** AF01: he thong de xuat ban dua tren so khach va tinh trang hien co. */
+import com.dabana.backend.modules.menu.repository.MenuItemRepository;
+import com.dabana.backend.modules.policy.DepositPolicy;
+import com.dabana.backend.modules.policy.DepositPolicyRepository;
+import com.dabana.backend.modules.policy.DepositType;
+import com.dabana.backend.modules.diningtable.entity.DiningTable;
+import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
+import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
+import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
+import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * Trien khai day du dac ta B01: Dat ban truc tuyen.
+ * Main Flow buoc 1-10, Alternative Flow AF01-AF03, Exception Flow EF01-EF04,
+ * Business Rules BR01-BR09 - bam sat Bang 2.7.1 trong bao cao.
+ */
+@Service
+@RequiredArgsConstructor
+public class BookingService {
+
+    private final BookingRepository bookingRepository;
+    private final BranchRepository branchRepository;
+    private final DiningTableRepository tableRepository;
+    private final DepositPolicyRepository policyRepository;
+    private final MenuItemRepository menuItemRepository;
+    private final AvailableSlotService availableSlotService;
+    private final BranchPolicyResolverService branchPolicyResolverService;
+    private final BookingItemService bookingItemService;
+    private final BookingTableService bookingTableService;
+    private final BookingMapper bookingMapper;
+
+    private static final int HOLD_MINUTES = 10;
+    private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
+            BookingStatus.HOLDING,
+            BookingStatus.CONFIRMED
+    );
+
+    // ============================================================
+    // B01 Buoc 3 + AF01: chon ban hoac de he thong goi y
+    // ============================================================
+    @Transactional
+    public BookingResponse createHold(User user, CreateHoldRequest req) {
+        // 1. Validate Branch
+        Branch branch = branchRepository.findById(req.getBranchId())
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
+        // 2. Validate giờ hoạt động
+        if (!availableSlotService.isReservationTimeAvailable(req.getBranchId(), req.getReservationTime())) {
+            throw new BusinessException(BranchErrorCode.OPERATING_HOUR_NOT_FOUND);
+        }
+        // 3. Resolve policy + tính tiền cọc
+        BranchPolicy branchPolicy = branchPolicyResolverService.resolve(branch.getId(), req.getReservationTime());
+        DepositResult depositResult = branchPolicyResolverService.calculate(branchPolicy, req.getGuestCount());
+        // 4. Validate bàn
+        var requestedTableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
+        if (requestedTableIds.isEmpty()) {
+            throw new BusinessException(BookingErrorCode.TABLE_IDS_REQUIRED);
+        }
+        List<DiningTable> tables = bookingTableService.loadTables(req.getTableIds());
+        bookingTableService.validateTablesGuestCount(tables, req.getGuestCount());
+        bookingTableService.validateBookingConflict(req.getTableIds(), req.getReservationTime());
+        // 5. Tạo Booking
+        Booking booking = bookingMapper.toEntity(req, user, branch);
+        booking.setStatus(BookingStatus.HOLDING);
+        String contactName = StringUtils.hasText(req.getContactName())
+                ? req.getContactName()
+                : user.getFullName();
+        String contactPhone = StringUtils.hasText(req.getContactPhone())
+                ? req.getContactPhone()
+                : user.getPhone();
+        booking.setContactName(contactName);
+        booking.setContactPhone(contactPhone);
+        booking.setNote(req.getNote());
+        // 6. Snapshot policy
+        booking.setSnapshotDepositAmount(depositResult.getDepositAmount());
+        booking.setSnapshotDepositRequired(depositResult.getDepositAmount().compareTo(BigDecimal.ZERO) > 0);
+//        booking.setSnapshotFreeCancellationHours(depositResult.ge().getFreeCancellationHours());
+        booking.setSnapshotPolicyName(depositResult.getRule().getBranchPolicy().getPolicy().getName());
+        booking = bookingRepository.save(booking);
+        // 7. Lưu bàn
+        bookingTableService.saveBookingTables(booking, tables);
+        booking.setHoldExpiresAt(
+                LocalDateTime.now().plusMinutes(HOLD_MINUTES));
+        // 8. Lưu món đặt trước (nếu có)
+        if (req.getItems() != null && !req.getItems().isEmpty()) {
+            bookingItemService.saveItems(booking, req.getItems());
+        }
+        return bookingMapper.toResponse(booking);
+    }
+
+    /**
+     * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
+     */
 //    private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
 //        List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
 //                .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
@@ -124,12 +129,14 @@
 //        if (candidates.isEmpty()) {
 //            throw new BusinessException("NO_TABLE_AVAILABLE",
 //                    "Khong co ban phu hop trong khung gio nay, vui long thu khung gio khac " +
-//                    "hoac dang ky hang cho (B10)");
+//                            "hoac dang ky hang cho (B10)");
 //        }
 //        return candidates.get(0);
 //    }
 //
-//    /** Buoc 6 + BR06: chot (snapshot) chinh sach dat coc vao don. */
+//    /**
+//     * Buoc 6 + BR06: chot (snapshot) chinh sach dat coc vao don.
+//     */
 //    private void applyDepositSnapshot(Booking booking, DepositPolicy policy) {
 //        if (policy == null || Boolean.FALSE.equals(policy.getDepositRequired())) {
 //            // AF03: nha hang khong yeu cau dat coc
@@ -170,10 +177,10 @@
 //        bookingRepository.save(booking);
 //        return toResponse(booking);
 //    }
-//
-//    // ============================================================
-//    // B01 Buoc 5 + AF02: dat mon truoc (tuy chon)
-//    // ============================================================
+
+    // ============================================================
+    // B01 Buoc 5 + AF02: dat mon truoc (tuy chon)
+    // ============================================================
 //    @Transactional
 //    public BookingResponse addPreOrderItems(Long bookingId, Long customerId, PreOrderRequest req) {
 //        Booking booking = getOwnedBooking(bookingId, customerId);
@@ -230,13 +237,15 @@
 //            bookingRepository.save(booking);
 //            throw new BusinessException("PAYMENT_FAILED",
 //                    "Thanh toan that bai. Ban van duoc giu trong thoi gian con lai, " +
-//                    "vui long thuc hien lai giao dich (EF03)");
+//                            "vui long thuc hien lai giao dich (EF03)");
 //        }
 //
 //        return toResponse(booking);
 //    }
 //
-//    /** Buoc 9: he thong phe duyet don, khoa ban co dinh, phat hanh xac nhan. */
+//    /**
+//     * Buoc 9: he thong phe duyet don, khoa ban co dinh, phat hanh xac nhan.
+//     */
 //    private void confirmBooking(Booking booking) {
 //        booking.setStatus(BookingStatus.CONFIRMED);
 //
@@ -250,7 +259,9 @@
 //        // qua scheduled job rieng, theo dung BR05 cua B09 (B01 khong tu gui thong bao).
 //    }
 //
-//    /** AF03: nha hang khong yeu cau dat coc - xac nhan ngay khong qua buoc 8. */
+//    /**
+//     * AF03: nha hang khong yeu cau dat coc - xac nhan ngay khong qua buoc 8.
+//     */
 //    @Transactional
 //    public BookingResponse confirmWithoutDeposit(Long bookingId, Long customerId) {
 //        Booking booking = getOwnedBooking(bookingId, customerId);
@@ -322,7 +333,7 @@
 //                .depositAmount(booking.getSnapshotDepositAmount())
 //                .totalPreOrderAmount(totalPreOrder)
 //                .items(booking.getItems().stream()
-//                        .map(i -> com.dabana.backend.modules.booking.dto.BookingDtos.BookingItemResponse.builder()
+//                        .map(i -> BookingItemResponse.builder()
 //                                .name(i.getSnapshotName())
 //                                .price(i.getSnapshotPrice())
 //                                .quantity(i.getQuantity())
@@ -330,4 +341,4 @@
 //                        .collect(Collectors.toList()))
 //                .build();
 //    }
-//}
+}

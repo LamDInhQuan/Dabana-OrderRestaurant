@@ -1,6 +1,7 @@
 package com.dabana.backend.modules.reservation_policy.repository;
 
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
+import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,14 +20,14 @@ public interface BranchPolicyRepository
     );
 
     @Query("""
-    SELECT DISTINCT bp
-    FROM BranchPolicy bp
-    LEFT JOIN FETCH bp.depositRules
-    LEFT JOIN FETCH bp.schedules
-    LEFT JOIN FETCH bp.policy
-    WHERE bp.id = :branchPolicyId
-      AND bp.branch.id = :branchId
-""")
+                SELECT DISTINCT bp
+                FROM BranchPolicy bp
+                LEFT JOIN FETCH bp.depositRules
+                LEFT JOIN FETCH bp.schedules
+                LEFT JOIN FETCH bp.policy
+                WHERE bp.id = :branchPolicyId
+                  AND bp.branch.id = :branchId
+            """)
     Optional<BranchPolicy> findDetailByIdAndBranchId(
             @Param("branchPolicyId") Long branchPolicyId,
             @Param("branchId") Long branchId
@@ -46,4 +47,14 @@ public interface BranchPolicyRepository
             Long branchId
     );
 
+    @Query("""
+                select distinct bp
+                from BranchPolicy bp
+                left join fetch bp.policy
+                left join fetch bp.schedules
+                left join fetch bp.depositRules
+                where bp.branch.id = :branchId
+                  and bp.status = :policyStatus
+            """)
+    List<BranchPolicy> findActivePolicies(Long branchId , @Param("policyStatus") PolicyStatus policyStatus);
 }

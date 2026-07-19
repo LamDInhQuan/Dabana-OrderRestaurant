@@ -1,34 +1,36 @@
-//package com.dabana.backend.modules.booking;
-//
-//import com.dabana.backend.modules.booking.dto.BookingDtos.*;
-//import com.dabana.backend.security.CurrentUserProvider;
-//import jakarta.validation.Valid;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.security.access.prepost.PreAuthorize;
-//import org.springframework.web.bind.annotation.*;
-//
-//import java.util.List;
-//
-///**
-// * /api/bookings - trien khai B01 (dat ban truc tuyen) theo dung trinh tu
-// * Buoc 3 -> 4 -> 5 -> 6/7 -> 8 -> 9/10 cua dac ta.
-// */
-//@RestController
-//@RequestMapping("/api/bookings")
-//@RequiredArgsConstructor
-//public class BookingController {
-//
-//    private final BookingService bookingService;
-//    private final CurrentUserProvider currentUserProvider;
-//
-//    /** Buoc 3 (+ AF01): tao yeu cau giu ban tam thoi */
-//    @PostMapping("/hold")
-//    public ResponseEntity<BookingResponse> createHold(@Valid @RequestBody CreateHoldRequest request) {
-//        Long customerId = currentUserProvider.getCurrentUserId();
-//        return ResponseEntity.ok(bookingService.createHold(customerId, request));
-//    }
-//
+package com.dabana.backend.modules.booking;
+
+import com.dabana.backend.common.BaseController;
+import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.security.CurrentUserProvider;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * /api/bookings - trien khai B01 (dat ban truc tuyen) theo dung trinh tu
+ * Buoc 3 -> 4 -> 5 -> 6/7 -> 8 -> 9/10 cua dac ta.
+ */
+@RestController
+@RequestMapping("/api/bookings")
+@RequiredArgsConstructor
+public class BookingController extends BaseController {
+
+    private final BookingService bookingService;
+    private final CurrentUserProvider currentUserProvider;
+
+    /** Buoc 3 (+ AF01): tao yeu cau giu ban tam thoi */
+    @PostMapping("/hold")
+    public ResponseEntity<BookingResponse> createHold(@Valid @RequestBody CreateHoldRequest request) {
+        User user = getCurrentUser();
+        return ResponseEntity.ok(bookingService.createHold(user, request));
+    }
+
 //    /** Buoc 4: cap nhat thong tin lien he */
 //    @PatchMapping("/{id}/contact-info")
 //    public ResponseEntity<BookingResponse> updateContactInfo(
@@ -58,4 +60,4 @@
 //        Long customerId = currentUserProvider.getCurrentUserId();
 //        return ResponseEntity.ok(bookingService.confirmWithoutDeposit(id, customerId));
 //    }
-//}
+}

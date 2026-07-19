@@ -2,12 +2,11 @@ package com.dabana.backend.modules.booking;
 
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
-import com.dabana.backend.modules.branch.BranchOperatingStatus;
 import com.dabana.backend.modules.branch2.entity.Branch;
-import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,77 +15,90 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * B01: Don dat ban truc tuyen - thuc the trung tam cua he thong.
- *
- * Quan trong: cac truong "snapshot*" luu lai gia tri chinh sach/gia tai
- * thoi diem giu ban (BR06 cua B05, BR04 cua B06), KHONG tham chieu dong
- * den DepositPolicy/MenuItem hien hanh trong suot vong doi don, dung theo
- * dac ta BR06 (B05), BR04 (B06), BR06 (B01).
- */
 @Getter
 @Setter
 @Entity
 @Table(name = "rs_reservations")
 public class Booking extends BaseEntity {
 
-    @ManyToOne
-    @JoinColumn(name = "customer_id", nullable = false)
-    private User customer;
+    // Kế thừa từ BaseEntity (nếu BaseEntity của bạn đã có trường id kiểu Long tương ứng với bigint)
+    // Trường hợp BaseEntity chưa cấu hình id, bạn mở comment 3 dòng dưới này:
+    // @Id
+    // @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // private Long id;
 
-    @ManyToOne
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
 
+    @NotNull
+    @Column(name = "reservation_time", nullable = false)
+    private LocalDateTime reservationTime;
+
+    @NotNull
+    @Min(1)
+    @Column(name = "guest_count", nullable = false)
+    private Byte guestCount; // Khớp với tinyint(4) trong DB giúp tối ưu bộ nhớ
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30) // Tùy biến length theo cấu hình enum cũ của bạn
+    private BookingStatus status;
+
+    @Column(name = "estimated_total", precision = 12, scale = 2)
+    private BigDecimal estimatedTotal;
+
+    @Column(name = "hold_expires_at")
+    private LocalDateTime holdExpiresAt;
+
+    // Lưu ý: 2 trường created_at và updated_at thường đã được xử lý tự động trong BaseEntity bằng @CreatedDate / @LastModifiedDate
+
     @NotBlank
-    @Column(nullable = false, length = 150)
+    @Column(name = "contact_name", nullable = false, length = 150)
     private String contactName;
 
     @NotBlank
-    @Column(nullable = false, length = 20)
+    @Column(name = "contact_phone", nullable = false, length = 20)
     private String contactPhone;
 
-    @Column(length = 500)
-    private String note;
-
-    @Min(1)
-    @Column(nullable = false)
-    private Integer guestCount;
-
-    @Column(nullable = false)
-    private LocalDateTime reservationTime;
-
-    @Column(nullable = false)
-    private LocalDateTime holdExpiresAt;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private BookingStatus status = BookingStatus.HOLDING;
-
-    private Boolean snapshotDepositRequired;
-
-    @Column(precision = 12, scale = 2)
-    private BigDecimal snapshotDepositAmount;
-
-    private Integer snapshotFreeCancellationHours;
-
-    @Column(length = 100)
-    private String paymentTransactionId;
-
-    @Column(length = 30)
-    private String paymentStatus;
-
+    @Column(name = "no_show_warning_at")
     private LocalDateTime noShowWarningAt;
 
-    private Boolean reminderSent = false;
+    @Column(name = "note", length = 500)
+    private String note;
 
-    @OneToMany(mappedBy = "booking",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true)
+    @Column(name = "payment_status", length = 30)
+    private String paymentStatus;
+
+    @Column(name = "payment_transaction_id", length = 100)
+    private String paymentTransactionId;
+
+    @Column(name = "reminder_sent")
+    private Boolean reminderSent = false; // Khớp với bit(1)
+
+    @Column(name = "snapshot_deposit_amount", precision = 12, scale = 2)
+    private BigDecimal snapshotDepositAmount;
+
+    @Column(name = "snapshot_deposit_required")
+    private Boolean snapshotDepositRequired; // Khớp với bit(1)
+
+    @Column(name = "snapshot_free_cancellation_hours")
+    private Integer snapshotFreeCancellationHours; // Khớp với int(11)
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false) // Khớp với customer_id kiểu bigint(20)
+    private User customer;
+
+    @Column(name = "snapshot_policy_name", length = 150)
+    private String snapshotPolicyName;
+
+    // --- Bổ sung thêm các mối quan hệ Mapping nếu cần dùng ở tầng Service ---
+
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingItem> items = new ArrayList<>();
 
-    @OneToMany(mappedBy = "booking",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true)
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingTable> bookingTables = new ArrayList<>();
 }

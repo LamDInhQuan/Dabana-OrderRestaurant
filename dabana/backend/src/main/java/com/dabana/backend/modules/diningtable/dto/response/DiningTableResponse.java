@@ -1,6 +1,8 @@
 package com.dabana.backend.modules.diningtable.dto.response;
 
+import lombok.Builder;
 import lombok.Data;
+
 
 @Data
 public class DiningTableResponse {

@@ -9,15 +9,51 @@ import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
+    // Phục vụ màn hình Lịch sử đặt bàn của khách hàng
     List<Booking> findByCustomerIdOrderByReservationTimeDesc(Long customerId);
 
+    // Phục vụ màn hình Quản lý đơn đặt bàn của Nhà hàng/Chi nhánh
     List<Booking> findByBranchIdAndStatus(Long branchId, BookingStatus status);
 
-    /** B01 EF04: tim cac don dang giu ban da het han de tu dong huy (scheduled job). */
+    /**
+     * B01: Kiểm tra xem danh sách bàn được chọn có bị TRÙNG lịch vào khung giờ đó không.
+     * Hàm này bắt buộc phải giữ lại để validate trước khi cho khách Giữ bàn (Hold).
+     */
+    @Query("""
+        SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
+        FROM Booking b
+        JOIN b.bookingTables bt
+        JOIN bt.diningTable dt
+        WHERE dt.id IN :tableIds
+        AND b.reservationTime = :reservationTime
+        AND b.status IN :statuses
+        """)
+    boolean existsByTableIdInAndReservationTimeAndStatusIn(
+            @Param("tableIds") List<Long> tableIds,
+            @Param("reservationTime") LocalDateTime reservationTime,
+            @Param("statuses") List<BookingStatus> statuses);
+
+    @Query("""
+    SELECT DISTINCT dt.id
+    FROM Booking b
+    JOIN b.bookingTables bt
+    JOIN bt.diningTable dt
+    WHERE dt.id IN :tableIds
+      AND b.reservationTime = :reservationTime
+      AND b.status IN :statuses
+""")
+    List<Long> findConflictTableIdsInBooking(
+            @Param("tableIds") List<Long> tableIds,
+            @Param("reservationTime") LocalDateTime reservationTime,
+            @Param("statuses") List<BookingStatus> statuses
+    );
+
+    /* TẠM THỜI TẮT CÁC HÀM CHƯA DÙNG ĐỂ TRÁNH NGỢP VÀ RÁC CODE GIAI ĐOẠN ĐẦU */
+
+    /*
     @Query("SELECT b FROM Booking b WHERE b.status = 'HOLDING' AND b.holdExpiresAt < :now")
     List<Booking> findExpiredHoldings(@Param("now") LocalDateTime now);
 
-    /** B09 buoc 5 / B11 buoc 5: tim don da qua gio hen nhung chua check-in de canh bao no-show. */
     @Query("""
         SELECT b FROM Booking b
         WHERE b.status = 'CONFIRMED'
@@ -25,7 +61,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         """)
     List<Booking> findOverdueUncheckedIn(@Param("threshold") LocalDateTime threshold);
 
-    /** B09 buoc 4-5: tim don sap den gio hen de gui nhac lich (chua gui nhac). */
     @Query("""
         SELECT b FROM Booking b
         WHERE b.status = 'CONFIRMED'
@@ -47,15 +82,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses
     );
 
-    // ======================================================
-    // F47/F48/F49: Thong ke & bao cao (Quan tri vien)
-    // ======================================================
-
     long countByStatus(BookingStatus status);
 
     List<Booking> findByCreatedAtAfter(LocalDateTime from);
 
-    /** F47: doanh thu (tam tinh tu tien coc) theo chi nhanh, don da hoan tat. */
     @Query("""
         SELECT b.branch.id, COALESCE(SUM(b.snapshotDepositAmount), 0), COUNT(b)
         FROM Booking b
@@ -64,7 +94,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         """)
     List<Object[]> sumDepositRevenueByBranch();
 
-    /** F48: thong ke luot dat ban theo ngay trong khoang thoi gian. */
     @Query("""
         SELECT FUNCTION('DATE', b.createdAt), COUNT(b)
         FROM Booking b
@@ -73,4 +102,5 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         ORDER BY FUNCTION('DATE', b.createdAt)
         """)
     List<Object[]> countBookingsPerDaySince(@Param("from") LocalDateTime from);
+    */
 }
