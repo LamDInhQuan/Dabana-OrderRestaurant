@@ -3,10 +3,6 @@ package com.dabana.backend.modules.diningtable.service;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.diningtable.dto.request.BulkUpdateDiningTablePositionsRequest;
@@ -21,17 +17,16 @@ import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.zone.entity.FloorPlan;
 import com.dabana.backend.modules.zone.entity.Zone;
-import com.dabana.backend.modules.zone.repository.FloorPlanRepository;
 import com.dabana.backend.modules.zone.repository.ZoneRepository;
+import com.dabana.backend.modules.zone.service.FloorPlanSyncService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 @Service
 @RequiredArgsConstructor
@@ -48,11 +43,10 @@ public class DiningTableService implements IDiningTableService {
 
     private final BranchRepository branchRepository;
     private final ZoneRepository zoneRepository;
-    private final FloorPlanRepository floorPlanRepository;
     private final DiningTableRepository diningTableRepository;
     private final BookingRepository bookingRepository;
     private final DiningTableMapper diningTableMapper;
-    private final ObjectMapper objectMapper;
+    private final FloorPlanSyncService floorPlanSyncService;
 
     @Override
     @Transactional(readOnly = true)
@@ -88,7 +82,10 @@ public class DiningTableService implements IDiningTableService {
         table.setStatus(DiningTableStatus.EMPTY);
 
         DiningTable savedTable = diningTableRepository.save(table);
-        syncTableIntoFloorPlan(savedTable, true);
+
+        FloorPlan floorPlan = floorPlanSyncService.lockOrCreateFloorPlan(zone);
+        floorPlanSyncService.upsertTableIntoLayout(floorPlan, savedTable, true);
+
         return diningTableMapper.toResponse(savedTable);
     }
 
@@ -104,20 +101,33 @@ public class DiningTableService implements IDiningTableService {
         Zone targetZone = validateZone(request.getZoneId());
         ensureTableNameAvailable(targetZone.getId(), request.getTableName(), table.getId());
 
-        Long previousZoneId = table.getZone() != null ? table.getZone().getId() : null;
+        Zone previousZone = table.getZone();
+        boolean zoneChanged = previousZone == null || !previousZone.getId().equals(targetZone.getId());
+
         table.setZone(targetZone);
         table.setTableName(request.getTableName().trim());
         table.setCapacity(request.getCapacity());
 
         DiningTable savedTable = diningTableRepository.save(table);
-        syncTableIntoFloorPlan(savedTable, false, previousZoneId);
+
+        if (zoneChanged && previousZone != null) {
+            FloorPlan previousFloorPlan = floorPlanSyncService.lockOrCreateFloorPlan(previousZone);
+            floorPlanSyncService.removeTableFromLayout(previousFloorPlan, savedTable.getId());
+        }
+
+        FloorPlan targetFloorPlan = floorPlanSyncService.lockOrCreateFloorPlan(targetZone);
+        floorPlanSyncService.upsertTableIntoLayout(targetFloorPlan, savedTable, true);
+
         return diningTableMapper.toResponse(savedTable);
     }
 
     @Override
     @Transactional
     public List<DiningTableResponse> bulkUpdatePositions(BulkUpdateDiningTablePositionsRequest request) {
-        Map<Long, DiningTablePositionItemRequest> requestByTableId = new HashMap<>();
+        // TreeMap thay vi HashMap: dam bao thu tu lock tableId LUON co dinh, tang dan.
+        // Neu 2 request bulkUpdatePositions cung luc dung tap tableId giao nhau, ca 2 se
+        // lock theo cung 1 thu tu -> tranh deadlock giua cac transaction.
+        Map<Long, DiningTablePositionItemRequest> requestByTableId = new TreeMap<>();
         for (DiningTablePositionItemRequest item : request.getTables()) {
             if (requestByTableId.put(item.getTableId(), item) != null) {
                 throw new BusinessException(DiningTableErrorCode.TABLE_OVERLAP);
@@ -139,10 +149,20 @@ public class DiningTableService implements IDiningTableService {
 
         validateNoOverlap(lockedTables);
 
+        // Lock FloorPlan cua tung zone lien quan, cung theo thu tu zoneId tang dan, TRUOC
+        // khi ghi bat ky JSON nao - tranh deadlock va tranh lost-update voi
+        // createOrUpdateFloorPlan (ZoneService) dang chay song song tren cung zone.
+        Map<Long, FloorPlan> floorPlanByZone = new TreeMap<>();
+        for (DiningTable table : lockedTables) {
+            Long zoneId = table.getZone().getId();
+            floorPlanByZone.computeIfAbsent(zoneId, id -> floorPlanSyncService.lockOrCreateFloorPlan(table.getZone()));
+        }
+
         List<DiningTableResponse> responses = new ArrayList<>();
         for (DiningTable table : lockedTables) {
             DiningTable savedTable = diningTableRepository.save(table);
-            syncTableIntoFloorPlan(savedTable, false);
+            FloorPlan floorPlan = floorPlanByZone.get(table.getZone().getId());
+            floorPlanSyncService.upsertTableIntoLayout(floorPlan, savedTable, false);
             responses.add(diningTableMapper.toResponse(savedTable));
         }
         return responses;
@@ -156,7 +176,10 @@ public class DiningTableService implements IDiningTableService {
 
         enforceEditableStructure(table);
         ensureNoFutureBookings(table.getId());
-        removeTableFromFloorPlan(table);
+
+        FloorPlan floorPlan = floorPlanSyncService.lockOrCreateFloorPlan(table.getZone());
+        floorPlanSyncService.removeTableFromLayout(floorPlan, table.getId());
+
         diningTableRepository.delete(table);
     }
 
@@ -191,7 +214,7 @@ public class DiningTableService implements IDiningTableService {
     }
 
     private void validateNoOverlap(List<DiningTable> tables) {
-        Map<Long, List<DiningTable>> tablesByZone = new HashMap<>();
+        Map<Long, List<DiningTable>> tablesByZone = new TreeMap<>();
         for (DiningTable table : tables) {
             tablesByZone.computeIfAbsent(table.getZone().getId(), key -> new ArrayList<>()).add(table);
         }
@@ -223,89 +246,5 @@ public class DiningTableService implements IDiningTableService {
                 }
             }
         }
-    }
-
-    private void syncTableIntoFloorPlan(DiningTable table) {
-        syncTableIntoFloorPlan(table, true, null);
-    }
-
-    private void syncTableIntoFloorPlan(DiningTable table, boolean addIfMissing) {
-        syncTableIntoFloorPlan(table, addIfMissing, null);
-    }
-
-    private void syncTableIntoFloorPlan(DiningTable table, boolean addIfMissing, Long previousZoneId) {
-        Long zoneId = table.getZone().getId();
-        if (previousZoneId != null && !previousZoneId.equals(zoneId)) {
-            removeTableFromFloorPlan(table, previousZoneId);
-        }
-
-        FloorPlan floorPlan = floorPlanRepository.findByZoneId(zoneId)
-                .orElseGet(() -> createDefaultFloorPlan(table.getZone()));
-
-        try {
-            ObjectNode root = (ObjectNode) objectMapper.readTree(floorPlan.getLayoutData());
-            ArrayNode tablesNode = root.withArray("tables");
-            boolean found = false;
-            for (int i = 0; i < tablesNode.size(); i++) {
-                ObjectNode item = (ObjectNode) tablesNode.get(i);
-                if (table.getId() != null && item.has("tableId") && item.get("tableId").asLong() == table.getId()) {
-                    item.put("tableId", table.getId());
-                    item.put("tableName", table.getTableName());
-                    item.put("x", table.getPositionX() != null ? table.getPositionX() : 0);
-                    item.put("y", table.getPositionY() != null ? table.getPositionY() : 0);
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found && addIfMissing) {
-                ObjectNode item = objectMapper.createObjectNode();
-                item.put("tableId", table.getId());
-                item.put("tableName", table.getTableName());
-                item.put("x", table.getPositionX() != null ? table.getPositionX() : 0);
-                item.put("y", table.getPositionY() != null ? table.getPositionY() : 0);
-                tablesNode.add(item);
-            }
-
-            floorPlan.setLayoutData(objectMapper.writeValueAsString(root));
-            floorPlanRepository.save(floorPlan);
-        } catch (JsonProcessingException ignored) {
-            // fallback: ignore invalid existing layout and keep data consistent in DB tables
-        }
-    }
-
-    private void removeTableFromFloorPlan(DiningTable table) {
-        removeTableFromFloorPlan(table, table.getZone().getId());
-    }
-
-    private void removeTableFromFloorPlan(DiningTable table, Long zoneId) {
-        FloorPlan floorPlan = floorPlanRepository.findByZoneId(zoneId).orElse(null);
-        if (floorPlan == null) {
-            return;
-        }
-
-        try {
-            ObjectNode root = (ObjectNode) objectMapper.readTree(floorPlan.getLayoutData());
-            ArrayNode tablesNode = root.withArray("tables");
-            for (int i = tablesNode.size() - 1; i >= 0; i--) {
-                ObjectNode item = (ObjectNode) tablesNode.get(i);
-                if (table.getId() != null && item.has("tableId") && item.get("tableId").asLong() == table.getId()) {
-                    tablesNode.remove(i);
-                    break;
-                }
-            }
-            floorPlan.setLayoutData(objectMapper.writeValueAsString(root));
-            floorPlanRepository.save(floorPlan);
-        } catch (JsonProcessingException ignored) {
-            // ignore
-        }
-    }
-
-    private FloorPlan createDefaultFloorPlan(Zone zone) {
-        FloorPlan floorPlan = new FloorPlan();
-        floorPlan.setZone(zone);
-        floorPlan.setLayoutData("{\"tables\":[]}");
-        floorPlan.setVersion(1);
-        return floorPlanRepository.save(floorPlan);
     }
 }

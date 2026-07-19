@@ -9,6 +9,10 @@ import toast from 'react-hot-toast'
 import PolicyResTab from './tab/reservation_policy/policyRestaurant/PolicyResTab'
 import PolicyBranchTab from './tab/reservation_policy/policyBranch/PolicyBranchTab'
 
+import TableLayoutTab from './tab/table_layout/TableLayoutTab';
+import TableFormModal from './tab/table_layout/floorPlanManagement/components/TableFormModal';
+import ZoneFormModal from './tab/table_layout/zoneManagement/components/ZoneFormModal';
+
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
 
@@ -247,7 +251,10 @@ export default function PartnerDashboard() {
   const [tableForm, setTableForm] = useState({ tableCode: '', capacity: 4 })
   const [addZoneModal, setAddZoneModal] = useState(false)
   const [zoneForm, setZoneForm] = useState({ name: '', description: '' })
-  const [selectedTable, setSelectedTable] = useState(null)
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
+  const [selectedTable, setSelectedTable] = useState(null); // Lưu data bàn cần edit nếu có
+  const [selectedZone, setSelectedZone] = useState(null);   // Lưu data khu vực cần edit nếu có
   const [branchForm, setBranchForm] = useState({ name: '', address: '', phone: '', province: '', latitude: '', longitude: '' })
   const [savingBranch, setSavingBranch] = useState(false)
   const [changingStatus, setChangingStatus] = useState(false)
@@ -279,7 +286,7 @@ export default function PartnerDashboard() {
       .then(r => { console.log("r", r); const d = r.data || DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...d })) })
       .catch(() => { setRestaurant(DEMO_RESTAURANT); setRestaurantForm(f => ({ ...f, ...DEMO_RESTAURANT })) })
   }, [])
-          console.log("activeBranch",activeBranch);
+  console.log("activeBranch", activeBranch);
   useEffect(() => {
     if (!activeBranch) return
     const bid = activeBranch.id
@@ -1024,145 +1031,38 @@ export default function PartnerDashboard() {
 
           {/* ══════ TABLES / SƠ ĐỒ BÀN ══════ */}
           {activeTab === 'tables' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                  {zones.map(z => (
-                    <button key={z.id} onClick={() => setActiveZone(z)} style={{
-                      ...S.btnSm,
-                      background: activeZone?.id === z.id ? C.brown : C.white,
-                      color: activeZone?.id === z.id ? '#fff' : C.muted,
-                      border: `1.5px solid ${activeZone?.id === z.id ? C.brown : C.border}`,
-                    }}>{z.name}</button>
-                  ))}
-                  <button onClick={() => setAddZoneModal(true)} style={{ ...S.btnSm, background: C.goldSubtle, color: C.goldDark, border: `1px solid ${C.goldBorder}` }}>
-                    + Thêm khu vực
-                  </button>
-                </div>
-                <button onClick={() => setAddTableModal(true)} style={S.btnGold}>+ Thêm bàn</button>
-              </div>
+            <div className="table-layout-container">
+              {/* Giao diện chính của sơ đồ bàn, truyền các hàm mở modal xuống nếu cần */}
+              <TableLayoutTab
+                onOpenTableModal={(tableData) => {
+                  setSelectedTable(tableData);
+                  setIsTableModalOpen(true);
+                }}
+                onOpenZoneModal={(zoneData) => {
+                  setSelectedZone(zoneData);
+                  setIsZoneModalOpen(true);
+                }}
+              />
 
-              {/* Canvas sơ đồ */}
-              <div style={{ ...S.card, marginBottom: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <div>
-                    <div style={S.eyebrow}>{activeZone?.name} — Sơ đồ bàn</div>
-                    <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '.15rem' }}>
-                      Click vào bàn để xem & đổi trạng thái · Kéo thả để di chuyển vị trí
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '.5rem', fontSize: '.78rem', color: C.muted }}>
-                    {activeZone && (tables[activeZone.id] || []).length} bàn
-                  </div>
-                </div>
-                <div ref={canvasRef} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop}
-                  style={{
-                    position: 'relative', width: '100%', paddingBottom: '45%',
-                    background: `linear-gradient(145deg,#faf7f0,#f5efe3)`,
-                    border: `2px dashed ${C.border}`, borderRadius: 4, overflow: 'hidden', minHeight: 280
-                  }}>
-                  {/* Grid lines */}
-                  {[25, 50, 75].map(p => (
-                    <div key={p}>
-                      <div style={{ position: 'absolute', left: `${p}%`, top: 0, bottom: 0, width: 1, background: `${C.border}55` }} />
-                      <div style={{ position: 'absolute', top: `${p}%`, left: 0, right: 0, height: 1, background: `${C.border}55` }} />
-                    </div>
-                  ))}
-                  {/* Entry label */}
-                  <div style={{
-                    position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
-                    fontSize: '.65rem', color: C.muted, letterSpacing: '.1em', textTransform: 'uppercase',
-                    background: `${C.goldSubtle}`, padding: '.2rem .75rem', borderRadius: 99, border: `1px solid ${C.goldBorder}`
-                  }}>
-                    ↑ CỬA VÀO
-                  </div>
-                  {(activeZone ? (tables[activeZone.id] || []) : []).map(t => {
-                    const meta = TABLE_STATUS[t.status] || TABLE_STATUS.AVAILABLE
-                    const isSel = selectedTable?.id === t.id
-                    const sz = t.capacity > 6 ? 96 : t.capacity > 4 ? 84 : 74
-                    return (
-                      <div key={t.id}
-                        draggable
-                        onDragStart={e => onTableDragStart(e, t)}
-                        onDragEnd={() => setDraggingTable(null)}
-                        onClick={() => setSelectedTable(isSel ? null : t)} style={{
-                          position: 'absolute',
-                          left: `${t.positionX}%`, top: `${t.positionY}%`,
-                          transform: 'translate(-50%,-50%)',
-                          width: sz, height: sz - 10,
-                          background: isSel ? C.gold : meta.bg,
-                          border: `2px solid ${isSel ? C.goldDark : meta.color}`,
-                          borderRadius: 6, cursor: 'grab',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
-                          boxShadow: isSel ? `0 4px 20px ${C.gold}44` : 'none',
-                          transition: draggingTable?.id === t.id ? 'none' : 'all .2s',
-                          opacity: draggingTable?.id === t.id ? 0.5 : 1
-                        }}>
-                        <span style={{ fontSize: '.82rem', fontWeight: 800, color: isSel ? C.brown : meta.color }}>{t.tableCode}</span>
-                        <span style={{ fontSize: '.62rem', fontWeight: 700, color: isSel ? 'rgba(61,43,31,.8)' : meta.color }}>{meta.icon}</span>
-                        <span style={{ fontSize: '.6rem', color: isSel ? 'rgba(61,43,31,.6)' : C.muted }}>👥{t.capacity}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                {/* Legend */}
-                <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-                  {Object.entries(TABLE_STATUS).map(([k, { color, label, icon }]) => (
-                    <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '.35rem', fontSize: '.73rem', color: C.muted }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
-                      {icon} {label}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Modal thêm/sửa Bàn (Table) theo cấu trúc mới */}
+              <TableFormModal
+                isOpen={isTableModalOpen}
+                onClose={() => {
+                  setIsTableModalOpen(false);
+                  setSelectedTable(null);
+                }}
+                tableData={selectedTable}
+              />
 
-              {/* Selected table action panel */}
-              {selectedTable && (
-                <div style={{
-                  ...S.card, background: `linear-gradient(135deg,${C.cream},${C.creamDark})`,
-                  border: `1px solid ${C.goldBorder}`, marginBottom: '1.25rem'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div>
-                      <div style={{ ...S.eyebrow, marginBottom: '.25rem' }}>Bàn {selectedTable.tableCode} đang được chọn</div>
-                      <p style={{ fontSize: '.85rem', color: C.muted }}>
-                        Khu vực {activeZone?.name} · Sức chứa {selectedTable.capacity} khách ·
-                        <span style={{ color: TABLE_STATUS[selectedTable.status]?.color, fontWeight: 700 }}> {TABLE_STATUS[selectedTable.status]?.label}</span>
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                      {Object.entries(TABLE_STATUS).filter(([k]) => k !== selectedTable.status && k !== 'MAINTENANCE').map(([k, { color, label }]) => (
-                        <button key={k} onClick={() => updateTableStatus(selectedTable.id, k)}
-                          style={{ ...S.btnSm, background: `${color}18`, color, border: `1px solid ${color}33` }}>
-                          {TABLE_STATUS[k].icon} {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Table list */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: '.75rem' }}>
-                {(activeZone ? (tables[activeZone.id] || []) : []).map(t => {
-                  const meta = TABLE_STATUS[t.status] || TABLE_STATUS.AVAILABLE
-                  return (
-                    <div key={t.id} onClick={() => setSelectedTable(selectedTable?.id === t.id ? null : t)}
-                      style={{
-                        background: selectedTable?.id === t.id ? C.gold : C.white,
-                        border: `1.5px solid ${selectedTable?.id === t.id ? C.goldDark : meta.color + '44'}`,
-                        borderRadius: 4, padding: '1rem', cursor: 'pointer', transition: 'all .2s'
-                      }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.4rem' }}>
-                        <span style={{ fontWeight: 800, color: selectedTable?.id === t.id ? C.brown : C.text }}>{t.tableCode}</span>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: meta.color }} />
-                      </div>
-                      <p style={{ fontSize: '.73rem', color: selectedTable?.id === t.id ? 'rgba(61,43,31,.7)' : meta.color, fontWeight: 600 }}>{meta.label}</p>
-                      <p style={{ fontSize: '.7rem', color: selectedTable?.id === t.id ? 'rgba(61,43,31,.5)' : C.muted, marginTop: '.2rem' }}>👥 {t.capacity} khách</p>
-                    </div>
-                  )
-                })}
-              </div>
+              {/* Modal thêm/sửa Khu vực (Zone) theo cấu trúc mới */}
+              <ZoneFormModal
+                isOpen={isZoneModalOpen}
+                onClose={() => {
+                  setIsZoneModalOpen(false);
+                  setSelectedZone(null);
+                }}
+                zoneData={selectedZone}
+              />
             </div>
           )}
 
@@ -1710,7 +1610,7 @@ export default function PartnerDashboard() {
                     </div>
                   </div>
                   {/* policy restaurant  */}
-                  <PolicyResTab restaurantId={activeBranch.restaurantId}/>
+                  <PolicyResTab restaurantId={activeBranch.restaurantId} />
                 </>
               )}
             </div>

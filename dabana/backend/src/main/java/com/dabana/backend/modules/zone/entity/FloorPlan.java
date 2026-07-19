@@ -21,6 +21,12 @@ public class FloorPlan {
     @Column(name = "layout_data", nullable = false, columnDefinition = "json")
     private String layoutData;
 
+    // Truoc day chi la 1 cot thuong (Integer version = 1) -> JPA khong tu kiem tra khi
+    // update, khong co gi ngan 2 giao dich cung sua layout_data ghi de len nhau.
+    // @Version bien no thanh optimistic lock that su cua Hibernate: tu dong tang va
+    // kiem tra o MOI lan UPDATE. Day la lop bao ve thu 2, bo sung cho pessimistic lock
+    // (findByZoneIdForUpdate) ma FloorPlanSyncService dung lam co che chinh.
+    @Version
     @Column(nullable = false)
     private Integer version = 1;
 }

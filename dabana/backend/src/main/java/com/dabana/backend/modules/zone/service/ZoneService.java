@@ -2,9 +2,6 @@ package com.dabana.backend.modules.zone.service;
 
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.branch2.entity.Branch;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
@@ -27,10 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -52,7 +46,7 @@ public class ZoneService implements IZoneService {
     private final ZoneMapper zoneMapper;
     private final FloorPlanMapper floorPlanMapper;
     private final DiningTableMapper diningTableMapper;
-    private final ObjectMapper objectMapper;
+    private final FloorPlanSyncService floorPlanSyncService;
 
     @Override
     @Transactional(readOnly = true)
@@ -86,11 +80,7 @@ public class ZoneService implements IZoneService {
         zone.setDescription(normalizeText(request.getDescription()));
 
         Zone savedZone = zoneRepository.save(zone);
-        FloorPlan floorPlan = new FloorPlan();
-        floorPlan.setZone(savedZone);
-        floorPlan.setLayoutData("{\"tables\":[]}");
-        floorPlan.setVersion(1);
-        FloorPlan savedFloorPlan = floorPlanRepository.save(floorPlan);
+        FloorPlan savedFloorPlan = floorPlanSyncService.createEmptyFloorPlan(savedZone);
 
         ZoneResponse response = zoneMapper.toResponse(savedZone);
         response.setFloorPlan(floorPlanMapper.toResponse(savedFloorPlan));
@@ -138,17 +128,16 @@ public class ZoneService implements IZoneService {
     @Transactional
     public FloorPlanResponse createOrUpdateFloorPlan(FloorPlanRequest request) {
         Zone zone = getZone(request.getZoneId());
-        FloorPlan floorPlan = floorPlanRepository.findByZoneId(zone.getId())
-                .orElseGet(FloorPlan::new);
 
-        String normalizedLayout = validateAndNormalizeLayout(request.getLayoutData());
-        floorPlan.setZone(zone);
-        floorPlan.setLayoutData(normalizedLayout);
-        floorPlan.setVersion(floorPlan.getVersion() == null ? 1 : floorPlan.getVersion() + 1);
+        // Lock dong FloorPlan TRUOC, dam bao khong dan xen voi bulkUpdatePositions
+        // (DiningTableService) hay 1 request createOrUpdateFloorPlan khac cung zone.
+        FloorPlan floorPlan = floorPlanSyncService.lockOrCreateFloorPlan(zone);
 
-        FloorPlan savedFloorPlan = floorPlanRepository.save(floorPlan);
-        syncTablePositionsFromFloorPlan(zone.getId(), savedFloorPlan.getLayoutData());
-        return floorPlanMapper.toResponse(savedFloorPlan);
+        // layout_data la nguon goc: validate nghiem ngat + ghi de ca layout_data lan
+        // position_x/y cua tung ban trong 1 buoc, dam bao khong bao gio lech nhau.
+        floorPlanSyncService.applyFloorPlanRequest(zone, floorPlan, request.getLayoutData());
+
+        return floorPlanMapper.toResponse(floorPlan);
     }
 
     @Override
@@ -176,95 +165,5 @@ public class ZoneService implements IZoneService {
 
     private String normalizeText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private String validateAndNormalizeLayout(String layoutData) {
-        if (layoutData == null || layoutData.isBlank()) {
-            throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
-        }
-
-        try {
-            JsonNode root = objectMapper.readTree(layoutData.trim());
-            if (!root.isObject()) {
-                throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
-            }
-
-            JsonNode tablesNode = root.path("tables");
-            if (!tablesNode.isMissingNode() && !tablesNode.isArray()) {
-                throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
-            }
-
-            if (tablesNode.isArray()) {
-                for (JsonNode tableNode : tablesNode) {
-                    if (!tableNode.isObject()) {
-                        throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
-                    }
-                    JsonNode xNode = tableNode.get("x");
-                    JsonNode yNode = tableNode.get("y");
-                    if ((xNode == null || !xNode.isNumber()) || (yNode == null || !yNode.isNumber())) {
-                        throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
-                    }
-                }
-            }
-
-            return objectMapper.writeValueAsString(root);
-        } catch (JsonProcessingException ex) {
-            throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
-        }
-    }
-
-    private void syncTablePositionsFromFloorPlan(Long zoneId, String layoutData) {
-        try {
-            JsonNode root = objectMapper.readTree(layoutData);
-            JsonNode tablesNode = root.path("tables");
-            if (!tablesNode.isArray()) {
-                return;
-            }
-
-            Map<Long, com.dabana.backend.modules.diningtable.entity.DiningTable> tablesById = new HashMap<>();
-            Map<String, com.dabana.backend.modules.diningtable.entity.DiningTable> tablesByName = new HashMap<>();
-            for (com.dabana.backend.modules.diningtable.entity.DiningTable table : diningTableRepository.findByZoneIdOrderByIdAsc(zoneId)) {
-                tablesById.put(table.getId(), table);
-                if (table.getTableName() != null) {
-                    tablesByName.put(table.getTableName().trim().toLowerCase(), table);
-                }
-            }
-
-            for (JsonNode tableNode : tablesNode) {
-                if (!tableNode.isObject()) {
-                    continue;
-                }
-
-                JsonNode xNode = tableNode.get("x");
-                JsonNode yNode = tableNode.get("y");
-                if (xNode == null || yNode == null || !xNode.isNumber() || !yNode.isNumber()) {
-                    continue;
-                }
-
-                Integer x = xNode.intValue();
-                Integer y = yNode.intValue();
-                com.dabana.backend.modules.diningtable.entity.DiningTable target = null;
-
-                JsonNode tableIdNode = tableNode.get("tableId");
-                if (tableIdNode != null && tableIdNode.isNumber()) {
-                    target = tablesById.get(tableIdNode.longValue());
-                }
-
-                if (target == null) {
-                    JsonNode tableNameNode = tableNode.get("tableName");
-                    if (tableNameNode != null && tableNameNode.isTextual()) {
-                        target = tablesByName.get(tableNameNode.asText().trim().toLowerCase());
-                    }
-                }
-
-                if (target != null) {
-                    target.setPositionX(x);
-                    target.setPositionY(y);
-                    diningTableRepository.save(target);
-                }
-            }
-        } catch (JsonProcessingException ignored) {
-            // Validation already ensured the layout is parseable
-        }
     }
 }
