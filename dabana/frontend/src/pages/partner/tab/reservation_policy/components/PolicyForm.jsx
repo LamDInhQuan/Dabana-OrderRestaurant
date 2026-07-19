@@ -19,7 +19,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
           <label style={S.label}>Tên chính sách</label>
           <input
             style={S.input}
-            value={policy.name || ""}
+            value={policy.policyCode || ""}
             onChange={(e) => set({ name: e.target.value })}
             required
           />
@@ -30,7 +30,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
           <textarea
             rows={3}
             style={S.input}
-            value={policy.description || ""}
+            value={policy.policyName || ""}
             onChange={(e) => set({ description: e.target.value })}
           />
         </div>

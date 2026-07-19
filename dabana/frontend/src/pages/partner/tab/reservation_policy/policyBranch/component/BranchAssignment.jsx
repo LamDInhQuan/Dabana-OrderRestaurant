@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { C, S, GoldDivider } from '../../../../theme'
 import PolicySchedule from "../../components/PolicySchedule";
 
+// 🟢 Định nghĩa mảng DAYS để hàm dịch thứ không bị crash
+const DAYS = [
+  { key: "MONDAY", label: "T2" },
+  { key: "TUESDAY", label: "T3" },
+  { key: "WEDNESDAY", label: "T4" },
+  { key: "THURSDAY", label: "T5" },
+  { key: "FRIDAY", label: "T6" },
+  { key: "SATURDAY", label: "T7" },
+  { key: "SUNDAY", label: "CN" },
+];
 
 const emptyAssignment = (policyId) => ({
   id: null,
@@ -18,7 +28,7 @@ const emptyAssignment = (policyId) => ({
 function scheduleSummary(a) {
   if (a.applyType === "ALWAYS") return "Luôn luôn";
   if (a.applyType === "DAY_OF_WEEK") {
-    if (!a.daysOfWeek.length) return "Theo thứ (chưa chọn)";
+    if (!a.daysOfWeek || !a.daysOfWeek.length) return "Theo thứ (chưa chọn)";
     return a.daysOfWeek
       .map((k) => DAYS.find((d) => d.key === k)?.label || k)
       .join(", ");
@@ -30,31 +40,26 @@ function scheduleSummary(a) {
 }
 
 /**
- * Props:
- *  - policy: the currently selected ReservationPolicy (assignment target). Can be null.
- *  - branches: { id, name }[]
- *  - assignments: rt_branch_policy rows already saved for this policy
- *  - onSave(assignment)   -> POST branch-policy
- *  - onDelete(assignmentId)
+ * Props nhận vào chỉ cần policyId (Không cần cả cục object policy cồng kềnh)
  */
-export default function BranchAssignment({
-  policy,
-  branches,
-  assignments,
+function BranchAssignment({
+  policyId,
+  branches = [],
+  assignments = [],
   onSave,
   onDelete,
 }) {
-  const [draft, setDraft] = useState(emptyAssignment(policy?.id));
+  const [draft, setDraft] = useState(emptyAssignment(policyId));
 
-  // reset draft whenever the selected policy changes
+  // Reset draft form mỗi khi policyId thay đổi
   useEffect(() => {
-    setDraft(emptyAssignment(policy?.id));
-  }, [policy?.id]);
+    setDraft(emptyAssignment(policyId));
+  }, [policyId]);
 
-  if (!policy) {
+  if (!policyId) {
     return (
-      <div style={{ ...S.card, textAlign: "center", color: C.muted }}>
-        Chọn một chính sách bên trên để áp dụng cho chi nhánh.
+      <div style={{ ...S.card, textAlign: "center", color: C.muted, padding: "2rem" }}>
+        Chọn một chính sách bên trên để thiết lập lịch áp dụng cho chi nhánh.
       </div>
     );
   }
@@ -72,19 +77,21 @@ export default function BranchAssignment({
       alert("Chọn ít nhất một chi nhánh");
       return;
     }
-    onSave({ ...draft, policyId: policy.id, id: Date.now() });
-    setDraft(emptyAssignment(policy.id));
+    // Gửi dữ liệu ra hàm gán của file cha
+    onSave({ ...draft, policyId: policyId, id: Date.now() });
+    setDraft(emptyAssignment(policyId));
   };
 
   return (
     <div style={S.card}>
+      {/* 🟢 SỬA LỖI: Đổi {policy.name} thành tiêu đề tĩnh hoặc id do không còn object policy */}
       <div style={{ ...S.eyebrow, marginBottom: "1.5rem" }}>
-        Áp dụng "{policy.name}" cho chi nhánh
+        Thiết lập lịch áp dụng chính sách cho các chi nhánh
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
         <div>
-          <label style={S.label}>Chi nhánh</label>
+          <label style={S.label}>Chọn chi nhánh áp dụng</label>
           <div
             style={{
               display: "flex",
@@ -169,7 +176,7 @@ export default function BranchAssignment({
           <GoldDivider />
           <div style={{ marginTop: "1rem" }}>
             <div style={{ ...S.eyebrow, marginBottom: "1rem" }}>
-              Đang áp dụng tại
+              Danh sách chi nhánh đang áp dụng lịch này
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: ".6rem" }}>
               {assignments.map((a) => (
@@ -183,25 +190,26 @@ export default function BranchAssignment({
                     border: `1px solid ${C.border}`,
                     borderRadius: 4,
                     fontSize: ".85rem",
+                    background: "#fff"
                   }}
                 >
                   <div>
                     <b>
                       {a.branchIds
-                        .map((id) => branches.find((b) => b.id === id)?.name || id)
+                        ?.map((id) => branches.find((b) => b.id === id)?.name || id)
                         .join(", ")}
                     </b>
                     <div style={{ color: C.muted, marginTop: ".2rem" }}>
                       {scheduleSummary(a)}
-                      {a.effectiveFrom && ` · ${a.effectiveFrom} → ${a.effectiveTo || "..."}`}
+                      {a.effectiveFrom && ` · Từ ${a.effectiveFrom} ${a.effectiveTo ? `đến ${a.effectiveTo}` : "trở đi"}`}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => onDelete(a.id)}
-                    style={{ ...S.btnOutline, color: C.red }}
+                    style={{ ...S.btnOutline, color: C.red, padding: "0.25rem 0.75rem", fontSize: "0.8rem" }}
                   >
-                    Gỡ
+                    Gỡ bỏ
                   </button>
                 </div>
               ))}
@@ -212,3 +220,6 @@ export default function BranchAssignment({
     </div>
   );
 }
+
+// 🟢 Bọc React.memo để khi gõ text ở form khác hoặc render list, component này hoàn toàn không bị tính toán lại thừa thãi.
+export default memo(BranchAssignment);

@@ -61,7 +61,7 @@ function PolicyResList({
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ fontWeight: 600, color: C.text, fontSize: ".95rem" }}>
-                    {p.name}
+                    {p.policyCode}
                   </div>
                   {p.depositRequired && (
                     <span style={{ 

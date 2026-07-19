@@ -64,7 +64,7 @@ export default function PolicyList({
         </div>
       )}
 
-      {/* 🟢 DANH SÁCH ĐÃ ĐƯỢC DÀN HÀNG NGANG TOÀN BỘ CHIỀU RỘNG */}
+      {/* DANH SÁCH CARD CHÍNH SÁCH */}
       <div 
         style={{ 
           display: "flex", 
@@ -80,7 +80,6 @@ export default function PolicyList({
               key={policy.id}
               onClick={() => onSelect(policy)}
               style={{
-                /* Mỗi item chiếm tối thiểu 240px, tự động co giãn đều nhau trên 1 hàng */
                 flex: "1 1 240px",
                 maxWidth: "calc(33.33% - 0.7rem)",
                 border: isSelected ? `2px solid ${C.gold}` : `1px solid ${C.border}`,
@@ -97,7 +96,6 @@ export default function PolicyList({
               }}
             >
               <div>
-                {/* Header item: Tên chính sách & Số chi nhánh */}
                 <div
                   style={{
                     display: "flex",
@@ -108,7 +106,7 @@ export default function PolicyList({
                   }}
                 >
                   <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 600, color: C.text }}>
-                    {policy.name}
+                    {policy.policyCode}
                   </h4>
                   <span
                     style={{
@@ -125,7 +123,6 @@ export default function PolicyList({
                   </span>
                 </div>
 
-                {/* Mô tả ngắn */}
                 <p
                   style={{
                     fontSize: ".8rem",
@@ -139,11 +136,10 @@ export default function PolicyList({
                     lineHeight: "1.3"
                   }}
                 >
-                  {policy.description || "Không có mô tả cho chính sách này."}
+                  {policy.policyName || "Không có mô tả cho chính sách này."}
                 </p>
               </div>
 
-              {/* Khu vực hành động nhỏ gọn: Đổi nút Sửa thành nút Xóa trực tiếp ở góc */}
               <div 
                 style={{ 
                   display: "flex", 
@@ -186,7 +182,7 @@ export default function PolicyList({
           );
         })}
       </div>
-
-    </div>
+      
+    </div> // 🟢 Chỉ đóng thẻ div của component cha tại đây là xong!
   );
 }
