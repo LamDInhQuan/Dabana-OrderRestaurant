@@ -49,21 +49,33 @@ export const useFloorPlanState = (branchId) => {
   }, [branchId]);
 
   // 2. Tải toàn bộ danh sách Khu vực và Bàn ăn trực thuộc chi nhánh
+  // 2. Tải toàn bộ danh sách Khu vực và Bàn ăn trực thuộc chi nhánh
   const fetchLayoutData = useCallback(async () => {
     if (!branchId) return;
     setLoading(true);
     try {
       const zoneRes = await zoneApi.getByBranch(branchId);
-      setZones(zoneRes.data);
 
-      if (zoneRes.data.length > 0) {
+      // 🚀 CHÈN CONSOLE.LOG VÀO ĐÂY ĐỂ KIỂM TRA
+      console.log("=== KIỂM TRA PHẢN HỒI API ===");
+      console.log("Toàn bộ zoneRes:", zoneRes);
+      console.log("Dữ liệu zoneRes.data:", zoneRes.data);
+      console.log("Mảng dữ liệu đúng phải là zoneRes.data.data:", zoneRes.data?.data);
+      console.log("=============================");
+
+      // 👉 SỬA LẠI: Lấy đúng mảng `.data.data` theo cấu trúc API của bạn
+      const actualZones = zoneRes.data?.data || [];
+
+      setZones(actualZones);
+
+      if (actualZones.length > 0) {
         // Tự động chọn Zone đầu tiên nếu chưa có zone nào active
-        setActiveZone((curr) => curr || zoneRes.data[0]);
+        setActiveZone((curr) => curr || actualZones[0]);
       }
 
       const tableMap = {};
       await Promise.all(
-        zoneRes.data.map(async (zone) => {
+        actualZones.map(async (zone) => {
           // ZoneResponse đã chứa danh sách tables được nest sẵn từ tầng Backend
           tableMap[zone.id] = zone.tables || [];
         })
@@ -71,6 +83,7 @@ export const useFloorPlanState = (branchId) => {
       setTables(tableMap);
       setIsDirty(false);
     } catch (err) {
+      console.error("Lỗi chi tiết khi fetch layout:", err); // In thêm lỗi ra console nếu có
       toast.error('Không thể tải cấu trúc sơ đồ phân khu.');
     } finally {
       setLoading(false);

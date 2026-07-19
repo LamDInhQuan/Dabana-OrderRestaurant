@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
-export default function ZoneFormModal({ zone, onClose, onSubmit }) {
+export default function ZoneFormModal({ isOpen, zone, onClose, onSubmit }) {
   const [zoneName, setZoneName] = useState('');
   const [description, setDescription] = useState('');
+
+  if (!isOpen) return null;
 
   // Đổ dữ liệu cũ vào form nếu phát hiện đang ở chế độ Chỉnh sửa (Edit Mode)
   useEffect(() => {

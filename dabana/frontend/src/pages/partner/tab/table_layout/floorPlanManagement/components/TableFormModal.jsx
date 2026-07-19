@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 
-export default function TableFormModal({ onClose, onSubmit }) {
+export default function TableFormModal({ isOpen, onClose, onSubmit }) {
+  
+  if (!isOpen) return null;
+
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState(4);
 

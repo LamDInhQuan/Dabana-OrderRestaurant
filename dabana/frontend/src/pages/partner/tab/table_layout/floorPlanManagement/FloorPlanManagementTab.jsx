@@ -6,12 +6,11 @@ import TableFormModal from './components/TableFormModal';
 import { tableApi } from '../../../../../api';
 
 const STATUS_META = {
-  EMPTY:             { color: '#22C55E', label: 'Trống' }, // Đồng bộ với tên Enum DiningTableStatus phía Backend
-  RESERVED:          { color: '#EF4444', label: 'Đã đặt' },
-  OCCUPIED:          { color: '#F59E0B', label: 'Đang dùng' },
-  CLEANING:          { color: '#94A3B8', label: 'Dọn dẹp' },
-  HELD_FOR_WAITLIST: { color: '#8B5CF6', label: 'Hàng chờ' },
-  MAINTENANCE:       { color: '#1F2937', label: 'Bảo trì' },
+  1:             { color: '#22C55E', label: 'Trống' }, 
+  2:          { color: '#EF4444', label: 'Đã đặt' },
+  3:          { color: '#F59E0B', label: 'Đang dùng' },
+  4:          { color: '#94A3B8', label: 'Dọn dẹp' },
+  5:          { color: '#8B5CF6', label: 'Bảo trí' },
 };
 
 export default function FloorPlanManagementTab({ state }) {

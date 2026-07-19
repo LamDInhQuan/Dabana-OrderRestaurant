@@ -1034,6 +1034,7 @@ export default function PartnerDashboard() {
             <div className="table-layout-container">
               {/* Giao diện chính của sơ đồ bàn, truyền các hàm mở modal xuống nếu cần */}
               <TableLayoutTab
+                branchId={activeBranch?.id}
                 onOpenTableModal={(tableData) => {
                   setSelectedTable(tableData);
                   setIsTableModalOpen(true);
