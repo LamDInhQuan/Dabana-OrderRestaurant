@@ -16,5 +16,6 @@ public class MenuItemResponse {
     private BigDecimal price;
     private String imageUrl;
     private MenuItemStatus status;
+    private Integer displayOrder;
     private List<MenuItemImageResponse> images = new ArrayList<>();
 }

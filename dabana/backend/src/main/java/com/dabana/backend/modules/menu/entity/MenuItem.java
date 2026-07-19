@@ -44,9 +44,13 @@ public class MenuItem {
     @Column(nullable = false)
     private MenuItemStatus status = MenuItemStatus.SELLING;
 
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 0;
+
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC, id ASC")
     private List<MenuItemImage> images = new ArrayList<>();
+    // Luu y: day la displayOrder cua ANH (MenuItemImage), khac voi displayOrder cua MON o tren
 
     @Transient
     public String getName() {

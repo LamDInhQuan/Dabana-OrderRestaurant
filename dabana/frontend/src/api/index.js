@@ -112,11 +112,28 @@ export const bookingApi = {
 // ===== Menu API (B06) =====
 // Returns categories with items nested: [{ id, categoryName, items:[{ id, itemName, price, imageUrl, status }] }]
 export const menuApi = {
-  getByBranch: (bid) => api.get(`/menu/branches/${bid}`),
-  getCategories: (bid) => api.get(`/menu/branches/${bid}/categories`),
-  createItem: (data) => api.post('/menu/items', data),
-  updateItem: (id, d) => api.put(`/menu/items/${id}`, d),
-  updateItemStatus: (id, s) => api.patch(`/menu/items/${id}/status`, { status: s }),
+  // --- Chi nhanh / danh muc ---
+  getByBranch:    (bid)                => api.get(`/menu/branches/${bid}`),
+  getCategories:  (bid)                => api.get(`/menu/branches/${bid}/categories`),
+  createCategory: (data)               => api.post('/menu/categories', data),
+  updateCategory: (categoryId, data)   => api.put(`/menu/categories/${categoryId}`, data),
+  deleteCategory: (categoryId)         => api.delete(`/menu/categories/${categoryId}`),
+
+  // --- Mon an ---
+  getItemsByCategory: (categoryId) => api.get(`/menu/categories/${categoryId}/items`),
+  // params: { branchId, categoryId, status, keyword, page, size } - tat ca deu optional
+  searchItems:  (params)      => api.get('/menu/items/search', { params }),
+  createItem:   (data)        => api.post('/menu/items', data),
+  updateItem:   (id, d)       => api.put(`/menu/items/${id}`, d),
+  deleteItem:   (id)          => api.delete(`/menu/items/${id}`),
+  updateItemStatus:     (id, status)      => api.patch(`/menu/items/${id}/status`, { status }),
+  bulkUpdateItemStatus: (itemIds, status) => api.patch('/menu/items/bulk-status', { itemIds, status }),
+
+  // --- Anh phu cua mon (ngoai imageUrl chinh tren item) ---
+  getImagesByItem: (itemId)        => api.get(`/menu/items/${itemId}/images`),
+  addImage:        (data)          => api.post('/menu/images', data),
+  updateImage:      (imageId, data) => api.put(`/menu/images/${imageId}`, data),
+  deleteImage:      (imageId)       => api.delete(`/menu/images/${imageId}`),
 }
 
 // ===== Waitlist API (B10) =====

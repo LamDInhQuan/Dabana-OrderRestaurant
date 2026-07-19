@@ -28,4 +28,6 @@ public class CreateMenuItemRequest {
     private String imageUrl;
 
     private MenuItemStatus status = MenuItemStatus.SELLING;
+
+    private Integer displayOrder = 0;
 }

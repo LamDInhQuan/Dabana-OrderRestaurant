@@ -7,6 +7,7 @@ import com.dabana.backend.modules.menu.dto.request.*;
 import com.dabana.backend.modules.menu.dto.response.MenuCategoryResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemImageResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemResponse;
+import com.dabana.backend.modules.menu.dto.response.PageResponse;
 import com.dabana.backend.modules.menu.entity.MenuCategory;
 import com.dabana.backend.modules.menu.entity.MenuItem;
 import com.dabana.backend.modules.menu.entity.MenuItemImage;
@@ -16,7 +17,13 @@ import com.dabana.backend.modules.menu.repository.MenuItemImageRepository;
 import com.dabana.backend.modules.menu.repository.MenuItemRepository;
 import com.dabana.backend.modules.menu.util.MenuErrorCode;
 import com.dabana.backend.modules.menu.util.MenuItemStatus;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,7 +97,7 @@ public class MenuService implements IMenuService {
     public List<MenuItemResponse> getItemsByCategory(Long categoryId) {
         getCategory(categoryId);
         List<MenuItemResponse> responses = new ArrayList<>();
-        for (MenuItem item : itemRepository.findByCategoryIdOrderByIdAsc(categoryId)) {
+        for (MenuItem item : itemRepository.findByCategoryIdOrderByDisplayOrderAscIdAsc(categoryId)) {
             responses.add(buildItemResponse(item, true));
         }
         return responses;
@@ -104,7 +111,7 @@ public class MenuService implements IMenuService {
 
         MenuItem item = new MenuItem();
         item.setCategory(category);
-        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(), request.getImageUrl(), request.getStatus());
+        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(), request.getImageUrl(), request.getStatus(), request.getDisplayOrder());
         return buildItemResponse(itemRepository.save(item), true);
     }
 
@@ -116,8 +123,54 @@ public class MenuService implements IMenuService {
         ensureItemNameAvailable(targetCategory.getId(), request.getItemName(), item.getId());
 
         item.setCategory(targetCategory);
-        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(), request.getImageUrl(), request.getStatus());
+        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(), request.getImageUrl(), request.getStatus(), request.getDisplayOrder());
         return buildItemResponse(itemRepository.save(item), true);
+    }
+
+    @Override
+    @Transactional
+    public List<MenuItemResponse> bulkUpdateItemStatus(BulkUpdateItemStatusRequest request) {
+        List<MenuItem> items = itemRepository.findAllById(request.getItemIds());
+        if (items.size() != request.getItemIds().size()) {
+            throw new BusinessException(MenuErrorCode.MENU_ITEM_NOT_FOUND);
+        }
+        items.forEach(item -> item.setStatus(request.getStatus()));
+        List<MenuItem> saved = itemRepository.saveAll(items);
+        return saved.stream().map(item -> buildItemResponse(item, false)).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<MenuItemResponse> searchItems(MenuItemSearchRequest request) {
+        Specification<MenuItem> spec = buildSearchSpecification(request);
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by(
+                Sort.Order.asc("displayOrder"),
+                Sort.Order.asc("id")
+        ));
+        Page<MenuItem> page = itemRepository.findAll(spec, pageable);
+        return PageResponse.from(page.map(item -> buildItemResponse(item, false)));
+    }
+
+    private Specification<MenuItem> buildSearchSpecification(MenuItemSearchRequest request) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (request.getCategoryId() != null) {
+                predicates.add(cb.equal(root.get("category").get("id"), request.getCategoryId()));
+            }
+            if (request.getBranchId() != null) {
+                predicates.add(cb.equal(root.get("category").get("branch").get("id"), request.getBranchId()));
+            }
+            if (request.getStatus() != null) {
+                predicates.add(cb.equal(root.get("status"), request.getStatus()));
+            }
+            if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
+                String likeKeyword = "%" + request.getKeyword().trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("itemName")), likeKeyword));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     @Override
@@ -207,12 +260,14 @@ public class MenuService implements IMenuService {
                                   String description,
                                   java.math.BigDecimal price,
                                   String imageUrl,
-                                  MenuItemStatus status) {
+                                  MenuItemStatus status,
+                                  Integer displayOrder) {
         item.setItemName(itemName.trim());
         item.setDescription(description);
         item.setPrice(price);
         item.setImageUrl(imageUrl == null || imageUrl.isBlank() ? null : imageUrl.trim());
         item.setStatus(status == null ? MenuItemStatus.SELLING : status);
+        item.setDisplayOrder(displayOrder == null ? 0 : displayOrder);
     }
 
     private MenuCategoryResponse buildCategoryResponse(MenuCategory category, boolean includeItems) {
@@ -222,7 +277,7 @@ public class MenuService implements IMenuService {
         }
 
         List<MenuItemResponse> itemResponses = new ArrayList<>();
-        for (MenuItem item : itemRepository.findByCategoryIdOrderByIdAsc(category.getId())) {
+        for (MenuItem item : itemRepository.findByCategoryIdOrderByDisplayOrderAscIdAsc(category.getId())) {
             itemResponses.add(buildItemResponse(item, true));
         }
         menuMapper.attachItems(response, itemResponses);

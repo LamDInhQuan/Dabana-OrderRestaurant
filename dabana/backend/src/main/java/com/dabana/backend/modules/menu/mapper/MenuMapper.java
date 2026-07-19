@@ -33,6 +33,7 @@ public class MenuMapper {
         response.setPrice(item.getPrice());
         response.setImageUrl(item.getImageUrl());
         response.setStatus(item.getStatus());
+        response.setDisplayOrder(item.getDisplayOrder());
         response.setImages(new ArrayList<>());
         return response;
     }

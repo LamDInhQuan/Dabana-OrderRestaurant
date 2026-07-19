@@ -12,6 +12,9 @@ import PolicyBranchTab from './tab/reservation_policy/policyBranch/PolicyBranchT
 import TableLayoutTab from './tab/table_layout/TableLayoutTab';
 import { useFloorPlanState } from './tab/table_layout/hooks/useFloorPlanState';
 
+import MenuManagementTab from './tab/menu/MenuManagementTab'
+import { useMenuState } from './tab/menu/hooks/useMenuState'
+
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
 
@@ -227,7 +230,6 @@ export default function PartnerDashboard() {
   const [branches, setBranches] = useState([])
   const [bookings, setBookings] = useState([])
   const [menu, setMenu] = useState([])
-  const [menuCategories, setMenuCategories] = useState([]) // du lieu goc tu backend: [{id, categoryName, items:[...]}]
   const [waitlist, setWaitlist] = useState([])
   const [reviews, setReviews] = useState([])          // B13
   const [notifications, setNotifications] = useState([])  // B09
@@ -235,13 +237,11 @@ export default function PartnerDashboard() {
   const [reviewFilter, setReviewFilter] = useState('ALL')
   const [replyDrafts, setReplyDrafts] = useState({})  // { [reviewId]: text }
   const [bkFilter, setBkFilter] = useState('ALL')
-  const [menuFilter, setMenuFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const floorPlan = useFloorPlanState(activeBranch?.id)
+  const menuState = useMenuState(activeBranch?.id)
 
   // ── modal states ───────────────────────────────────
-  const [menuModal, setMenuModal] = useState(null)   // null | 'add' | item
-  const [menuForm, setMenuForm] = useState({ name: '', category: 'Món chính', price: '', emoji: '🍽️', description: '' })
   const [policyModal, setPolicyModal] = useState(false)
   const [policy, setPolicy] = useState({ depositRequired: true, depositType: 'FIXED_AMOUNT', depositValue: '200000', freeCancellationHours: 2, lateCancellationPenaltyPercent: 50, noShowPenaltyPercent: 100 })
   const [branchForm, setBranchForm] = useState({ name: '', address: '', phone: '', province: '', latitude: '', longitude: '' })
@@ -398,62 +398,6 @@ export default function PartnerDashboard() {
       ...b, status: action === 'check-in' ? 'CHECKED_IN' : action === 'check-out' ? 'COMPLETED' : action === 'no-show' ? 'NO_SHOW' : 'CANCELLED_BY_RESTAURANT'
     } : b))
     toast.success(action === 'check-in' ? 'Check-in thành công!' : action === 'check-out' ? 'Check-out & Hoàn tất!' : 'Đã cập nhật trạng thái')
-  }
-
-  const saveMenuItem = async (e) => {
-    e.preventDefault()
-    if (!menuForm.price || Number(menuForm.price) <= 0) { toast.error('Giá phải lớn hơn 0'); return }
-    if (!activeBranch) { toast.error('Chưa chọn chi nhánh'); return }
-    try {
-      // 1. Tim danh muc theo ten; neu chi nhanh chua co danh muc nay thi tao moi
-      let category = menuCategories.find(c => c.categoryName === menuForm.category)
-      if (!category) {
-        const { data: res } = await menuApi.createCategory({ branchId: activeBranch.id, categoryName: menuForm.category })
-        category = { ...res.data, items: [] }
-        setMenuCategories(prev => [...prev, category])
-      }
-
-      const payload = {
-        categoryId: category.id,
-        itemName: menuForm.name,
-        description: menuForm.description,
-        price: Number(menuForm.price),
-        imageUrl: '',
-        status: menuModal === 'add' ? 'SELLING' : (menuModal.status || 'SELLING'),
-      }
-
-      if (menuModal === 'add') {
-        const { data: res } = await menuApi.createItem(payload)
-        const created = res.data
-        setMenu(p => [...p, {
-          id: created.id, name: created.itemName, category: menuForm.category,
-          price: Number(created.price), status: created.status, description: created.description || '', emoji: menuForm.emoji
-        }])
-        toast.success('Đã thêm món!')
-      } else {
-        const { data: res } = await menuApi.updateItem(menuModal.id, payload)
-        const updated = res.data
-        setMenu(p => p.map(m => m.id === menuModal.id ? {
-          ...m, name: updated.itemName, category: menuForm.category,
-          price: Number(updated.price), status: updated.status, description: updated.description || '', emoji: menuForm.emoji
-        } : m))
-        toast.success('Đã cập nhật!')
-      }
-      setMenuModal(null)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể lưu món ăn')
-    }
-  }
-
-  const cycleMenuStatus = async (item) => {
-    const next = { SELLING: 'OUT_OF_STOCK', OUT_OF_STOCK: 'DISCONTINUED', DISCONTINUED: 'SELLING' }[item.status]
-    try {
-      await menuApi.updateStatus(item.id, next)
-      setMenu(p => p.map(m => m.id === item.id ? { ...m, status: next } : m))
-      toast.success(`Chuyển sang: ${next === 'SELLING' ? 'Đang bán' : next === 'OUT_OF_STOCK' ? 'Hết món' : 'Ngừng bán'}`)
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể cập nhật trạng thái món')
-    }
   }
 
   // ── B13: phản hồi đánh giá ───────────────────────────
@@ -638,7 +582,6 @@ export default function PartnerDashboard() {
 
   // ── Filtered bookings ──────────────────────────────
   const filteredBookings = bkFilter === 'ALL' ? bookings : bookings.filter(b => b.status === bkFilter)
-  const filteredMenu = menuFilter === 'ALL' ? menu : menu.filter(m => m.category === menuFilter || m.status === menuFilter)
 
   // ── RENDER ─────────────────────────────────────────
   return (
@@ -947,59 +890,7 @@ export default function PartnerDashboard() {
 
           {/* ══════ MENU ══════ */}
           {activeTab === 'menu' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                  {['ALL', ...CATEGORIES, 'SELLING', 'OUT_OF_STOCK', 'DISCONTINUED'].slice(0, 8).map(f => (
-                    <button key={f} onClick={() => setMenuFilter(f)} style={{
-                      ...S.btnSm,
-                      background: menuFilter === f ? C.brown : C.white,
-                      color: menuFilter === f ? '#fff' : C.muted,
-                      border: `1.5px solid ${menuFilter === f ? C.brown : C.border}`,
-                    }}>
-                      {f === 'ALL' ? 'Tất cả' : f === 'SELLING' ? 'Đang bán' : f === 'OUT_OF_STOCK' ? 'Hết món' : f === 'DISCONTINUED' ? 'Ngừng bán' : f}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => { setMenuForm({ name: '', category: 'Món chính', price: '', emoji: '🍽️', description: '' }); setMenuModal('add') }}
-                  style={S.btnGold}>+ Thêm món</button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '1rem' }}>
-                {filteredMenu.map(item => (
-                  <div key={item.id} style={{ ...S.card, border: `1px solid ${C.border}`, transition: 'box-shadow .2s' }}
-                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(61,43,31,.12)'}
-                    onMouseLeave={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(61,43,31,.08)'}>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                      <div style={{
-                        width: 60, height: 60, borderRadius: 4, background: C.creamDark,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', flexShrink: 0
-                      }}>
-                        {item.emoji || '🍽️'}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.25rem' }}>
-                          <h3 style={{ fontWeight: 700, fontSize: '.9rem', color: C.text }}>{item.name}</h3>
-                          <span style={{
-                            fontSize: '.65rem', fontWeight: 700, padding: '.15rem .5rem', borderRadius: 99,
-                            background: item.status === 'SELLING' ? C.greenBg : item.status === 'OUT_OF_STOCK' ? C.amberBg : C.redBg,
-                            color: item.status === 'SELLING' ? C.green : item.status === 'OUT_OF_STOCK' ? C.amber : C.red,
-                          }}>{item.status === 'SELLING' ? 'Đang bán' : item.status === 'OUT_OF_STOCK' ? 'Hết món' : 'Ngừng bán'}</span>
-                        </div>
-                        <p style={{ fontSize: '.73rem', color: C.muted, marginBottom: '.4rem' }}>{item.category}</p>
-                        <p style={{ color: C.goldDark, fontWeight: 700, fontSize: '.92rem' }}>{Number(item.price).toLocaleString('vi-VN')}₫</p>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '.5rem', marginTop: '1rem', paddingTop: '.875rem', borderTop: `1px solid ${C.creamDark}` }}>
-                      <button onClick={() => { setMenuForm({ name: item.name, category: item.category, price: String(item.price), emoji: item.emoji || '🍽️', description: item.description || '' }); setMenuModal(item) }}
-                        style={{ ...S.btnSm, background: C.cream, color: C.brown, border: `1px solid ${C.border}`, flex: 1 }}>✏️ Sửa</button>
-                      <button onClick={() => cycleMenuStatus(item)}
-                        style={{ ...S.btnSm, background: C.goldSubtle, color: C.goldDark, border: `1px solid ${C.goldBorder}`, flex: 1 }}>🔄 Đổi trạng thái</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MenuManagementTab menu={menuState} />
           )}
 
           {/* ══════ WAITLIST ══════ */}
@@ -1552,57 +1443,6 @@ export default function PartnerDashboard() {
                 <button type="submit" disabled={creatingBranch} style={S.btnGold}>
                   {creatingBranch ? 'Đang tạo...' : '✦ Tạo chi nhánh'}
                 </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Menu Modal */}
-      {menuModal !== null && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-        }}>
-          <div style={{ background: C.white, borderRadius: 4, width: '100%', maxWidth: 460, overflow: 'hidden' }}>
-            <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: '1.25rem 1.5rem' }}>
-              <h2 style={{ ...serif, fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>
-                {menuModal === 'add' ? 'Thêm món mới' : 'Chỉnh sửa món ăn'}
-              </h2>
-            </div>
-            <form onSubmit={saveMenuItem} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '1rem', alignItems: 'end' }}>
-                <div>
-                  <label style={S.label}>Emoji</label>
-                  <input style={{ ...S.input, textAlign: 'center', fontSize: '1.5rem', padding: '.45rem' }}
-                    value={menuForm.emoji} onChange={e => setMenuForm(p => ({ ...p, emoji: e.target.value }))} maxLength={2} />
-                </div>
-                <div>
-                  <label style={S.label}>Tên món *</label>
-                  <input style={S.input} value={menuForm.name} onChange={e => setMenuForm(p => ({ ...p, name: e.target.value }))} required />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={S.label}>Danh mục</label>
-                  <select style={S.input} value={menuForm.category} onChange={e => setMenuForm(p => ({ ...p, category: e.target.value }))}>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={S.label}>Giá (₫) *</label>
-                  <input style={S.input} type="number" min="1000" step="1000"
-                    value={menuForm.price} onChange={e => setMenuForm(p => ({ ...p, price: e.target.value }))} required />
-                </div>
-              </div>
-              <div>
-                <label style={S.label}>Mô tả (tùy chọn)</label>
-                <textarea style={{ ...S.input, resize: 'vertical' }} rows={2}
-                  value={menuForm.description} onChange={e => setMenuForm(p => ({ ...p, description: e.target.value }))} />
-              </div>
-              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setMenuModal(null)} style={S.btnOut}>Huỷ</button>
-                <button type="submit" style={S.btnGold}>✦ Lưu món</button>
               </div>
             </form>
           </div>
