@@ -4,15 +4,26 @@ import { zoneApi, tableApi } from '../../../../../api'
 import { pxToDbPosition } from '../utils/layoutTransform'
 import { findOverlap } from '../utils/layoutOverlap'
 
-// Khop voi diningtable/util/DiningTableStatus.java (backend-layout.zip):
-// EMPTY(1), RESERVED(2), OCCUPIED(3), CLEANING(4), MAINTENANCE(5)
 export const EMPTY_STATUS_CODE = 1
+
+function parseDecorations(floorPlan) {
+  if (!floorPlan?.layoutData) return []
+  try {
+    const parsed = JSON.parse(floorPlan.layoutData)
+    return Array.isArray(parsed.decorations) ? parsed.decorations : []
+  } catch {
+    return []
+  }
+}
 
 export function useFloorPlanState(branchId) {
   const [zones, setZones] = useState([])
   const [activeZoneId, setActiveZoneId] = useState(null)
+  const [decorations, setDecorations] = useState([])
+  const [selected, setSelected] = useState(null) // { type: 'table'|'decoration', data }
   const [loading, setLoading] = useState(true)
   const [savingTableId, setSavingTableId] = useState(null)
+  const [savingLayout, setSavingLayout] = useState(false)
 
   const loadZones = useCallback(async () => {
     if (!branchId) return
@@ -34,7 +45,19 @@ export function useFloorPlanState(branchId) {
   const activeZone = zones.find((z) => z.id === activeZoneId) || null
   const activeZoneTables = activeZone?.tables || []
 
+  // Doi zone -> nap lai decorations tu layout_data cua zone do, bo chon hien tai
+  useEffect(() => {
+    setDecorations(parseDecorations(activeZone?.floorPlan))
+    setSelected(null)
+  }, [activeZoneId, activeZone?.floorPlan?.version])
+
   const isTableEditable = (table) => table.status === EMPTY_STATUS_CODE
+
+  const selectTable = (table) => setSelected({ type: 'table', data: table })
+  const selectDecoration = (dec) => setSelected({ type: 'decoration', data: dec })
+  const clearSelection = () => setSelected(null)
+
+  // ---------------- Ban an (di qua tableApi, dung nhu truoc) ----------------
 
   const moveTable = useCallback(async (table, clientX, clientY, canvasRect) => {
     if (!isTableEditable(table)) {
@@ -42,7 +65,6 @@ export function useFloorPlanState(branchId) {
       return
     }
     const { positionX, positionY } = pxToDbPosition(clientX, clientY, canvasRect)
-
     const overlapWith = findOverlap(activeZoneTables, table.id, positionX, positionY)
     if (overlapWith) {
       toast.error(`Vị trí quá gần bàn ${overlapWith.tableName}, vui lòng chọn chỗ khác`)
@@ -51,16 +73,12 @@ export function useFloorPlanState(branchId) {
 
     const previousTables = activeZoneTables
     setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : {
-      ...z,
-      tables: z.tables.map((t) => t.id === table.id ? { ...t, positionX, positionY } : t),
+      ...z, tables: z.tables.map((t) => t.id === table.id ? { ...t, positionX, positionY } : t),
     }))
     setSavingTableId(table.id)
-
     try {
       await tableApi.updateLayout({ tables: [{ tableId: table.id, positionX, positionY }] })
     } catch (err) {
-      // rollback: layout_data la nguon goc, neu BE tu choi thi FE khong duoc giu
-      // optimistic state, phai khoi phuc lai trang thai truoc do.
       setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : { ...z, tables: previousTables }))
       toast.error(err.response?.data?.message || 'Lưu vị trí thất bại')
     } finally {
@@ -71,7 +89,7 @@ export function useFloorPlanState(branchId) {
   const addTable = useCallback(async (payload) => {
     if (!activeZone) { toast.error('Vui lòng chọn khu vực'); return false }
     try {
-      const res = await tableApi.create({ ...payload, zoneId: activeZone.id })
+      const res = await tableApi.create({ ...payload, zoneId: activeZone.id, positionX: 50, positionY: 50 })
       const created = res.data?.data || res.data
       setZones((prev) => prev.map((z) => z.id !== activeZone.id ? z : { ...z, tables: [...(z.tables || []), created] }))
       toast.success(`Đã thêm bàn ${created.tableName}`)
@@ -82,6 +100,23 @@ export function useFloorPlanState(branchId) {
     }
   }, [activeZone])
 
+  const updateTable = useCallback(async (tableId, payload) => {
+    if (!activeZone) return false
+    try {
+      const res = await tableApi.update(tableId, { ...payload, zoneId: activeZone.id })
+      const updated = res.data?.data || res.data
+      setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : {
+        ...z, tables: z.tables.map((t) => t.id === tableId ? updated : t),
+      }))
+      toast.success('Đã lưu thông tin bàn')
+      setSelected(null)
+      return true
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi lưu bàn')
+      return false
+    }
+  }, [activeZone, activeZoneId])
+
   const deleteTable = useCallback(async (table) => {
     if (!isTableEditable(table)) {
       toast.error('Chỉ có thể xoá bàn đang ở trạng thái Trống')
@@ -90,16 +125,70 @@ export function useFloorPlanState(branchId) {
     try {
       await tableApi.delete(table.id)
       setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : { ...z, tables: z.tables.filter((t) => t.id !== table.id) }))
+      setSelected(null)
       toast.success(`Đã xoá bàn ${table.tableName}`)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi xoá bàn')
     }
   }, [activeZoneId])
 
+  // ---------------- Vat trang tri (Hinh vuong/tron) - luu qua layout_data.decorations ----------------
+  // KHONG dung tableApi: day khong phai ban an that, chi la vat minh hoa. Luu rieng
+  // trong layout_data de khong lam ban "gia" trong rt_layout_tables.
+
+  const persistDecorations = useCallback(async (nextDecorations) => {
+    if (!activeZone) return false
+    const previous = decorations
+    setDecorations(nextDecorations)
+    setSavingLayout(true)
+    try {
+      const tablesSnapshot = activeZoneTables.map((t) => ({
+        tableId: t.id, tableName: t.tableName, x: t.positionX, y: t.positionY,
+      }))
+      await zoneApi.saveFloorPlan({
+        zoneId: activeZone.id,
+        layoutData: JSON.stringify({ tables: tablesSnapshot, decorations: nextDecorations }),
+      })
+      return true
+    } catch (err) {
+      setDecorations(previous)
+      toast.error(err.response?.data?.message || 'Lưu sơ đồ thất bại')
+      return false
+    } finally {
+      setSavingLayout(false)
+    }
+  }, [activeZone, activeZoneTables, decorations])
+
+  const addDecoration = useCallback(async (shape, name) => {
+    const newDec = { id: `dec_${Date.now()}`, shape, name, x: 50, y: 50 }
+    const ok = await persistDecorations([...decorations, newDec])
+    if (ok) toast.success(`Đã thêm ${name}`)
+    return ok
+  }, [decorations, persistDecorations])
+
+  const updateDecoration = useCallback(async (decId, payload) => {
+    const next = decorations.map((d) => d.id === decId ? { ...d, ...payload } : d)
+    const ok = await persistDecorations(next)
+    if (ok) { toast.success('Đã lưu vật thể'); setSelected(null) }
+    return ok
+  }, [decorations, persistDecorations])
+
+  const moveDecoration = useCallback(async (dec, clientX, clientY, canvasRect) => {
+    const { positionX, positionY } = pxToDbPosition(clientX, clientY, canvasRect)
+    await persistDecorations(decorations.map((d) => d.id === dec.id ? { ...d, x: positionX, y: positionY } : d))
+  }, [decorations, persistDecorations])
+
+  const deleteDecoration = useCallback(async (decId) => {
+    const ok = await persistDecorations(decorations.filter((d) => d.id !== decId))
+    if (ok) { setSelected(null); toast.success('Đã xoá vật thể') }
+  }, [decorations, persistDecorations])
+
   return {
-    branchId, // can de ZoneManagementTab tao zone moi (CreateZoneRequest.branchId @NotNull)
-    zones, loading, activeZone, activeZoneTables, savingTableId,
+    branchId, zones, loading, activeZone, activeZoneTables, decorations, selected,
+    savingTableId, savingLayout,
     selectZone: setActiveZoneId, reloadZones: loadZones,
-    isTableEditable, moveTable, addTable, deleteTable,
+    selectTable, selectDecoration, clearSelection,
+    isTableEditable, moveTable, addTable, updateTable, deleteTable,
+    addDecoration, updateDecoration, moveDecoration, deleteDecoration,
   }
 }

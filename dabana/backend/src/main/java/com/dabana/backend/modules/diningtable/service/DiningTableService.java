@@ -32,7 +32,7 @@ import java.util.TreeMap;
 @RequiredArgsConstructor
 public class DiningTableService implements IDiningTableService {
 
-    private static final double MIN_DISTANCE = 40.0;
+    private static final double MIN_DISTANCE = 15.0;
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES = List.of(
             BookingStatus.HOLDING,
             BookingStatus.AWAITING_PAYMENT,

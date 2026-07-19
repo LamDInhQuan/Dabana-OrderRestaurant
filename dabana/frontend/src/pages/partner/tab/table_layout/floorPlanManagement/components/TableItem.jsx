@@ -1,7 +1,7 @@
 import { dbPositionToPercent } from '../../utils/layoutTransform'
 import { STATUS_META, DEFAULT_STATUS_META } from './statusMeta'
 
-export default function TableItem({ table, editable, saving, onDragStart, onClick }) {
+export default function TableItem({ table, editable, saving, selected, onDragStart, onClick }) {
   const { left, top } = dbPositionToPercent(table.positionX, table.positionY)
   const meta = STATUS_META[table.status] || DEFAULT_STATUS_META
 
@@ -18,12 +18,13 @@ export default function TableItem({ table, editable, saving, onDragStart, onClic
         transform: 'translate(-50%, -50%)',
         width: 90, height: 80, borderRadius: 10,
         background: meta.color + '22',
-        border: `2.5px solid ${meta.color}`,
+        border: `2.5px solid ${selected ? '#1D4ED8' : meta.color}`,
+        boxShadow: selected ? '0 0 0 3px rgba(29,78,216,.25)' : 'var(--shadow-sm)',
         cursor: editable ? 'grab' : 'not-allowed',
         opacity: saving ? 0.6 : 1,
         userSelect: 'none',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        justifyContent: 'center', boxShadow: 'var(--shadow-sm)',
+        justifyContent: 'center',
         transition: 'box-shadow .15s, opacity .15s',
       }}>
       <span style={{ fontWeight: 800, fontSize: '.85rem' }}>{table.tableName}</span>

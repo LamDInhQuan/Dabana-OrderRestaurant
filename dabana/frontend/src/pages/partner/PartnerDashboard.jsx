@@ -796,9 +796,10 @@ export default function PartnerDashboard() {
                       Xem chi tiết →
                     </button>
                   </div>
+                  // dòng 799-813
                   <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                     {Object.entries(TABLE_STATUS).map(([k, { color, bg, label, icon }]) => {
-                      const cnt = allTables.filter(t => t.status === k).length
+                      const cnt = allTables.filter(t => t.status === Number(k)).length
                       if (!cnt) return null
                       return (
                         <div key={k} style={{
@@ -816,7 +817,7 @@ export default function PartnerDashboard() {
                   {allTables.length > 0 && (
                     <div style={{ height: 12, borderRadius: 99, overflow: 'hidden', display: 'flex' }}>
                       {Object.entries(TABLE_STATUS).map(([k, { color }]) => {
-                        const w = allTables.length ? allTables.filter(t => t.status === k).length / allTables.length * 100 : 0
+                        const w = allTables.length ? allTables.filter(t => t.status === Number(k)).length / allTables.length * 100 : 0
                         return w > 0 ? <div key={k} style={{ width: `${w}%`, background: color, transition: 'width .5s' }} /> : null
                       })}
                     </div>

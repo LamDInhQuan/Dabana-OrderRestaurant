@@ -1,39 +1,34 @@
-import { useState } from 'react'
 import LayoutToolbar from './components/LayoutToolbar'
 import LayoutCanvas from './components/LayoutCanvas'
 import BulkPositionConfig from './components/BulkPositionConfig'
-import TableFormModal from './components/TableFormModal'
+import ObjectPanel from './components/ObjectPanel'
 
 export default function FloorPlanManagementTab({ floorPlan }) {
-  const [adding, setAdding] = useState(false)
-  const {
-    zones, activeZone, activeZoneTables, savingTableId,
-    selectZone, isTableEditable, moveTable, addTable,
-  } = floorPlan
+  const { zones, activeZone, activeZoneTables, decorations, selected, savingTableId,
+    selectZone, isTableEditable, moveTable, moveDecoration, selectTable, selectDecoration } = floorPlan
 
   return (
     <div>
-      <LayoutToolbar
-        zones={zones}
-        activeZoneId={activeZone?.id}
-        onSelectZone={selectZone}
-        onAddTableClick={() => setAdding(true)}
-      />
+      <LayoutToolbar zones={zones} activeZoneId={activeZone?.id} onSelectZone={selectZone} />
 
-      <LayoutCanvas
-        tables={activeZoneTables}
-        isTableEditable={isTableEditable}
-        savingTableId={savingTableId}
-        onMoveTable={moveTable}
-      />
+      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <LayoutCanvas
+            tables={activeZoneTables}
+            decorations={decorations}
+            isTableEditable={isTableEditable}
+            savingTableId={savingTableId}
+            selected={selected}
+            onMoveTable={moveTable}
+            onMoveDecoration={moveDecoration}
+            onSelectTable={selectTable}
+            onSelectDecoration={selectDecoration}
+          />
+          <BulkPositionConfig savingTableId={savingTableId} />
+        </div>
 
-      <BulkPositionConfig savingTableId={savingTableId} />
-
-      <TableFormModal
-        open={adding}
-        onClose={() => setAdding(false)}
-        onSubmit={addTable}
-      />
+        <ObjectPanel floorPlan={floorPlan} />
+      </div>
     </div>
   )
 }

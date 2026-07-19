@@ -1,7 +1,6 @@
-// Doi chieu voi MIN_DISTANCE = 40.0 trong DiningTableService (backend).
-// Chi la CANH BAO SOM o FE de UX muot hon khi keo-tha - backend van la noi
-// validate cuoi cung (validateNoOverlap), khong duoc coi day la nguon xac thuc.
-export const MIN_DISTANCE = 40
+// PHAI khop chinh xac voi DiningTableService.MIN_DISTANCE (backend). Doi 1 ben nho doi
+// ben kia, khong duoc lech - day chi la canh bao som phia FE, quyet dinh cuoi van o BE.
+export const MIN_DISTANCE = 15
 
 export function findOverlap(tables, movingTableId, nextX, nextY) {
   for (const table of tables) {

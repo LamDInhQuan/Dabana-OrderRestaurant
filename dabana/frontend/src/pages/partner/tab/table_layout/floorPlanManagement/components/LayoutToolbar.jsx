@@ -1,13 +1,9 @@
-export default function LayoutToolbar({ zones, activeZoneId, onSelectZone, onAddTableClick }) {
+export default function LayoutToolbar({ zones, activeZoneId, onSelectZone }) {
   return (
     <>
       <div className="flex items-center justify-between mb-4">
         <h1 style={{ fontWeight: 800, fontSize: '1.3rem' }}>Sơ đồ bàn</h1>
-        <div className="flex gap-2">
-          <button className="btn-outline btn-sm" onClick={onAddTableClick}>+ Thêm bàn</button>
-        </div>
       </div>
-
       <div className="flex gap-2" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
         {zones.map((z) => (
           <button key={z.id} onClick={() => onSelectZone(z.id)}
