@@ -7,6 +7,7 @@ import com.dabana.backend.modules.menu.dto.request.*;
 import com.dabana.backend.modules.menu.dto.response.MenuCategoryResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemImageResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemResponse;
+import com.dabana.backend.modules.menu.dto.response.PageResponse;
 import com.dabana.backend.modules.menu.service.IMenuService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -69,6 +70,16 @@ public class MenuController {
     public ResponseEntity<ApiResponse<MenuItemResponse>> updateItemStatus(@PathVariable Long itemId,
                                                                           @Valid @RequestBody UpdateMenuItemStatusRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, menuService.updateItemStatus(itemId, request)));
+    }
+
+    @PatchMapping("/items/bulk-status")
+    public ResponseEntity<ApiResponse<List<MenuItemResponse>>> bulkUpdateItemStatus(@Valid @RequestBody BulkUpdateItemStatusRequest request) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, menuService.bulkUpdateItemStatus(request)));
+    }
+
+    @GetMapping("/items/search")
+    public ResponseEntity<ApiResponse<PageResponse<MenuItemResponse>>> searchItems(@Valid MenuItemSearchRequest request) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, menuService.searchItems(request)));
     }
 
     @DeleteMapping("/items/{itemId}")

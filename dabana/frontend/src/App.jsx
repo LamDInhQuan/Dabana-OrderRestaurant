@@ -13,7 +13,7 @@ import RegisterPage   from './pages/auth/RegisterPage'
 import PartnerDashboard from './pages/partner/PartnerDashboard'
 // import TableLayout      from './pages/partner/TableLayout'
 import ManageBookings   from './pages/partner/ManageBookings'
-import MenuManager      from './pages/partner/MenuManager'
+// import MenuManager      from './pages/partner/MenuManager'
 
 import AdminDashboard    from './pages/admin/AdminDashboard'
 import ApprovalPanel     from './pages/admin/ApprovalPanel'
