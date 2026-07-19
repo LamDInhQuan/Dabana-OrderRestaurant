@@ -1,152 +1,105 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import toast from 'react-hot-toast';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import { zoneApi, tableApi } from '../../../../../api';
-import { validateTableOverlap } from '../utils/layoutOverlap';
+import { useState, useEffect, useCallback } from 'react'
+import toast from 'react-hot-toast'
+import { zoneApi, tableApi } from '../../../../../api'
+import { pxToDbPosition } from '../utils/layoutTransform'
+import { findOverlap } from '../utils/layoutOverlap'
 
-export const useFloorPlanState = (branchId) => {
-  const [zones, setZones] = useState([]);
-  const [tables, setTables] = useState({}); // Cấu trúc map: zoneId -> Array của các bàn
-  const [activeZone, setActiveZone] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
-  const [draggingTable, setDraggingTable] = useState(null);
+// Khop voi diningtable/util/DiningTableStatus.java (backend-layout.zip):
+// EMPTY(1), RESERVED(2), OCCUPIED(3), CLEANING(4), MAINTENANCE(5)
+export const EMPTY_STATUS_CODE = 1
 
-  const stompRef = useRef(null);
+export function useFloorPlanState(branchId) {
+  const [zones, setZones] = useState([])
+  const [activeZoneId, setActiveZoneId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [savingTableId, setSavingTableId] = useState(null)
 
-  // 1. Quản lý kết nối WebSocket nhận cập nhật trạng thái bàn ăn real-time
-  useEffect(() => {
-    if (!branchId) return;
-
-    const client = new Client({
-      webSocketFactory: () => new SockJS('/ws'),
-      onConnect: () => {
-        client.subscribe(`/topic/table-status/${branchId}`, (msg) => {
-          const update = JSON.parse(msg.body); // Trả về dạng DTO { tableId, status }
-          setTables((prev) => {
-            const next = { ...prev };
-            Object.keys(next).forEach((zoneId) => {
-              next[zoneId] = next[zoneId].map((t) =>
-                t.id === update.tableId ? { ...t, status: update.status } : t
-              );
-            });
-            return next;
-          });
-        });
-      },
-      onStompError: () => {
-        console.error('Lỗi kết nối WebSocket đồng bộ trạng thái.');
-      }
-    });
-
-    client.activate();
-    stompRef.current = client;
-
-    return () => {
-      if (stompRef.current) stompRef.current.deactivate();
-    };
-  }, [branchId]);
-
-  // 2. Tải toàn bộ danh sách Khu vực và Bàn ăn trực thuộc chi nhánh
-  // 2. Tải toàn bộ danh sách Khu vực và Bàn ăn trực thuộc chi nhánh
-  const fetchLayoutData = useCallback(async () => {
-    if (!branchId) return;
-    setLoading(true);
+  const loadZones = useCallback(async () => {
+    if (!branchId) return
+    setLoading(true)
     try {
-      const zoneRes = await zoneApi.getByBranch(branchId);
-
-      // 🚀 CHÈN CONSOLE.LOG VÀO ĐÂY ĐỂ KIỂM TRA
-      console.log("=== KIỂM TRA PHẢN HỒI API ===");
-      console.log("Toàn bộ zoneRes:", zoneRes);
-      console.log("Dữ liệu zoneRes.data:", zoneRes.data);
-      console.log("Mảng dữ liệu đúng phải là zoneRes.data.data:", zoneRes.data?.data);
-      console.log("=============================");
-
-      // 👉 SỬA LẠI: Lấy đúng mảng `.data.data` theo cấu trúc API của bạn
-      const actualZones = zoneRes.data?.data || [];
-
-      setZones(actualZones);
-
-      if (actualZones.length > 0) {
-        // Tự động chọn Zone đầu tiên nếu chưa có zone nào active
-        setActiveZone((curr) => curr || actualZones[0]);
-      }
-
-      const tableMap = {};
-      await Promise.all(
-        actualZones.map(async (zone) => {
-          // ZoneResponse đã chứa danh sách tables được nest sẵn từ tầng Backend
-          tableMap[zone.id] = zone.tables || [];
-        })
-      );
-      setTables(tableMap);
-      setIsDirty(false);
+      const res = await zoneApi.getByBranch(branchId)
+      const data = res.data?.data || res.data || []
+      setZones(data)
+      setActiveZoneId((prev) => prev ?? data[0]?.id ?? null)
     } catch (err) {
-      console.error("Lỗi chi tiết khi fetch layout:", err); // In thêm lỗi ra console nếu có
-      toast.error('Không thể tải cấu trúc sơ đồ phân khu.');
+      toast.error(err.response?.data?.message || 'Không tải được sơ đồ')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [branchId]);
+  }, [branchId])
 
-  useEffect(() => {
-    fetchLayoutData();
-  }, [fetchLayoutData]);
+  useEffect(() => { loadZones() }, [loadZones])
 
-  // 3. Cập nhật vị trí cục bộ trên giao diện Canvas (Client-side position update)
-  const updateTableLocalPosition = (tableId, x, y) => {
-    if (!activeZone) return;
-    setTables((prev) => ({
-      ...prev,
-      [activeZone.id]: prev[activeZone.id].map((t) =>
-        t.id === tableId ? { ...t, positionX: x, positionY: y } : t
-      )
-    }));
-    setIsDirty(true);
-  };
+  const activeZone = zones.find((z) => z.id === activeZoneId) || null
+  const activeZoneTables = activeZone?.tables || []
 
-  // 4. Lưu đồng bộ vị trí hàng loạt (Gửi Request khớp với BulkUpdateDiningTablePositions ở Backend)
-  const savePositions = async () => {
-    if (!activeZone) return;
-    const currentZoneTables = tables[activeZone.id] || [];
+  const isTableEditable = (table) => table.status === EMPTY_STATUS_CODE
 
-    // Chặn trước ở Client nếu phát hiện bàn chồng lấn hoặc vi phạm khoảng cách
-    const check = validateTableOverlap(currentZoneTables);
-    if (!check.isValid) {
-      toast.error(check.message);
-      return false;
+  const moveTable = useCallback(async (table, clientX, clientY, canvasRect) => {
+    if (!isTableEditable(table)) {
+      toast.error('Chỉ có thể di chuyển bàn đang ở trạng thái Trống')
+      return
     }
+    const { positionX, positionY } = pxToDbPosition(clientX, clientY, canvasRect)
+
+    const overlapWith = findOverlap(activeZoneTables, table.id, positionX, positionY)
+    if (overlapWith) {
+      toast.error(`Vị trí quá gần bàn ${overlapWith.tableName}, vui lòng chọn chỗ khác`)
+      return
+    }
+
+    const previousTables = activeZoneTables
+    setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : {
+      ...z,
+      tables: z.tables.map((t) => t.id === table.id ? { ...t, positionX, positionY } : t),
+    }))
+    setSavingTableId(table.id)
 
     try {
-      const payload = currentZoneTables.map((t) => ({
-        tableId: t.id,
-        positionX: t.positionX,
-        positionY: t.positionY
-      }));
-
-      await tableApi.updateLayout({ tables: payload });
-      setIsDirty(false);
-      toast.success('Đồng bộ vị trí sơ đồ bàn thành công!');
-      return true;
+      await tableApi.updateLayout({ tables: [{ tableId: table.id, positionX, positionY }] })
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Lỗi đồng bộ sơ đồ vị trí bàn.');
-      return false;
+      // rollback: layout_data la nguon goc, neu BE tu choi thi FE khong duoc giu
+      // optimistic state, phai khoi phuc lai trang thai truoc do.
+      setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : { ...z, tables: previousTables }))
+      toast.error(err.response?.data?.message || 'Lưu vị trí thất bại')
+    } finally {
+      setSavingTableId(null)
     }
-  };
+  }, [activeZoneId, activeZoneTables])
+
+  const addTable = useCallback(async (payload) => {
+    if (!activeZone) { toast.error('Vui lòng chọn khu vực'); return false }
+    try {
+      const res = await tableApi.create({ ...payload, zoneId: activeZone.id })
+      const created = res.data?.data || res.data
+      setZones((prev) => prev.map((z) => z.id !== activeZone.id ? z : { ...z, tables: [...(z.tables || []), created] }))
+      toast.success(`Đã thêm bàn ${created.tableName}`)
+      return true
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi thêm bàn')
+      return false
+    }
+  }, [activeZone])
+
+  const deleteTable = useCallback(async (table) => {
+    if (!isTableEditable(table)) {
+      toast.error('Chỉ có thể xoá bàn đang ở trạng thái Trống')
+      return
+    }
+    try {
+      await tableApi.delete(table.id)
+      setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : { ...z, tables: z.tables.filter((t) => t.id !== table.id) }))
+      toast.success(`Đã xoá bàn ${table.tableName}`)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Lỗi xoá bàn')
+    }
+  }, [activeZoneId])
 
   return {
-    zones,
-    tables,
-    activeZone,
-    loading,
-    isDirty,
-    draggingTable,
-    activeZoneTables: activeZone ? (tables[activeZone.id] || []) : [],
-    setActiveZone,
-    setDraggingTable,
-    updateTableLocalPosition,
-    savePositions,
-    refreshData: fetchLayoutData
-  };
-};
+    branchId, // can de ZoneManagementTab tao zone moi (CreateZoneRequest.branchId @NotNull)
+    zones, loading, activeZone, activeZoneTables, savingTableId,
+    selectZone: setActiveZoneId, reloadZones: loadZones,
+    isTableEditable, moveTable, addTable, deleteTable,
+  }
+}

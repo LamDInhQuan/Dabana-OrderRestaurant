@@ -1,30 +1,16 @@
-export const MIN_DISTANCE = 40.0;
+// Doi chieu voi MIN_DISTANCE = 40.0 trong DiningTableService (backend).
+// Chi la CANH BAO SOM o FE de UX muot hon khi keo-tha - backend van la noi
+// validate cuoi cung (validateNoOverlap), khong duoc coi day la nguon xac thuc.
+export const MIN_DISTANCE = 40
 
-/**
- * Kiểm tra va chạm giữa các bàn ăn dựa trên vị trí tọa độ
- * @param {Array} tables Danh sách bàn ăn hiện tại
- * @returns {Object} { isValid: boolean, message: string|null }
- */
-export const validateTableOverlap = (tables) => {
-  for (let i = 0; i < tables.length; i++) {
-    const left = tables[i];
-    if (left.positionX == null || left.positionY == null) continue;
-
-    for (let j = i + 1; j < tables.length; j++) {
-      const right = tables[j];
-      if (right.positionX == null || right.positionY == null) continue;
-
-      const dx = left.positionX - right.positionX;
-      const dy = left.positionY - right.positionY;
-      const distance = Math.hypot(dx, dy);
-
-      if (distance < MIN_DISTANCE) {
-        return {
-          isValid: false,
-          message: `Bàn "${left.tableName}" và bàn "${right.tableName}" nằm quá gần nhau (${distance.toFixed(1)}px < ${MIN_DISTANCE}px). Vui lòng điều chỉnh lại.`
-        };
-      }
-    }
+export function findOverlap(tables, movingTableId, nextX, nextY) {
+  for (const table of tables) {
+    if (table.id === movingTableId) continue
+    if (table.positionX == null || table.positionY == null) continue
+    const dx = table.positionX - nextX
+    const dy = table.positionY - nextY
+    const distance = Math.hypot(dx, dy)
+    if (distance < MIN_DISTANCE) return table
   }
-  return { isValid: true, message: null };
-};
+  return null
+}

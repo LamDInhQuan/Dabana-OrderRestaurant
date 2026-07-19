@@ -10,8 +10,7 @@ import PolicyResTab from './tab/reservation_policy/policyRestaurant/PolicyResTab
 import PolicyBranchTab from './tab/reservation_policy/policyBranch/PolicyBranchTab'
 
 import TableLayoutTab from './tab/table_layout/TableLayoutTab';
-import TableFormModal from './tab/table_layout/floorPlanManagement/components/TableFormModal';
-import ZoneFormModal from './tab/table_layout/zoneManagement/components/ZoneFormModal';
+import { useFloorPlanState } from './tab/table_layout/hooks/useFloorPlanState';
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -33,14 +32,16 @@ const C = {
 }
 
 // ── Status meta ─────────────────────────────────────────────────
+// Khop dung diningtable/util/DiningTableStatus.java: EMPTY(1) RESERVED(2) OCCUPIED(3) CLEANING(4) MAINTENANCE(5)
 const TABLE_STATUS = {
-  AVAILABLE: { color: C.green, bg: C.greenBg, label: 'Trống', icon: '✓' },
-  RESERVED: { color: C.red, bg: C.redBg, label: 'Đã đặt', icon: '📋' },
-  OCCUPIED: { color: C.amber, bg: C.amberBg, label: 'Đang dùng', icon: '👥' },
-  CLEANING: { color: C.slate, bg: 'rgba(148,163,184,.12)', label: 'Dọn dẹp', icon: '🧹' },
-  HELD_FOR_WAITLIST: { color: C.purple, bg: C.purpleBg, label: 'Hàng chờ', icon: '⏳' },
-  MAINTENANCE: { color: C.brown, bg: 'rgba(61,43,31,.1)', label: 'Bảo trì', icon: '🔧' },
+  1: { color: C.green, bg: C.greenBg, label: 'Trống', icon: '✓' },
+  2: { color: C.red, bg: C.redBg, label: 'Đã đặt', icon: '📋' },
+  3: { color: C.amber, bg: C.amberBg, label: 'Đang dùng', icon: '👥' },
+  4: { color: C.slate, bg: 'rgba(148,163,184,.12)', label: 'Dọn dẹp', icon: '🧹' },
+  5: { color: C.brown, bg: 'rgba(61,43,31,.1)', label: 'Bảo trì', icon: '🔧' },
+  //   HELD_FOR_WAITLIST: { color: C.purple, bg: C.purpleBg, label: 'Hàng chờ', icon: '⏳' },
 }
+
 const BOOKING_STATUS = {
   CONFIRMED: { color: C.green, bg: C.greenBg, label: 'Đã xác nhận' },
   CHECKED_IN: { color: C.blue, bg: C.blueBg, label: 'Đang phục vụ' },
@@ -224,8 +225,6 @@ export default function PartnerDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [activeBranch, setActiveBranch] = useState(null)
   const [branches, setBranches] = useState([])
-  const [zones, setZones] = useState([])
-  const [tables, setTables] = useState({})
   const [bookings, setBookings] = useState([])
   const [menu, setMenu] = useState([])
   const [menuCategories, setMenuCategories] = useState([]) // du lieu goc tu backend: [{id, categoryName, items:[...]}]
@@ -235,26 +234,16 @@ export default function PartnerDashboard() {
   const [customerQuery, setCustomerQuery] = useState('')  // B14
   const [reviewFilter, setReviewFilter] = useState('ALL')
   const [replyDrafts, setReplyDrafts] = useState({})  // { [reviewId]: text }
-  const [activeZone, setActiveZone] = useState(null)
   const [bkFilter, setBkFilter] = useState('ALL')
   const [menuFilter, setMenuFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
-  const [draggingTable, setDraggingTable] = useState(null) // bàn đang được kéo trên sơ đồ
-  const canvasRef = useRef(null)
+  const floorPlan = useFloorPlanState(activeBranch?.id)
 
   // ── modal states ───────────────────────────────────
   const [menuModal, setMenuModal] = useState(null)   // null | 'add' | item
   const [menuForm, setMenuForm] = useState({ name: '', category: 'Món chính', price: '', emoji: '🍽️', description: '' })
   const [policyModal, setPolicyModal] = useState(false)
   const [policy, setPolicy] = useState({ depositRequired: true, depositType: 'FIXED_AMOUNT', depositValue: '200000', freeCancellationHours: 2, lateCancellationPenaltyPercent: 50, noShowPenaltyPercent: 100 })
-  const [addTableModal, setAddTableModal] = useState(false)
-  const [tableForm, setTableForm] = useState({ tableCode: '', capacity: 4 })
-  const [addZoneModal, setAddZoneModal] = useState(false)
-  const [zoneForm, setZoneForm] = useState({ name: '', description: '' })
-  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
-  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
-  const [selectedTable, setSelectedTable] = useState(null); // Lưu data bàn cần edit nếu có
-  const [selectedZone, setSelectedZone] = useState(null);   // Lưu data khu vực cần edit nếu có
   const [branchForm, setBranchForm] = useState({ name: '', address: '', phone: '', province: '', latitude: '', longitude: '' })
   const [savingBranch, setSavingBranch] = useState(false)
   const [changingStatus, setChangingStatus] = useState(false)
@@ -302,22 +291,6 @@ export default function PartnerDashboard() {
     operatingHourApi.getByBranch(bid)
       .then(r => setOperatingHours(r.data?.length ? r.data : DEMO_HOURS))
       .catch(() => setOperatingHours(DEMO_HOURS))
-    // zones & tables
-    zoneApi.getByBranch(bid).then(async r => {
-      const zList = r.data.length ? r.data : (DEMO_ZONES[bid] || DEMO_ZONES[1] || [])
-      setZones(zList)
-      setActiveZone(zList[0] || null)
-      const tMap = {}
-      await Promise.all(zList.map(async z => {
-        try { const t = await tableApi.getByZone(z.id); tMap[z.id] = t.data }
-        catch { tMap[z.id] = DEMO_TABLES[z.id] || [] }
-      }))
-      setTables(tMap)
-    }).catch(() => {
-      const zList = DEMO_ZONES[bid] || DEMO_ZONES[1] || []
-      setZones(zList); setActiveZone(zList[0] || null)
-      const tMap = {}; zList.forEach(z => { tMap[z.id] = DEMO_TABLES[z.id] || [] }); setTables(tMap)
-    })
     bookings
     bookingApi.myBookings().then(r => setBookings(r.data || DEMO_BOOKINGS)).catch(() => setBookings(DEMO_BOOKINGS))
     // menu
@@ -360,15 +333,15 @@ export default function PartnerDashboard() {
   }, [])
 
   // ── Computed stats ─────────────────────────────────
-  const allTables = Object.values(tables).flat()
+  const allTables = floorPlan.zones.flatMap(z => z.tables || [])
   const today = new Date().toDateString()
   const todayBookings = bookings.filter(b => new Date(b.reservationTime).toDateString() === today)
   const stats = {
     totalTables: allTables.length,
-    available: allTables.filter(t => t.status === 'AVAILABLE').length,
-    occupied: allTables.filter(t => t.status === 'OCCUPIED').length,
-    reserved: allTables.filter(t => t.status === 'RESERVED').length,
-    fillRate: allTables.length ? Math.round((allTables.filter(t => t.status !== 'AVAILABLE').length / allTables.length) * 100) : 0,
+    available: allTables.filter(t => t.status === 1).length,   // EMPTY
+    occupied: allTables.filter(t => t.status === 3).length,    // OCCUPIED
+    reserved: allTables.filter(t => t.status === 2).length,    // RESERVED
+    fillRate: allTables.length ? Math.round((allTables.filter(t => t.status !== 1).length / allTables.length) * 100) : 0,
     todayConfirmed: todayBookings.filter(b => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN').length,
     totalRevenue: bookings.filter(b => b.status === 'COMPLETED').reduce((s, b) => s + (b.depositAmount || 0), 0),
     noShowRate: bookings.length ? Math.round((bookings.filter(b => b.status === 'NO_SHOW').length / bookings.length) * 100) : 0,
@@ -413,52 +386,6 @@ export default function PartnerDashboard() {
   const bookingStatusBreakdown = Object.keys(BOOKING_STATUS).map(k => ({
     status: k, count: bookings.filter(b => b.status === k).length, meta: BOOKING_STATUS[k],
   })).filter(x => x.count > 0)
-
-  // ── Actions ────────────────────────────────────────
-  const updateTableStatus = async (tableId, newStatus) => {
-    try { await tableApi.updateStatus(tableId, newStatus) } catch { }
-    setTables(prev => {
-      const next = { ...prev }
-      for (const zid of Object.keys(next))
-        next[zid] = next[zid].map(t => t.id === tableId ? { ...t, status: newStatus } : t)
-      return next
-    })
-    toast.success('Cập nhật trạng thái bàn thành công')
-    setSelectedTable(null)
-  }
-  const onTableDragStart = (e, table) => {
-    setDraggingTable(table)
-    e.dataTransfer.effectAllowed = 'move'
-  }
-
-  const onCanvasDragOver = (e) => {
-    e.preventDefault() // bắt buộc để onDrop được kích hoạt
-    e.dataTransfer.dropEffect = 'move'
-  }
-
-  const onCanvasDrop = async (e) => {
-    e.preventDefault()
-    if (!draggingTable || !canvasRef.current || !activeZone) { setDraggingTable(null); return }
-    const rect = canvasRef.current.getBoundingClientRect()
-    let x = ((e.clientX - rect.left) / rect.width) * 100
-    let y = ((e.clientY - rect.top) / rect.height) * 100
-    x = Math.min(97, Math.max(3, Number(x.toFixed(1))))
-    y = Math.min(97, Math.max(3, Number(y.toFixed(1))))
-
-    // Cập nhật ngay trên giao diện để thao tác kéo-thả mượt, không phụ thuộc mạng
-    setTables(prev => ({
-      ...prev,
-      [activeZone.id]: (prev[activeZone.id] || []).map(t =>
-        t.id === draggingTable.id ? { ...t, positionX: x, positionY: y } : t)
-    }))
-
-    try {
-      await tableApi.updateLayout(draggingTable.id, { positionX: x, positionY: y })
-    } catch {
-      // Bỏ qua lỗi mạng: vị trí vẫn được giữ ở giao diện, đồng bộ lại khi tải lại trang
-    }
-    setDraggingTable(null)
-  }
 
   const doBookingAction = async (id, action) => {
     try {
@@ -680,25 +607,6 @@ export default function PartnerDashboard() {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể lưu chính sách')
     }
-  }
-
-  const addTable = async (e) => {
-    e.preventDefault()
-    if (!activeZone) { toast.error('Chưa chọn khu vực'); return }
-    try { await tableApi.create({ ...tableForm, zoneId: activeZone.id, capacity: Number(tableForm.capacity) }) } catch { }
-    const newT = { id: Date.now(), ...tableForm, capacity: Number(tableForm.capacity), positionX: 50, positionY: 50, status: 'AVAILABLE' }
-    setTables(p => ({ ...p, [activeZone.id]: [...(p[activeZone.id] || []), newT] }))
-    setAddTableModal(false); setTableForm({ tableCode: '', capacity: 4 })
-    toast.success(`Đã thêm bàn ${tableForm.tableCode}`)
-  }
-
-  const addZone = (e) => {
-    e.preventDefault()
-    const newZ = { id: Date.now(), ...zoneForm, active: true }
-    setZones(p => [...p, newZ])
-    setTables(p => ({ ...p, [newZ.id]: [] }))
-    setAddZoneModal(false); setZoneForm({ name: '', description: '' })
-    toast.success(`Đã thêm khu vực ${zoneForm.name}`)
   }
 
   // ── Styles ─────────────────────────────────────────
@@ -1032,38 +940,7 @@ export default function PartnerDashboard() {
           {/* ══════ TABLES / SƠ ĐỒ BÀN ══════ */}
           {activeTab === 'tables' && (
             <div className="table-layout-container">
-              {/* Giao diện chính của sơ đồ bàn, truyền các hàm mở modal xuống nếu cần */}
-              <TableLayoutTab
-                branchId={activeBranch?.id}
-                onOpenTableModal={(tableData) => {
-                  setSelectedTable(tableData);
-                  setIsTableModalOpen(true);
-                }}
-                onOpenZoneModal={(zoneData) => {
-                  setSelectedZone(zoneData);
-                  setIsZoneModalOpen(true);
-                }}
-              />
-
-              {/* Modal thêm/sửa Bàn (Table) theo cấu trúc mới */}
-              <TableFormModal
-                isOpen={isTableModalOpen}
-                onClose={() => {
-                  setIsTableModalOpen(false);
-                  setSelectedTable(null);
-                }}
-                tableData={selectedTable}
-              />
-
-              {/* Modal thêm/sửa Khu vực (Zone) theo cấu trúc mới */}
-              <ZoneFormModal
-                isOpen={isZoneModalOpen}
-                onClose={() => {
-                  setIsZoneModalOpen(false);
-                  setSelectedZone(null);
-                }}
-                zoneData={selectedZone}
-              />
+              <TableLayoutTab floorPlan={floorPlan} />
             </div>
           )}
 
@@ -1725,76 +1602,6 @@ export default function PartnerDashboard() {
               <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setMenuModal(null)} style={S.btnOut}>Huỷ</button>
                 <button type="submit" style={S.btnGold}>✦ Lưu món</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Table Modal */}
-      {addTableModal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-        }}>
-          <div style={{ background: C.white, borderRadius: 4, width: '100%', maxWidth: 400, overflow: 'hidden' }}>
-            <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: '1.25rem 1.5rem' }}>
-              <h2 style={{ ...serif, fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>Thêm bàn mới</h2>
-            </div>
-            <form onSubmit={addTable} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={S.label}>Khu vực</label>
-                <select style={S.input} value={activeZone?.id || ''} onChange={e => setActiveZone(zones.find(z => z.id === Number(e.target.value)))}>
-                  {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <label style={S.label}>Mã bàn *</label>
-                  <input style={S.input} value={tableForm.tableCode}
-                    onChange={e => setTableForm(p => ({ ...p, tableCode: e.target.value }))} placeholder="VD: A1, VIP-01" required />
-                </div>
-                <div>
-                  <label style={S.label}>Sức chứa</label>
-                  <input style={S.input} type="number" min="1" max="30" value={tableForm.capacity}
-                    onChange={e => setTableForm(p => ({ ...p, capacity: e.target.value }))} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setAddTableModal(false)} style={S.btnOut}>Huỷ</button>
-                <button type="submit" style={S.btnGold}>+ Thêm bàn</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Zone Modal */}
-      {addZoneModal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-        }}>
-          <div style={{ background: C.white, borderRadius: 4, width: '100%', maxWidth: 400, overflow: 'hidden' }}>
-            <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: '1.25rem 1.5rem' }}>
-              <h2 style={{ ...serif, fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>Thêm khu vực mới</h2>
-            </div>
-            <form onSubmit={addZone} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={S.label}>Tên khu vực *</label>
-                <input style={S.input} value={zoneForm.name}
-                  onChange={e => setZoneForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="VD: Trong nhà, Sân vườn, Phòng VIP..." required />
-              </div>
-              <div>
-                <label style={S.label}>Mô tả</label>
-                <input style={S.input} value={zoneForm.description}
-                  onChange={e => setZoneForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Mô tả ngắn về khu vực..." />
-              </div>
-              <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setAddZoneModal(false)} style={S.btnOut}>Huỷ</button>
-                <button type="submit" style={S.btnGold}>+ Thêm khu vực</button>
               </div>
             </form>
           </div>

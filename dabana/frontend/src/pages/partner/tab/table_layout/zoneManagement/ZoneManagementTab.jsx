@@ -1,79 +1,56 @@
-import React, { useState } from 'react';
-import toast from 'react-hot-toast';
-import { zoneApi } from '../../../../../api';
-import ZoneList from './components/ZoneList';
-import ZoneFormModal from './components/ZoneFormModal';
+import { useState } from 'react'
+import toast from 'react-hot-toast'
+import ZoneList from './components/ZoneList'
+import ZoneFormModal from './components/ZoneFormModal'
+import { zoneApi } from '../../../../../api'
 
-export default function ZoneManagementTab({ branchId, state }) {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingZone, setEditingZone] = useState(null);
+export default function ZoneManagementTab({ zones, reloadZones, branchId }) {
+  const [editingZone, setEditingZone] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  const handleCreateOrUpdateZone = async (formData) => {
+  const openCreate = () => { setEditingZone(null); setModalOpen(true) }
+  const openEdit = (zone) => { setEditingZone(zone); setModalOpen(true) }
+
+  const handleSubmit = async (form) => {
     try {
       if (editingZone) {
-        await zoneApi.update(editingZone.id, {
-          zoneName: formData.zoneName.trim(),
-          description: formData.description
-        });
-        toast.success('Cập nhật thông tin khu vực thành công.');
+        // UpdateZoneRequest khong co branchId, chi zoneName + description
+        await zoneApi.update(editingZone.id, form)
+        toast.success('Đã cập nhật khu vực')
       } else {
-        await zoneApi.create({
-          branchId,
-          zoneName: formData.zoneName.trim(),
-          description: formData.description
-        });
-        toast.success('Thêm mới phân khu thành công.');
+        // CreateZoneRequest.branchId la @NotNull -> bat buoc dinh kem, ep kieu Number
+        // vi useParams() tra ve string con backend nhan Long
+        await zoneApi.create({ ...form, branchId: Number(branchId) })
+        toast.success('Đã thêm khu vực')
       }
-      setModalOpen(false);
-      setEditingZone(null);
-      state.refreshData(); // Kéo lại dữ liệu tổng thể mới nhất
+      await reloadZones()
+      return true
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Có lỗi xảy ra trong quá trình xử lý.');
+      toast.error(err.response?.data?.message || 'Lỗi lưu khu vực')
+      return false
     }
-  };
+  }
 
-  const handleDeleteZone = async (zoneId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa khu vực này? Hành động này không thể hoàn tác.')) return;
+  const handleDelete = async (zone) => {
+    // Backend chan xoa neu zone con ban (ZONE_HAS_TABLES) - de nguyen thong bao loi
+    // tu BE tra ve, khong tu doan truoc o FE.
     try {
-      await zoneApi.delete(zoneId);
-      toast.success('Đã xóa phân khu thành công.');
-      state.refreshData();
+      await zoneApi.delete(zone.id)
+      toast.success('Đã xoá khu vực')
+      await reloadZones()
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể xóa khu vực hiện tại (Có thể vẫn còn chứa bàn ăn).');
+      toast.error(err.response?.data?.message || 'Không thể xoá khu vực')
     }
-  };
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-sm font-bold text-gray-800">Danh mục Phân Khu</h3>
-          <p className="text-[11px] text-gray-400 font-normal">Quản lý và thiết lập phân mảnh các khu vực ăn uống tại chi nhánh.</p>
-        </div>
-        <button
-          onClick={() => { setEditingZone(null); setModalOpen(true); }}
-          className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm transition"
-        >
-          + Thêm Khu Vực Mới
-        </button>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 style={{ fontWeight: 800, fontSize: '1.3rem' }}>Quản lý khu vực</h1>
+        <button className="btn-outline btn-sm" onClick={openCreate}>+ Thêm khu vực</button>
       </div>
-
-      {/* Gọi Component Danh sách đã tách lớp */}
-      <ZoneList 
-        zones={state.zones}
-        tables={state.tables}
-        onEdit={(zone) => { setEditingZone(zone); setModalOpen(true); }}
-        onDelete={handleDeleteZone}
-      />
-
-      {/* Gọi Component Form Modal đã tách lớp */}
-      {modalOpen && (
-        <ZoneFormModal
-          zone={editingZone}
-          onClose={() => { setModalOpen(false); setEditingZone(null); }}
-          onSubmit={handleCreateOrUpdateZone}
-        />
-      )}
+      <ZoneList zones={zones} onEdit={openEdit} onDelete={handleDelete} />
+      <ZoneFormModal open={modalOpen} zone={editingZone} onClose={() => setModalOpen(false)} onSubmit={handleSubmit} />
     </div>
-  );
+  )
 }

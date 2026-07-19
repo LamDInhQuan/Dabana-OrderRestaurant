@@ -1,62 +1,43 @@
-import React, { useState } from 'react';
+import { useState } from 'react'
 
-export default function TableFormModal({ isOpen, onClose, onSubmit }) {
-  
-  if (!isOpen) return null;
+export default function TableFormModal({ open, onClose, onSubmit }) {
+  const [form, setForm] = useState({ tableName: '', capacity: 4 })
 
-  const [name, setName] = useState('');
-  const [capacity, setCapacity] = useState(4);
+  if (!open) return null
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    onSubmit({ tableName: name, capacity });
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const ok = await onSubmit(form)
+    if (ok) {
+      setForm({ tableName: '', capacity: 4 })
+      onClose()
+    }
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-gray-100 p-6 space-y-4">
-        <h3 className="text-base font-bold text-gray-900">Thêm bàn ăn mới</h3>
-        <form onSubmit={handleSubmit} className="space-y-3">
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="card" style={{ width: '100%', maxWidth: 380, margin: '1rem' }}>
+        <h2 style={{ marginBottom: '1rem', fontWeight: 700 }}>Thêm bàn mới</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Mã hiệu bàn</label>
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Tên bàn</label>
             <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="VD: T01, VIP-02"
-              className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 font-medium"
-            />
+              value={form.tableName}
+              onChange={(e) => setForm((p) => ({ ...p, tableName: e.target.value }))}
+              placeholder="VD: T01, VIP-02" required />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Sức chứa tối đa (Khách)</label>
-            <input
-              type="number"
-              min={1}
-              required
-              value={capacity}
-              onChange={(e) => setCapacity(Number(e.target.value))}
-              className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500 font-semibold"
-            />
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Sức chứa (khách)</label>
+            <input type="number" min={1} value={form.capacity}
+              onChange={(e) => setForm((p) => ({ ...p, capacity: Number(e.target.value) }))} />
           </div>
-          <div className="flex gap-2 pt-2 text-xs font-bold">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition"
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              className="flex-[2] py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition shadow-sm"
-            >
-              Tạo bàn ăn
-            </button>
+          <div className="flex gap-3">
+            <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={onClose}>Huỷ</button>
+            <button type="submit" className="btn-primary" style={{ flex: 2 }}>Thêm bàn</button>
           </div>
         </form>
       </div>
     </div>
-  );
+  )
 }
