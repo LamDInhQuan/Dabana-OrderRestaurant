@@ -79,7 +79,7 @@ function formatVND(n) {
 }
 
 export default function BookingFlow() {
-  const { branchId } = useParams()
+  const { id } = useParams()
   const navigate = useNavigate()
   const { auth } = useAuth()
 
@@ -115,16 +115,16 @@ export default function BookingFlow() {
   const [nowTick, setNowTick] = useState(Date.now())
 
   useEffect(() => {
-    branchApi.getById(branchId).then(r => setBranch(unwrap(r))).catch(() => {})
+    branchApi.getById(id).then(r => setBranch(unwrap(r))).catch(() => {})
 
     setZonesLoading(true)
-    zoneApi.getByBranch(branchId)
+    zoneApi.getByBranch(id)
       .then(r => setZones(unwrap(r) || []))
       .catch(() => setZones([]))
       .finally(() => setZonesLoading(false))
 
     setMenuLoading(true)
-    menuApi.getByBranch(branchId)
+    menuApi.getByBranch(id)
       .then(r => {
         const cats = (unwrap(r) || []).map(c => ({
           ...c,
@@ -135,7 +135,7 @@ export default function BookingFlow() {
       })
       .catch(() => setCategories([]))
       .finally(() => setMenuLoading(false))
-  }, [branchId])
+  }, [id])
 
   // Đếm ngược thời gian giữ bàn (BR06/EF04)
   useEffect(() => {
@@ -161,12 +161,15 @@ export default function BookingFlow() {
   // Khung giờ đến lấy theo từng ngày cụ thể (BE đã tính sẵn slot 60', áp dụng
   // giờ mở cửa + các ngoại lệ do nhà hàng cấu hình cho đúng ngày đó).
   useEffect(() => {
-    if (!branchId || !date) return
+ 
+    
+    if (!id || !date) return
     setSlotsError(false)
-    availableSlotApi.getShifts(branchId, toApiDate(date))
+       console.log("vao day 2");
+    availableSlotApi.getShifts(id, toApiDate(date))
       .then(r => setDaySlots(unwrap(r) || []))
       .catch(() => { setDaySlots(null); setSlotsError(true) })
-  }, [branchId, date])
+  }, [id, date])
 
   const slotGroups = useMemo(() => {
     if (slotsError) return buildSlotGroups(date, FALLBACK_HOURS) // BE lỗi → dùng khung giờ tham khảo
@@ -205,7 +208,7 @@ export default function BookingFlow() {
     setLoading(true)
     try {
       const { data } = await bookingApi.createHold({
-        branchId: Number(branchId),
+        branchId: Number(id),
         tableId: method === 'manual' ? selectedTable.id : null,
         guestCount,
         reservationTime: `${date}T${timeSlot}:00`,
