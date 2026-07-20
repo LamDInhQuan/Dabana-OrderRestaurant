@@ -3,6 +3,7 @@ package com.dabana.backend.modules.booking;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.service.BookingItemService;
@@ -103,7 +104,7 @@ public class BookingService {
         booking.setSnapshotDepositAmount(depositResult.getDepositAmount());
         booking.setSnapshotDepositRequired(depositResult.getDepositAmount().compareTo(BigDecimal.ZERO) > 0);
 //        booking.setSnapshotFreeCancellationHours(depositResult.ge().getFreeCancellationHours());
-        booking.setSnapshotPolicyName(depositResult.getRule().getBranchPolicy().getPolicy().getName());
+        booking.setSnapshotPolicyName(depositResult.getRule().getBranchPolicy().getPolicy().getPolicyCode());
         booking = bookingRepository.save(booking);
         // 7. Lưu bàn
         bookingTableService.saveBookingTables(booking, tables);
@@ -116,23 +117,60 @@ public class BookingService {
         return bookingMapper.toResponse(booking);
     }
 
+    public List<BookingResponse> getMyBookings(User user) {
+        // 1. Tìm tất cả các booking thuộc về user hiện tại
+        List<Booking> bookings = bookingRepository.findByCustomerIdOrderByCreatedAtDesc(user.getId());
+        return bookings.stream()
+                .map(bookingMapper::toResponse) // Hoặc .map(b -> bookingMapper.toResponse(b))
+                .collect(Collectors.toList());
+    }
+
+    public BookingResponse getBookingDetail(Long bookingId, User user) {
+        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ ResourceNotFoundException
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+        // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ
+        if (!booking.getCustomer().getId().equals(user.getId())) {
+            throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
+        }
+        // 3. Map dữ liệu sang BookingResponse DTO
+        BookingResponse response = bookingMapper.toResponse(booking);
+        // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
+        if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn giữ bàn
+            if (expiresAt != null && expiresAt.isAfter(now)) {
+                // Tính số giây còn lại: holdExpiresAt - bây giờ
+                long remainSeconds = java.time.Duration.between(now, expiresAt).toSeconds();
+                response.setRemainSeconds(remainSeconds);
+                response.setPaymentAvailable(true);
+            } else {
+                response.setRemainSeconds(0L);
+                response.setPaymentAvailable(false);
+            }
+        } else {
+            response.setRemainSeconds(0L);
+            response.setPaymentAvailable(false);
+        }
+        return response;
+    }
     /**
      * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
      */
-//    private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
-//        List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
-//                .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
-//                .filter(t -> t.getCapacity() >= guestCount)
-//                .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
-//                .collect(Collectors.toList());
-//
-//        if (candidates.isEmpty()) {
-//            throw new BusinessException("NO_TABLE_AVAILABLE",
-//                    "Khong co ban phu hop trong khung gio nay, vui long thu khung gio khac " +
-//                            "hoac dang ky hang cho (B10)");
-//        }
-//        return candidates.get(0);
-//    }
+    private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
+        List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
+                .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
+                .filter(t -> t.getCapacity() >= guestCount)
+                .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) {
+            throw new BusinessException("NO_TABLE_AVAILABLE",
+                    "Khong co ban phu hop trong khung gio nay, vui long thu khung gio khac " +
+                            "hoac dang ky hang cho (B10)");
+        }
+        return candidates.get(0);
+    }
 //
 //    /**
 //     * Buoc 6 + BR06: chot (snapshot) chinh sach dat coc vao don.
@@ -276,26 +314,18 @@ public class BookingService {
 //        return toResponse(booking);
 //    }
 //
-//    // ============================================================
-//    // EF04: tu dong huy don het han giu ban (chay dinh ky)
-//    // ============================================================
-//    @Transactional
-//    public void expireOverdueHoldings() {
-//        List<Booking> expired = bookingRepository.findExpiredHoldings(LocalDateTime.now());
-//        for (Booking booking : expired) {
-//            booking.setStatus(BookingStatus.EXPIRED);
-//
-//            RestaurantTable table = booking.getTable();
-//            // EF04: chuyen ve Trong, tru khi co hang cho dang doi -> chuyen "Dang giu cho hang cho"
-//            // logic uu tien hang cho duoc xu ly trong WaitlistService (B10 buoc 3), tai day chi
-//            // dat trang thai mac dinh la AVAILABLE.
-//            table.setStatus(TableStatus.AVAILABLE);
-//            tableRepository.save(table);
-//
-//            bookingRepository.save(booking);
-//        }
-//    }
-//
+    // ============================================================
+    // EF04: tu dong huy don het han giu ban (chay dinh ky)
+    // ============================================================
+    @Transactional
+    public void expireOverdueHoldings() {
+        List<Booking> expired = bookingRepository.findExpiredHoldings(LocalDateTime.now());
+        for (Booking booking : expired) {
+            booking.setStatus(BookingStatus.EXPIRED);
+            bookingRepository.save(booking);
+        }
+    }
+
 //    // ============================================================
 //    // Helpers
 //    // ============================================================

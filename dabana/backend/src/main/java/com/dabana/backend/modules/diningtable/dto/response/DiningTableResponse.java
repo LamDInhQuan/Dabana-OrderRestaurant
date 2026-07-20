@@ -6,7 +6,6 @@ import lombok.Data;
 
 @Data
 public class DiningTableResponse {
-
     private Long id;
     private Long zoneId;
     private String zoneName;

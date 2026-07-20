@@ -1,6 +1,9 @@
 package com.dabana.backend.modules.booking;
 
+import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.BaseController;
+import com.dabana.backend.common.ResponseBuilder;
+import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.security.CurrentUserProvider;
@@ -26,9 +29,22 @@ public class BookingController extends BaseController {
 
     /** Buoc 3 (+ AF01): tao yeu cau giu ban tam thoi */
     @PostMapping("/hold")
-    public ResponseEntity<BookingResponse> createHold(@Valid @RequestBody CreateHoldRequest request) {
+    public ResponseEntity<ApiResponse<BookingResponse>> createHold(@Valid @RequestBody CreateHoldRequest request) {
         User user = getCurrentUser();
-        return ResponseEntity.ok(bookingService.createHold(user, request));
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookingService.createHold(user,request)));
+    }
+
+    @GetMapping("/my-bookings")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getMyBookings() {
+        User user = getCurrentUser();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookingService.getMyBookings(user)));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BookingResponse> getById(@PathVariable Long id) {
+        User user = getCurrentUser();
+        BookingResponse response = bookingService.getBookingDetail(id, user);
+        return ResponseEntity.ok(response);
     }
 
 //    /** Buoc 4: cap nhat thong tin lien he */

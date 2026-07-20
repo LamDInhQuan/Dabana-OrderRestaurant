@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,20 +43,38 @@ public class DiningTableAvailabilityService implements IDiningTableAvailabilityS
                 .map(DiningTable::getId)
                 .toList();
 
-        Set<Long> conflictTableIds = new HashSet<>(
-                bookingRepository.findConflictTableIdsInBooking(tableIds, reservationTime, CONFLICT_STATUSES)
-        );
-
+        List<Object[]> conflictData = bookingRepository.findConflictTableStatusesInBooking(tableIds, reservationTime, CONFLICT_STATUSES);
+        Map<Long, BookingStatus> tableConflictStatusMap = conflictData.stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],         // dt.id
+                        row -> (BookingStatus) row[1],  // b.status
+                        // Hộp giải quyết xung đột nếu 1 bàn vô tình bị trùng 2 đơn cùng giờ (ưu tiên CONFIRMED)
+                        (status1, status2) -> status1 == BookingStatus.CONFIRMED ? status1 : status2
+                ));
         return tables.stream()
                 .map(table -> {
                     TableAvailabilityStatus status;
+
+                    // Check trạng thái vật lý trước (bảo trì, dọn dẹp)
                     if (table.getStatus() == DiningTableStatus.MAINTENANCE || table.getStatus() == DiningTableStatus.CLEANING) {
                         status = TableAvailabilityStatus.UNAVAILABLE;
-                    } else if (conflictTableIds.contains(table.getId())) {
-                        status = TableAvailabilityStatus.BOOKED;
-                    } else {
+                    }
+                    // Check trạng thái theo đơn đặt lịch đang giữ/đặt bàn này
+                    else if (tableConflictStatusMap.containsKey(table.getId())) {
+                        BookingStatus bookingStatus = tableConflictStatusMap.get(table.getId());
+                        if (bookingStatus == BookingStatus.HOLDING) {
+                            status = TableAvailabilityStatus.HOLDING;
+                        } else if (bookingStatus == BookingStatus.CONFIRMED) {
+                            status = TableAvailabilityStatus.CONFIRMED;
+                        } else {
+                            status = TableAvailabilityStatus.AVAILABLE;
+                        }
+                    }
+                    // Mặc định bàn trống sạch sẽ
+                    else {
                         status = TableAvailabilityStatus.AVAILABLE;
                     }
+
                     return diningTableMapper.toAvailabilityResponse(table, status);
                 })
                 .toList();

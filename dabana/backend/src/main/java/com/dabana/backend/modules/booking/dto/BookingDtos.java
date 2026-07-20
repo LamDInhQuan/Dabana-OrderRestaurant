@@ -1,5 +1,7 @@
 package com.dabana.backend.modules.booking.dto;
 
+import com.dabana.backend.modules.booking.BookingStatus;
+import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -32,15 +34,6 @@ public class BookingDtos {
         private List<PreOrderItemRequest> items;
     }
 
-    /** B01 Buoc 4: nhap thong tin lien he */
-    @Data
-    public static class ContactInfoRequest {
-        @NotBlank
-        private String contactName;
-        @NotBlank
-        private String contactPhone;
-        private String note;
-    }
 
     /** B01 Buoc 5: dat mon truoc (tuy chon - AF02 neu bo qua) */
     @Data
@@ -70,15 +63,23 @@ public class BookingDtos {
     @Builder
     public static class BookingResponse {
         private Long id;
+        private String restaurantName;
         private String branchName;
-        private String tableCode;
-        private Integer guestCount;
+        private BookingStatus status;
+        private Byte guestCount;
         private LocalDateTime reservationTime;
-        private LocalDateTime holdExpiresAt;
-        private String status;
+        private List<DiningTableResponse> tables;
+        private String name;
+        private String phone;
+        private String note;
+        private List<BookingItemResponse> items;
         private BigDecimal depositAmount;
         private BigDecimal totalPreOrderAmount;
-        private List<BookingItemResponse> items;
+        private String policyName;
+        private LocalDateTime holdExpiresAt;
+        private Long remainSeconds;
+        private Boolean paymentAvailable;
+        private Boolean editable;
     }
 
     @Data

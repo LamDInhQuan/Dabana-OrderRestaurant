@@ -34,7 +34,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses);
 
     @Query("""
-    SELECT DISTINCT dt.id
+    SELECT DISTINCT dt.id, b.status
     FROM Booking b
     JOIN b.bookingTables bt
     JOIN bt.diningTable dt
@@ -42,17 +42,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
       AND b.reservationTime = :reservationTime
       AND b.status IN :statuses
 """)
-    List<Long> findConflictTableIdsInBooking(
+    List<Object[]> findConflictTableStatusesInBooking(
             @Param("tableIds") List<Long> tableIds,
             @Param("reservationTime") LocalDateTime reservationTime,
             @Param("statuses") List<BookingStatus> statuses
     );
 
+    List<Booking> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
+
+    @Query("SELECT b FROM Booking b WHERE b.status = 'HOLDING' AND b.holdExpiresAt < :now")
+    List<Booking> findExpiredHoldings(@Param("now") LocalDateTime now);
+
     /* TẠM THỜI TẮT CÁC HÀM CHƯA DÙNG ĐỂ TRÁNH NGỢP VÀ RÁC CODE GIAI ĐOẠN ĐẦU */
 
     /*
-    @Query("SELECT b FROM Booking b WHERE b.status = 'HOLDING' AND b.holdExpiresAt < :now")
-    List<Booking> findExpiredHoldings(@Param("now") LocalDateTime now);
 
     @Query("""
         SELECT b FROM Booking b
