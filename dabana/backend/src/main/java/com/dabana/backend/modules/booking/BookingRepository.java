@@ -53,10 +53,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b WHERE b.status = 'HOLDING' AND b.holdExpiresAt < :now")
     List<Booking> findExpiredHoldings(@Param("now") LocalDateTime now);
 
-    /* TẠM THỜI TẮT CÁC HÀM CHƯA DÙNG ĐỂ TRÁNH NGỢP VÀ RÁC CODE GIAI ĐOẠN ĐẦU */
-
-    /*
-
     @Query("""
         SELECT b FROM Booking b
         WHERE b.status = 'CONFIRMED'
@@ -105,5 +101,4 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         ORDER BY FUNCTION('DATE', b.createdAt)
         """)
     List<Object[]> countBookingsPerDaySince(@Param("from") LocalDateTime from);
-    */
 }
