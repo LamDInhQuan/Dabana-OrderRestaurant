@@ -55,7 +55,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     /* TẠM THỜI TẮT CÁC HÀM CHƯA DÙNG ĐỂ TRÁNH NGỢP VÀ RÁC CODE GIAI ĐOẠN ĐẦU */
 
-    /*
+    
 
     @Query("""
         SELECT b FROM Booking b
@@ -105,5 +105,5 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         ORDER BY FUNCTION('DATE', b.createdAt)
         """)
     List<Object[]> countBookingsPerDaySince(@Param("from") LocalDateTime from);
-    */
+
 }
