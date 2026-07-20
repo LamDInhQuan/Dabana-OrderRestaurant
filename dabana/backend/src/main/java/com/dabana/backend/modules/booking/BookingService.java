@@ -157,20 +157,20 @@ public class BookingService {
     /**
      * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
      */
-    private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
-        List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
-                .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
-                .filter(t -> t.getCapacity() >= guestCount)
-                .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
-                .collect(Collectors.toList());
-
-        if (candidates.isEmpty()) {
-            throw new BusinessException("NO_TABLE_AVAILABLE",
-                    "Khong co ban phu hop trong khung gio nay, vui long thu khung gio khac " +
-                            "hoac dang ky hang cho (B10)");
-        }
-        return candidates.get(0);
-    }
+//    private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
+//        List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
+//                .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
+//                .filter(t -> t.getCapacity() >= guestCount)
+//                .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
+//                .collect(Collectors.toList());
+//
+//        if (candidates.isEmpty()) {
+//            throw new BusinessException("NO_TABLE_AVAILABLE",
+//                    "Khong co ban phu hop trong khung gio nay, vui long thu khung gio khac " +
+//                            "hoac dang ky hang cho (B10)");
+//        }
+//        return candidates.get(0);
+//    }
 //
 //    /**
 //     * Buoc 6 + BR06: chot (snapshot) chinh sach dat coc vao don.

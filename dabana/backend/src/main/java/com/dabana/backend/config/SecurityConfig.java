@@ -62,6 +62,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/payment/**").permitAll()
                 // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
                 .requestMatchers("/api/auth/**").permitAll()
 

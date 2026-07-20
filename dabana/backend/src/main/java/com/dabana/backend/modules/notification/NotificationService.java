@@ -122,45 +122,45 @@ public class NotificationService {
      * B09 Buoc 5: nhac lich hen 15-30 phut truoc gio an.
      * Chay moi 5 phut de phat hien cac don can nhac.
      */
-    @Scheduled(fixedRate = 300_000)
-    @Transactional
-    public void sendBookingReminders() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime windowEnd = now.plusMinutes(30);
-
-        List<Booking> needReminder = bookingRepository.findBookingsNeedingReminder(now, windowEnd);
-        for (Booking booking : needReminder) {
-            String content = String.format(
-                    "Nhac lich: Ban co dat ban tai %s vao luc %s. Ban: %s",
-                    booking.getBranch().getName(),
-                    booking.getReservationTime(),
-                    resolveTableLabel(booking));
-
-            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
-            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "EMAIL");
-
-            booking.setReminderSent(true);
-            bookingRepository.save(booking);
-        }
-    }
+//    @Scheduled(fixedRate = 300_000)
+//    @Transactional
+//    public void sendBookingReminders() {
+//        LocalDateTime now = LocalDateTime.now();
+//        LocalDateTime windowEnd = now.plusMinutes(30);
+//
+//        List<Booking> needReminder = bookingRepository.findBookingsNeedingReminder(now, windowEnd);
+//        for (Booking booking : needReminder) {
+//            String content = String.format(
+//                    "Nhac lich: Ban co dat ban tai %s vao luc %s. Ban: %s",
+//                    booking.getBranch().getName(),
+//                    booking.getReservationTime(),
+//                    resolveTableLabel(booking));
+//
+//            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
+//            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "EMAIL");
+//
+//            booking.setReminderSent(true);
+//            bookingRepository.save(booking);
+//        }
+//    }
 
     /**
      * B11 Buoc 5: canh bao no-show sau 15 phut qua gio hen.
      */
-    @Scheduled(fixedRate = 60_000)
-    @Transactional
-    public void warnNoShow() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(15);
-        List<Booking> overdue = bookingRepository.findOverdueUncheckedIn(threshold);
-        for (Booking booking : overdue) {
-            booking.setStatus(BookingStatus.PENDING_NO_SHOW);
-            booking.setNoShowWarningAt(LocalDateTime.now());
-            bookingRepository.save(booking);
-
-            // Thong bao nhan vien nha hang de xac nhan (B11 buoc 6)
-            log.warn("[B11] No-show canh bao don #{} tai chi nhanh #{}", booking.getId(), booking.getBranch().getId());
-        }
-    }
+//    @Scheduled(fixedRate = 60_000)
+//    @Transactional
+//    public void warnNoShow() {
+//        LocalDateTime threshold = LocalDateTime.now().minusMinutes(15);
+//        List<Booking> overdue = bookingRepository.findOverdueUncheckedIn(threshold);
+//        for (Booking booking : overdue) {
+//            booking.setStatus(BookingStatus.PENDING_NO_SHOW);
+//            booking.setNoShowWarningAt(LocalDateTime.now());
+//            bookingRepository.save(booking);
+//
+//            // Thong bao nhan vien nha hang de xac nhan (B11 buoc 6)
+//            log.warn("[B11] No-show canh bao don #{} tai chi nhanh #{}", booking.getId(), booking.getBranch().getId());
+//        }
+//    }
 
     /**
      * B09 BR02: retry gui lai cho cac thong bao that bai, toi da 3 lan.

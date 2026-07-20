@@ -8,8 +8,12 @@ import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyDe
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicyDepositRule;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicySchedule;
+import com.dabana.backend.modules.reservation_policy.entity.ReservationPolicyDepositRule;
 import com.dabana.backend.modules.reservation_policy.mapper.BranchPolicyMapper;
 import com.dabana.backend.modules.reservation_policy.repository.BranchPolicyRepository;
+import com.dabana.backend.modules.reservation_policy.repository.ReservationPolicyDepositRuleRepository;
+import com.dabana.backend.modules.reservation_policy.repository.ReservationPolicyRepository;
+import com.dabana.backend.modules.reservation_policy.util.DepositType;
 import com.dabana.backend.modules.reservation_policy.util.PolicyErrorCode;
 import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
 
     private final BranchPolicyRepository branchPolicyRepository;
     private final BranchPolicyMapper branchPolicyMapper;
+    private final ReservationPolicyDepositRuleRepository reservationPolicyDepositRuleRepository ;
 
     @Override
     public BranchPolicyDetailResponse getActivePolicy(Long branchId, LocalDateTime reservationTime) {
@@ -44,29 +50,69 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
 
     @Override
     public DepositResult calculate(BranchPolicy policy, Integer guestCount) {
-        if (policy.getDepositRules() == null || policy.getDepositRules().isEmpty()) {
-            throw new BusinessException(PolicyErrorCode.DEPOSIT_RULE_NOT_FOUND);
-        }
-        BranchPolicyDepositRule rule = policy.getDepositRules()
-                .stream()
-                .filter(r ->
-                        guestCount >= r.getMinGuest() && guestCount <= r.getMaxGuest())
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE));
-
         BigDecimal depositAmount;
-        switch (rule.getDepositType()) {
-            case FIXED:
-                depositAmount = rule.getDepositValue();
-                break;
-            case PER_PERSON:
-                depositAmount = rule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
-                break;
-            default:
-                throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+
+        // 1. Thử tìm Rule cụ thể đã được ghi đè tại Chi nhánh (Branch Level)
+        BranchPolicyDepositRule branchRule = null;
+        if (policy.getDepositRules() != null && !policy.getDepositRules().isEmpty()) {
+            branchRule = policy.getDepositRules().stream()
+                    .filter(r -> guestCount >= r.getMinGuest() && guestCount <= r.getMaxGuest())
+                    .findFirst()
+                    .orElse(null);
         }
 
-        return new DepositResult(rule, depositAmount);
+        // 2. Nếu Chi nhánh CÓ cấu hình riêng -> Sử dụng cấu hình của Chi nhánh
+        if (branchRule != null) {
+            switch (branchRule.getDepositType()) {
+                case FIXED:
+                    depositAmount = branchRule.getDepositValue();
+                    break;
+                case PER_PERSON:
+                    depositAmount = branchRule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
+                    break;
+                default:
+                    throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+            }
+            return new DepositResult(branchRule, depositAmount);
+        }
+
+        // 3. FALLBACK: Thử tìm Rule mặc định của hệ thống
+        Optional<ReservationPolicyDepositRule> defaultRuleOpt = reservationPolicyDepositRuleRepository
+                .findFirstByPolicyIdAndMinGuestLessThanEqualAndMaxGuestGreaterThanEqual(
+                        policy.getPolicy().getId(), guestCount, guestCount
+                );
+
+        // 4. Nếu tìm thấy Rule mặc định -> Tính toán bình thường
+        if (defaultRuleOpt.isPresent()) {
+            ReservationPolicyDepositRule defaultRule = defaultRuleOpt.get();
+            switch (defaultRule.getDepositType()) {
+                case FIXED:
+                    depositAmount = defaultRule.getDepositValue();
+                    break;
+                case PER_PERSON:
+                    depositAmount = defaultRule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
+                    break;
+                default:
+                    throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+            }
+            branchRule.setId(defaultRule.getId()); // Giữ nguyên ID gốc hoặc set null tùy logic DB của bạn
+            branchRule.setDepositType(defaultRule.getDepositType());
+            branchRule.setDepositValue(defaultRule.getDepositValue());
+            branchRule.setMinGuest(defaultRule.getMinGuest());
+            branchRule.setMaxGuest(defaultRule.getMaxGuest());
+            branchRule.setBranchPolicy(policy);
+            return new DepositResult(branchRule, depositAmount);
+        }
+
+        // 5. CHỐT HẠ: Nếu cả 2 nơi đều không cấu hình -> Không cần cọc, cho tạo đơn luôn!
+        // Trả về số tiền cọc = 0 và truyền null cho đối tượng Rule (FE/đơn hàng sẽ hiểu là miễn phí cọc)
+        BranchPolicyDepositRule emptyRule = new BranchPolicyDepositRule();
+        emptyRule.setDepositType(DepositType.FIXED); // Hoặc loại mặc định nào đó của bạn
+        emptyRule.setDepositValue(BigDecimal.ZERO);
+        emptyRule.setMinGuest(0);
+        emptyRule.setMaxGuest(999);
+        emptyRule.setBranchPolicy(policy); // 🌟 Gắn policy vào đây để tránh lỗi lúc gọi getBranchPolicy()
+        return new DepositResult(emptyRule, BigDecimal.ZERO);
     }
 
     private boolean match(BranchPolicy policy, LocalDateTime reservationTime) {

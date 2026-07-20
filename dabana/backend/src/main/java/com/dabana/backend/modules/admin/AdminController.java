@@ -387,132 +387,132 @@ public class AdminController {
     // ======================================================
     // F49: Bao cao tong hop toan he thong
     // ======================================================
-    @GetMapping("/statistics/platform/summary")
-    public ResponseEntity<Map<String, Object>> platformSummary() {
-        Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("totalUsers", userRepository.count());
-        summary.put("totalActiveUsers", userRepository.countByStatus(AccountStatus.ACTIVE.getStatus()));
-        summary.put("totalRestaurants", restaurantRepository.count());
-        summary.put("totalBranches", branchRepository.count());
-        summary.put("totalBookings", bookingRepository.count());
-        summary.put("totalReviews", reviewRepository.count());
-
-        summary.put("pendingUserApprovals", userRepository.countByStatus(AccountStatus.PENDING_ADMIN.getStatus()));
-//        summary.put("pendingRestaurantApprovals", restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
-//        summary.put("pendingBranchApprovals", branchRepository.countByApprovalStatus(ApprovalStatus.PENDING));
-        summary.put("hiddenReviews", reviewRepository.countByHidden(true));
-
-        summary.put("completedBookings", bookingRepository.countByStatus(BookingStatus.COMPLETED));
-        summary.put("cancelledBookings",
-                bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_CUSTOMER)
-                        + bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_RESTAURANT));
-        summary.put("noShowBookings", bookingRepository.countByStatus(BookingStatus.NO_SHOW));
-
-        BigDecimal totalRevenue = bookingRepository.sumDepositRevenueByBranch().stream()
-                .map(row -> (BigDecimal) row[1])
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        summary.put("totalRevenue", totalRevenue);
-
-        return ResponseEntity.ok(summary);
-    }
+//    @GetMapping("/statistics/platform/summary")
+//    public ResponseEntity<Map<String, Object>> platformSummary() {
+//        Map<String, Object> summary = new LinkedHashMap<>();
+//        summary.put("totalUsers", userRepository.count());
+//        summary.put("totalActiveUsers", userRepository.countByStatus(AccountStatus.ACTIVE.getStatus()));
+//        summary.put("totalRestaurants", restaurantRepository.count());
+//        summary.put("totalBranches", branchRepository.count());
+//        summary.put("totalBookings", bookingRepository.count());
+//        summary.put("totalReviews", reviewRepository.count());
+//
+//        summary.put("pendingUserApprovals", userRepository.countByStatus(AccountStatus.PENDING_ADMIN.getStatus()));
+////        summary.put("pendingRestaurantApprovals", restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
+////        summary.put("pendingBranchApprovals", branchRepository.countByApprovalStatus(ApprovalStatus.PENDING));
+//        summary.put("hiddenReviews", reviewRepository.countByHidden(true));
+//
+//        summary.put("completedBookings", bookingRepository.countByStatus(BookingStatus.COMPLETED));
+//        summary.put("cancelledBookings",
+//                bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_CUSTOMER)
+//                        + bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_RESTAURANT));
+//        summary.put("noShowBookings", bookingRepository.countByStatus(BookingStatus.NO_SHOW));
+//
+//        BigDecimal totalRevenue = bookingRepository.sumDepositRevenueByBranch().stream()
+//                .map(row -> (BigDecimal) row[1])
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//        summary.put("totalRevenue", totalRevenue);
+//
+//        return ResponseEntity.ok(summary);
+//    }
 
     // ======================================================
     // F47: Bao cao doanh thu theo nha hang
     // ======================================================
-    @GetMapping("/statistics/revenue-by-restaurant")
-    public ResponseEntity<List<Map<String, Object>>> revenueByRestaurant() {
-        Map<Long, BigDecimal> revenueByBranch = new HashMap<>();
-        Map<Long, Long> completedByBranch = new HashMap<>();
-        for (Object[] row : bookingRepository.sumDepositRevenueByBranch()) {
-            Long branchId = (Long) row[0];
-            revenueByBranch.put(branchId, (BigDecimal) row[1]);
-            completedByBranch.put(branchId, (Long) row[2]);
-        }
-
-        Map<Long, List<Branch>> branchesByRestaurant = branchRepository.findAll().stream()
-                .collect(Collectors.groupingBy(b -> b.getRestaurant().getId()));
-
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Restaurant restaurant : restaurantRepository.findAll()) {
-            List<Branch> branches = branchesByRestaurant.getOrDefault(restaurant.getId(), List.of());
-            BigDecimal revenue = BigDecimal.ZERO;
-            long completedBookings = 0;
-            for (Branch branch : branches) {
-                revenue = revenue.add(revenueByBranch.getOrDefault(branch.getId(), BigDecimal.ZERO));
-                completedBookings += completedByBranch.getOrDefault(branch.getId(), 0L);
-            }
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("restaurantId", restaurant.getId());
-            row.put("restaurantName", restaurant.getRestaurantName());
-            row.put("branchCount", branches.size());
-            row.put("completedBookings", completedBookings);
-            row.put("revenue", revenue);
-            result.add(row);
-        }
-        result.sort((a, b) -> ((BigDecimal) b.get("revenue")).compareTo((BigDecimal) a.get("revenue")));
-        return ResponseEntity.ok(result);
-    }
-
-    // ======================================================
-    // F48: Thong ke luot dat ban theo ngay
-    // ======================================================
-    @GetMapping("/statistics/bookings-daily")
-    public ResponseEntity<List<Map<String, Object>>> bookingsDaily(@RequestParam(defaultValue = "30") int days) {
-        LocalDateTime from = LocalDateTime.now().minusDays(Math.max(days, 1));
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Object[] row : bookingRepository.countBookingsPerDaySince(from)) {
-            Map<String, Object> point = new LinkedHashMap<>();
-            point.put("date", row[0].toString());
-            point.put("count", row[1]);
-            result.add(point);
-        }
-        return ResponseEntity.ok(result);
-    }
+//    @GetMapping("/statistics/revenue-by-restaurant")
+//    public ResponseEntity<List<Map<String, Object>>> revenueByRestaurant() {
+//        Map<Long, BigDecimal> revenueByBranch = new HashMap<>();
+//        Map<Long, Long> completedByBranch = new HashMap<>();
+//        for (Object[] row : bookingRepository.sumDepositRevenueByBranch()) {
+//            Long branchId = (Long) row[0];
+//            revenueByBranch.put(branchId, (BigDecimal) row[1]);
+//            completedByBranch.put(branchId, (Long) row[2]);
+//        }
+//
+//        Map<Long, List<Branch>> branchesByRestaurant = branchRepository.findAll().stream()
+//                .collect(Collectors.groupingBy(b -> b.getRestaurant().getId()));
+//
+//        List<Map<String, Object>> result = new ArrayList<>();
+//        for (Restaurant restaurant : restaurantRepository.findAll()) {
+//            List<Branch> branches = branchesByRestaurant.getOrDefault(restaurant.getId(), List.of());
+//            BigDecimal revenue = BigDecimal.ZERO;
+//            long completedBookings = 0;
+//            for (Branch branch : branches) {
+//                revenue = revenue.add(revenueByBranch.getOrDefault(branch.getId(), BigDecimal.ZERO));
+//                completedBookings += completedByBranch.getOrDefault(branch.getId(), 0L);
+//            }
+//            Map<String, Object> row = new LinkedHashMap<>();
+//            row.put("restaurantId", restaurant.getId());
+//            row.put("restaurantName", restaurant.getRestaurantName());
+//            row.put("branchCount", branches.size());
+//            row.put("completedBookings", completedBookings);
+//            row.put("revenue", revenue);
+//            result.add(row);
+//        }
+//        result.sort((a, b) -> ((BigDecimal) b.get("revenue")).compareTo((BigDecimal) a.get("revenue")));
+//        return ResponseEntity.ok(result);
+//    }
+//
+//    // ======================================================
+//    // F48: Thong ke luot dat ban theo ngay
+//    // ======================================================
+//    @GetMapping("/statistics/bookings-daily")
+//    public ResponseEntity<List<Map<String, Object>>> bookingsDaily(@RequestParam(defaultValue = "30") int days) {
+//        LocalDateTime from = LocalDateTime.now().minusDays(Math.max(days, 1));
+//        List<Map<String, Object>> result = new ArrayList<>();
+//        for (Object[] row : bookingRepository.countBookingsPerDaySince(from)) {
+//            Map<String, Object> point = new LinkedHashMap<>();
+//            point.put("date", row[0].toString());
+//            point.put("count", row[1]);
+//            result.add(point);
+//        }
+//        return ResponseEntity.ok(result);
+//    }
 
     // ======================================================
     // F50: Xuat bao cao thong ke ra file CSV (mo duoc bang Excel)
     // ======================================================
-    @GetMapping("/reports/export")
-    public void exportReport(@RequestParam(defaultValue = "users") String type,
-                              HttpServletResponse response) throws java.io.IOException {
-        response.setContentType("text/csv; charset=UTF-8");
-        response.setCharacterEncoding("UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=\"dabana_" + type + "_report.csv\"");
-
-        response.getOutputStream().write(0xEF);
-        response.getOutputStream().write(0xBB);
-        response.getOutputStream().write(0xBF);
-
-        PrintWriter writer = response.getWriter();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-        switch (type) {
-            case "restaurants" -> {
-                writer.println("ID,Ten nha hang,Trang thai,Ngay tao");
-                for (Restaurant r : restaurantRepository.findAll()) {
-                    writer.println(csvRow(r.getId(), r.getRestaurantName(), 
-                            r.getApprovalStatus(), r.getCreatedAt() == null ? "" : r.getCreatedAt().format(fmt)));
-                }
-            }
-            case "revenue" -> {
-                writer.println("ID nha hang,Ten nha hang,So chi nhanh,Don hoan tat,Doanh thu (VND)");
-                for (Map<String, Object> row : revenueByRestaurant().getBody()) {
-                    writer.println(csvRow(row.get("restaurantId"), row.get("restaurantName"),
-                            row.get("branchCount"), row.get("completedBookings"), row.get("revenue")));
-                }
-            }
-            default -> {
-                writer.println("ID,Ho ten,Email,SDT,Vai tro,Trang thai,Ngay tao");
-                for (User u : userRepository.findAll()) {
-                    String role = u.getUserRoles().stream().findFirst()
-                            .map(ur -> ur.getRole().getName()).orElse("");
-                    writer.println(csvRow(u.getId(), u.getFullName(), u.getEmail(), u.getPhone(),
-                            role, u.getStatus(), u.getCreatedAt() == null ? "" : u.getCreatedAt().format(fmt)));
-                }
-            }
-        }
-        writer.flush();
-    }
+//    @GetMapping("/reports/export")
+//    public void exportReport(@RequestParam(defaultValue = "users") String type,
+//                              HttpServletResponse response) throws java.io.IOException {
+//        response.setContentType("text/csv; charset=UTF-8");
+//        response.setCharacterEncoding("UTF-8");
+//        response.setHeader("Content-Disposition", "attachment; filename=\"dabana_" + type + "_report.csv\"");
+//
+//        response.getOutputStream().write(0xEF);
+//        response.getOutputStream().write(0xBB);
+//        response.getOutputStream().write(0xBF);
+//
+//        PrintWriter writer = response.getWriter();
+//        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+//
+//        switch (type) {
+//            case "restaurants" -> {
+//                writer.println("ID,Ten nha hang,Trang thai,Ngay tao");
+//                for (Restaurant r : restaurantRepository.findAll()) {
+//                    writer.println(csvRow(r.getId(), r.getRestaurantName(),
+//                            r.getApprovalStatus(), r.getCreatedAt() == null ? "" : r.getCreatedAt().format(fmt)));
+//                }
+//            }
+//            case "revenue" -> {
+//                writer.println("ID nha hang,Ten nha hang,So chi nhanh,Don hoan tat,Doanh thu (VND)");
+//                for (Map<String, Object> row : revenueByRestaurant().getBody()) {
+//                    writer.println(csvRow(row.get("restaurantId"), row.get("restaurantName"),
+//                            row.get("branchCount"), row.get("completedBookings"), row.get("revenue")));
+//                }
+//            }
+//            default -> {
+//                writer.println("ID,Ho ten,Email,SDT,Vai tro,Trang thai,Ngay tao");
+//                for (User u : userRepository.findAll()) {
+//                    String role = u.getUserRoles().stream().findFirst()
+//                            .map(ur -> ur.getRole().getName()).orElse("");
+//                    writer.println(csvRow(u.getId(), u.getFullName(), u.getEmail(), u.getPhone(),
+//                            role, u.getStatus(), u.getCreatedAt() == null ? "" : u.getCreatedAt().format(fmt)));
+//                }
+//            }
+//        }
+//        writer.flush();
+//    }
 
     private String csvRow(Object... values) {
         return Arrays.stream(values)

@@ -13,4 +13,8 @@ public interface ReservationPolicyDepositRuleRepository extends JpaRepository<Re
     List<ReservationPolicyDepositRule> findAllByPolicyIdOrderByMinGuestAsc(Long policyId);
 
     Optional<ReservationPolicyDepositRule> findByIdAndPolicyId(Long id, Long policyId);
+
+    Optional<ReservationPolicyDepositRule> findFirstByPolicyIdAndMinGuestLessThanEqualAndMaxGuestGreaterThanEqual(
+            Long policyId, Integer minGuest, Integer maxGuest
+    );
 }
