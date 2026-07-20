@@ -3,6 +3,7 @@ package com.dabana.backend.modules.auth.service;
 import com.dabana.backend.exception.BusinessException;
 //import com.dabana.backend.modules.auth.OtpService;
 import com.dabana.backend.modules.auth.service.OtpService;
+import com.dabana.backend.modules.auth.dto.request.ForgotPasswordRequest;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
@@ -31,6 +32,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.HashSet;
 
 /**
@@ -50,6 +52,11 @@ public class AuthService implements IAuthService {
     private final CustomUserDetailsService userDetailsService;
     private final AuthenticationManager authenticationManager;
     private final UserMapper userMapper;
+    private final MailService mailService;
+
+    private static final String PASSWORD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     /** CHI true khi dev/test chua co SMTP that; production phai la false de khong lo OTP qua API. */
     @Value("${app.otp.expose-in-response:false}")
@@ -192,5 +199,31 @@ public class AuthService implements IAuthService {
         userResponse.setAccessToken(newAccessToken);
         userResponse.setRefreshToken(token); // giu nguyen refresh token cu cho den khi het han
         return userResponse;
+    }
+
+    /**
+     * Quen mat khau: nguoi dung nhap email da dang ky, he thong sinh mat khau
+     * moi ngau nhien, ma hoa va luu lai, roi gui mat khau moi ve email do.
+     */
+    @Override
+    @Transactional
+    public Boolean forgotPassword(ForgotPasswordRequest req) {
+        User user = userRepository.findByEmail(req.getEmail())
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        String newPassword = generateRandomPassword(10);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        mailService.sendNewPasswordEmail(user.getEmail(), newPassword);
+        return true;
+    }
+
+    private String generateRandomPassword(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(PASSWORD_CHARS.charAt(RANDOM.nextInt(PASSWORD_CHARS.length())));
+        }
+        return sb.toString();
     }
 }

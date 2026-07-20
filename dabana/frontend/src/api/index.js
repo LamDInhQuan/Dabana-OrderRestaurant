@@ -57,6 +57,7 @@ export const authApi = {
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   resendOtp: (data) => api.post('/auth/resend-otp', data),
   refresh: (data) => api.post('/auth/refresh', data),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data),
 }
 
 // ===== Branch/Restaurant API =====

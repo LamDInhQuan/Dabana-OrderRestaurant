@@ -71,4 +71,44 @@ public class MailService {
                 </div>
                 """.formatted(otpCode, validMinutes);
     }
+
+        public void sendNewPasswordEmail(String toEmail, String newPassword) {
+        if (!mailEnabled) {
+            log.info("[MAIL-DISABLED] Mat khau moi {} danh cho {}", newPassword, toEmail);
+            return;
+        }
+
+        String subject = "[Dabana Order] Mật khẩu mới của bạn";
+        String html = buildNewPasswordEmailHtml(newPassword);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("Da gui email mat khau moi den {}", toEmail);
+        } catch (Exception e) {
+            log.error("Gui email mat khau moi that bai toi {}: {}", toEmail, e.getMessage());
+            throw new BusinessException(AuthErrorCode.OTP_SEND_FAILED);
+        }
+    }
+
+    private String buildNewPasswordEmailHtml(String newPassword) {
+        return """
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
+                  <h2 style="color: #ff6600; margin-bottom: 4px;">Dabana Order</h2>
+                  <p>Xin chào,</p>
+                  <p>Bạn (hoặc ai đó) vừa yêu cầu <b>đặt lại mật khẩu</b> cho tài khoản Dabana Order gắn với email này.</p>
+                  <p>Mật khẩu mới của bạn là:</p>
+                  <div style="text-align:center; margin: 20px 0;">
+                    <span style="display:inline-block; font-size: 24px; letter-spacing: 3px; font-weight: 700; color:#ff6600; background:#fff4ec; padding: 12px 24px; border-radius: 8px;">%s</span>
+                  </div>
+                  <p>Vui lòng đăng nhập bằng mật khẩu mới này và đổi lại mật khẩu khác ngay sau khi đăng nhập để đảm bảo an toàn.</p>
+                  <p style="color:#999; font-size: 12px; margin-top: 24px;">Nếu bạn không thực hiện yêu cầu này, vui lòng liên hệ với chúng tôi ngay để bảo vệ tài khoản của bạn.</p>
+                </div>
+                """.formatted(newPassword);
+    }
 }

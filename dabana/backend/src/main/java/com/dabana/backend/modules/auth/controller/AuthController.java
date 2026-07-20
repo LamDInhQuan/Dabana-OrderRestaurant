@@ -4,6 +4,7 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.service.OtpService;
+import com.dabana.backend.modules.auth.dto.request.ForgotPasswordRequest;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
@@ -57,6 +58,13 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<UserResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         UserResponse result = authService.refresh(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
+
+    /** Quen mat khau: nhap email da dang ky, mat khau moi se duoc gui ve email do. */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Boolean>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        Boolean result = authService.forgotPassword(request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
     }
 }

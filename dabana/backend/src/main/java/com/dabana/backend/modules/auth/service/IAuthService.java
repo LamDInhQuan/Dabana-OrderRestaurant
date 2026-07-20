@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.auth.service;
 
+import com.dabana.backend.modules.auth.dto.request.ForgotPasswordRequest;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
@@ -16,4 +17,6 @@ public interface IAuthService {
     UserResponse login(LoginRequest request);
 
     UserResponse refresh(RefreshTokenRequest request);
+
+    Boolean forgotPassword(ForgotPasswordRequest request);
 }
