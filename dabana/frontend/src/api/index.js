@@ -102,7 +102,7 @@ export const bookingApi = {
   updateContactInfo: (id, d) => api.patch(`/bookings/${id}/contact-info`, d),
   addPreOrder: (id, d) => api.post(`/bookings/${id}/pre-order`, d),
   confirmWithoutDeposit: (id) => api.post(`/bookings/${id}/confirm-without-deposit`),
-  myBookings: () => api.get('/customers/me/bookings'),
+  myBookings: () => api.get('/bookings/my-bookings'),
   getById: (id) => api.get(`/bookings/${id}`),
   cancel: (id, d) => api.post(`/bookings/${id}/cancel`, d),
   checkIn: (id) => api.post(`/bookings/${id}/check-in`),
@@ -313,5 +313,19 @@ export const adminApi = {
   // F50: xuất báo cáo
   exportReportUrl: (type) => `/api/admin/reports/export?type=${type}`,
 }
+
+export const paymentApi = {
+  createPaymentLink: (bookingId) => api.post('/payment/create-link', { 
+    bookingId: parseInt(bookingId) 
+  }),
+  // API lấy thông tin thanh toán chi tiết (QR, ngân hàng, số tiền)
+  getDetail: (bookingId) => api.get(`/api/v1/payments/${bookingId}`),
+  
+  // API Polling kiểm tra trạng thái thanh toán hiện tại
+  getStatus: (bookingId) => api.get(`/api/v1/payments/${bookingId}/status`),
+
+  // 🌟 ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
+  mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`)
+};
 
 export default api

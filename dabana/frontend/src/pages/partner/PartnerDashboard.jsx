@@ -291,8 +291,7 @@ export default function PartnerDashboard() {
     operatingHourApi.getByBranch(bid)
       .then(r => setOperatingHours(r.data?.length ? r.data : DEMO_HOURS))
       .catch(() => setOperatingHours(DEMO_HOURS))
-    bookings
-    bookingApi.myBookings().then(r => setBookings(r.data || DEMO_BOOKINGS)).catch(() => setBookings(DEMO_BOOKINGS))
+    bookingApi.myBookings().then(r => setBookings(r.data.data || DEMO_BOOKINGS)).catch(() => setBookings(DEMO_BOOKINGS))
     // menu
     // menu (backend tra ve theo Danh muc -> Mon an, can flatten cho UI dang phang)
     menuApi.getByBranch(bid).then(r => {

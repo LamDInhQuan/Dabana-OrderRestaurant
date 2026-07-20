@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import toast from "react-hot-toast";
-import { reservationPolicyApi } from "../../../../../api";
+import { reservationPolicyApi , branchPolicyApi } from "../../../../../api";
 
 const EMPTY_RULE = {
   minGuest: 1,
