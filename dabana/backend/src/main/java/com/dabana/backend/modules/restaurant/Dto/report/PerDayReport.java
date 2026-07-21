@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.dabana.backend.modules.booking.dto.BookingDtos.BookingResponse;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Builder;
 import lombok.Data;
@@ -17,12 +18,12 @@ import lombok.Data;
 public class PerDayReport {
 
     
-    private int TodayBooking;
-    private int TodayServing;
-    private int TodayBooked;
-    private int TodayWait;
-    private LocalDateTime ReportedDate;
-    
+    private Long dailyBooking;
+    private Long dailyServing;
+    private Long dailyBooked;
+    private Long dailyWait;
+    private LocalDateTime reportedDate;
+    @JsonIgnore
     private List<BookingResponse> bookingDtos;
 
     

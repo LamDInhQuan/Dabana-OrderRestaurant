@@ -108,31 +108,48 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         ORDER BY FUNCTION('DATE', b.createdAt)
         """)
     List<Object[]> countBookingsPerDaySince(@Param("from") LocalDateTime from);
-            @Query("""
-        select count(b) from Booking b where 
-        date(b.createdAt) = :date and b.branch.id = :branchId
-        """ )
-    Long countByBranchIdAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
+
+
+    //         @Query("""
+    //     select count(b) from Booking b where 
+    //     date(b.createdAt) = :date and b.branch.id = :branchId
+    //     """ )
+    // Long countByBranchIdAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
     
-    @Query("""
-        select count(b) from Booking b 
-        where 
-        date(b.createdAt) = :date and b.status = :checkedIn and b.branch.id = :branchId
-    """)
-    Long countByBranchIdAndStatusAndCreatedAt(@Param("branchId") Long branchId,
-            @Param("checkedIn") BookingStatus checkedIn,
-            @Param("date") LocalDate date);
+    // @Query("""
+    //     select count(b) from Booking b 
+    //     where 
+    //     date(b.createdAt) = :date and b.status = :checkedIn and b.branch.id = :branchId
+    // """)
+    // Long countByBranchIdAndStatusAndCreatedAt(@Param("branchId") Long branchId,
+    //         @Param("checkedIn") BookingStatus checkedIn,
+    //         @Param("date") LocalDate date);
 
-    @EntityGraph(attributePaths = { "bookingTables", "bookingTables.diningTable" })
-    List<Booking> findByBranchIdAndStatusAndReservationTimeAfterOrderByReservationTimeAsc(Long branchId,
-            BookingStatus confirmed, LocalDateTime now, PageRequest of);
+    // @EntityGraph(attributePaths = { "bookingTables", "bookingTables.diningTable" })
+    // List<Booking> findByBranchIdAndStatusAndReservationTimeAfterOrderByReservationTimeAsc(Long branchId,
+    //         BookingStatus confirmed, LocalDateTime now, PageRequest of);
 
-     @Query("""
-        select count(b) from Booking b 
-        where 
-        date(b.createdAt) = :date and b.status in(:statuses) and b.branch.id = :branchId
-    """)
-    Long countByBranchIdAndStatusInAndCreatedAt(Long branchId, List<BookingStatus> statuses,
-            LocalDate date);
+    //  @Query("""
+    //     select count(b) from Booking b 
+    //     where 
+    //     date(b.createdAt) = :date and b.status in(:statuses) and b.branch.id = :branchId
+    // """)
+    // Long countByBranchIdAndStatusInAndCreatedAt(Long branchId, List<BookingStatus> statuses,
+    //         LocalDate date);
+
+    // @Query("""
+    //     select b from Booking b
+    //     where b.branch.id = :branchId
+    //     and date(b.createdAt) = :date
+    // """)
+    // List<Booking> findByBranchIdAndCreatedAtDate(@Param("branchId") Long branchId,
+    //         @Param("date") LocalDate date);
+
     List<Booking> findByBranchId(Long branchId);
+    @Query("""
+        select b from Booking b
+        where b.branch.id = :branchId
+        and date(b.createdAt) >= :from
+    """)
+    List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId,@Param("from") LocalDate from);
 }
