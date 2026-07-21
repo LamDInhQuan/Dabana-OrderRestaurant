@@ -6,14 +6,14 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
- * báo cáo của nhánh
+ * báo cáo của chi nhánh
  * 
  */
 @Data
 @Builder
 public class BranchReportDto {
 
-    private List<PerDayReport> perDayReports;
+    // private List<PerDayReport> perDayReports;
 
     private Long branchId;
     private String branchName;
@@ -25,4 +25,5 @@ public class BranchReportDto {
     private double totalReviewScore;
     private double fillRate;
     private double no_showRate30Day;
+    private double totalRating;
 }

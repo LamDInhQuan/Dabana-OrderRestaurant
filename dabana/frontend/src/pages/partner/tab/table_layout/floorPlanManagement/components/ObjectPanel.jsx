@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { normalizeRotation } from '../../utils/layoutTransform'
 
 const KIND_OPTIONS = [
   { key: 'table', label: '🪑 Bàn' },
@@ -6,11 +7,14 @@ const KIND_OPTIONS = [
   { key: 'circle', label: '⚪ Hình tròn' },
 ]
 
-const emptyForm = { tableName: '', capacity: 4, name: '' }
+const DEFAULT_TABLE_SIZE = { width: 90, height: 80 }
+const DEFAULT_DECORATION_SIZE = { width: 70, height: 70 }
+
+const emptyForm = { tableName: '', capacity: 4, name: '', width: 90, height: 80, rotation: 0 }
 
 export default function ObjectPanel({ floorPlan }) {
-  const { selected, clearSelection, addTable, updateTable, deleteTable,
-    addDecoration, updateDecoration, deleteDecoration, savingLayout } = floorPlan
+  const { selected, clearSelection, addTable, updateTable, deleteTable, updateTableGeometry,
+    addDecoration, updateDecoration, deleteDecoration, savingLayout, savingTableId } = floorPlan
 
   const [kind, setKind] = useState('table')
   const [form, setForm] = useState(emptyForm)
@@ -21,30 +25,54 @@ export default function ObjectPanel({ floorPlan }) {
   useEffect(() => {
     if (selected?.type === 'table') {
       setKind('table')
-      setForm({ tableName: selected.data.tableName, capacity: selected.data.capacity, name: '' })
+      setForm({
+        tableName: selected.data.tableName, capacity: selected.data.capacity, name: '',
+        width: selected.data.width ?? DEFAULT_TABLE_SIZE.width,
+        height: selected.data.height ?? DEFAULT_TABLE_SIZE.height,
+        rotation: selected.data.rotation ?? 0,
+      })
     } else if (selected?.type === 'decoration') {
       setKind(selected.data.shape)
-      setForm({ tableName: '', capacity: 4, name: selected.data.name })
+      setForm({
+        tableName: '', capacity: 4, name: selected.data.name,
+        width: selected.data.width ?? DEFAULT_DECORATION_SIZE.width,
+        height: selected.data.height ?? DEFAULT_DECORATION_SIZE.height,
+        rotation: selected.data.rotation ?? 0,
+      })
     }
   }, [selected])
 
   const startCreate = (k) => {
     clearSelection()
     setKind(k)
-    setForm(emptyForm)
+    setForm({ ...emptyForm, ...(k === 'table' ? DEFAULT_TABLE_SIZE : DEFAULT_DECORATION_SIZE) })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const width = Number(form.width)
+    const height = Number(form.height)
+    const rotation = normalizeRotation(Number(form.rotation) || 0)
     let ok = false
+
     if (kind === 'table') {
-      ok = isEditing ? await updateTable(selected.data.id, { tableName: form.tableName, capacity: Number(form.capacity) })
-                     : await addTable({ tableName: form.tableName, capacity: Number(form.capacity) })
+      if (isEditing) {
+        ok = await updateTable(selected.data.id, { tableName: form.tableName, capacity: Number(form.capacity) })
+        const geometryChanged = width !== (selected.data.width ?? DEFAULT_TABLE_SIZE.width)
+          || height !== (selected.data.height ?? DEFAULT_TABLE_SIZE.height)
+          || rotation !== (selected.data.rotation ?? 0)
+        if (ok && geometryChanged) {
+          await updateTableGeometry(selected.data.id, { width, height, rotation })
+        }
+      } else {
+        ok = await addTable({ tableName: form.tableName, capacity: Number(form.capacity), width, height, rotation })
+      }
     } else {
-      ok = isEditing ? await updateDecoration(selected.data.id, { name: form.name })
-                     : await addDecoration(kind, form.name)
+      ok = isEditing
+        ? await updateDecoration(selected.data.id, { name: form.name, width, height, rotation })
+        : await addDecoration(kind, form.name, { width, height, rotation })
     }
-    if (ok && !isEditing) setForm(emptyForm)
+    if (ok && !isEditing) setForm({ ...emptyForm, ...(kind === 'table' ? DEFAULT_TABLE_SIZE : DEFAULT_DECORATION_SIZE) })
   }
 
   const handleDelete = async () => {
@@ -97,11 +125,35 @@ export default function ObjectPanel({ floorPlan }) {
           </div>
         )}
 
+        <div style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--text-muted)', marginTop: '.25rem' }}>
+          Kích thước &amp; góc xoay
+        </div>
+        <div className="flex gap-2">
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: '.8rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Rộng (px)</label>
+            <input type="number" min={20} max={500} value={form.width}
+              onChange={(e) => setForm((p) => ({ ...p, width: e.target.value }))} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ fontSize: '.8rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Cao (px)</label>
+            <input type="number" min={20} max={500} value={form.height}
+              onChange={(e) => setForm((p) => ({ ...p, height: e.target.value }))} />
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize: '.8rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Góc xoay (độ)</label>
+          <input type="number" min={0} max={359.99} step={0.5} value={form.rotation}
+            onChange={(e) => setForm((p) => ({ ...p, rotation: e.target.value }))} />
+        </div>
+        <p style={{ fontSize: '.72rem', color: 'var(--text-muted)', margin: 0 }}>
+          💡 Cũng có thể kéo tay cầm trên sơ đồ để đổi kích cỡ / xoay bằng chuột.
+        </p>
+
         <div className="flex gap-2">
           {isEditing && (
             <button type="button" className="btn-outline btn-sm" onClick={handleDelete} style={{ color: '#EF4444' }}>Xoá</button>
           )}
-          <button type="submit" className="btn-primary btn-sm" style={{ flex: 1 }} disabled={savingLayout}>
+          <button type="submit" className="btn-primary btn-sm" style={{ flex: 1 }} disabled={savingLayout || !!savingTableId}>
             {isEditing ? 'Lưu thông tin' : kind === 'table' ? '+ Thêm bàn' : '+ Thêm vật thể'}
           </button>
         </div>

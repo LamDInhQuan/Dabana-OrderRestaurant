@@ -86,6 +86,56 @@ export function useFloorPlanState(branchId) {
     }
   }, [activeZoneId, activeZoneTables])
 
+  // Ap dung 1 phan thay doi width/height/rotation cho 1 ban (dung chung cho keo-tay-cam
+  // tren canvas VA cho ô nhập số ở ObjectPanel). positionX/positionY luon duoc gui kem
+  // vi backend bat buoc (DiningTablePositionItemRequest.positionX/positionY @NotNull),
+  // con width/height/rotation chi gui field nao thuc su thay doi (partial update).
+  const applyTableTransform = useCallback(async (table, patch, errorMessage) => {
+    if (!isTableEditable(table)) {
+      toast.error('Chỉ có thể chỉnh sửa khi bàn đang ở trạng thái Trống')
+      return false
+    }
+    const previousTables = activeZoneTables
+    setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : {
+      ...z, tables: z.tables.map((t) => t.id === table.id ? { ...t, ...patch } : t),
+    }))
+    setSavingTableId(table.id)
+    try {
+      await tableApi.updateLayout({
+        tables: [{
+          tableId: table.id,
+          positionX: table.positionX,
+          positionY: table.positionY,
+          ...patch,
+        }],
+      })
+      return true
+    } catch (err) {
+      setZones((prev) => prev.map((z) => z.id !== activeZoneId ? z : { ...z, tables: previousTables }))
+      toast.error(err.response?.data?.message || errorMessage)
+      return false
+    } finally {
+      setSavingTableId(null)
+    }
+  }, [activeZoneId, activeZoneTables])
+
+  // Keo goc de resize (tu tay cam tren TableItem)
+  const resizeTable = useCallback((table, width, height) => (
+    applyTableTransform(table, { width, height }, 'Lưu kích thước bàn thất bại')
+  ), [applyTableTransform])
+
+  // Keo tay cam de xoay (tu tay cam tren TableItem)
+  const rotateTable = useCallback((table, rotation) => (
+    applyTableTransform(table, { rotation }, 'Lưu góc xoay bàn thất bại')
+  ), [applyTableTransform])
+
+  // Nhap tay W/H/goc xoay chinh xac tu ObjectPanel (gui ca 3 field cung luc)
+  const updateTableGeometry = useCallback((tableId, { width, height, rotation }) => {
+    const table = activeZoneTables.find((t) => t.id === tableId)
+    if (!table) return Promise.resolve(false)
+    return applyTableTransform(table, { width, height, rotation }, 'Lưu kích thước/góc xoay thất bại')
+  }, [activeZoneTables, applyTableTransform])
+
   const addTable = useCallback(async (payload) => {
     if (!activeZone) { toast.error('Vui lòng chọn khu vực'); return false }
     try {
@@ -144,11 +194,21 @@ export function useFloorPlanState(branchId) {
     try {
       const tablesSnapshot = activeZoneTables.map((t) => ({
         tableId: t.id, tableName: t.tableName, x: t.positionX, y: t.positionY,
+        width: t.width, height: t.height, rotation: t.rotation,
       }))
-      await zoneApi.saveFloorPlan({
+      const res = await zoneApi.saveFloorPlan({
         zoneId: activeZone.id,
         layoutData: JSON.stringify({ tables: tablesSnapshot, decorations: nextDecorations }),
       })
+      const savedFloorPlan = res.data?.data || res.data
+      // Dong bo lai floorPlan (layoutData/version) vao zones: neu khong lam buoc nay,
+      // zones[].floorPlan van la snapshot cu tu lan loadZones dau tien. Khi user chuyen
+      // qua zone khac roi quay lai, useEffect [activeZoneId] se doc lai tu zones cu ->
+      // mat vat the vua them, phai F5 lai trang moi thay (vi loadZones() goi API moi).
+      setZones((prev) => prev.map((z) => z.id !== activeZone.id ? z : {
+        ...z,
+        floorPlan: savedFloorPlan ? { ...z.floorPlan, ...savedFloorPlan } : z.floorPlan,
+      }))
       return true
     } catch (err) {
       setDecorations(previous)
@@ -159,8 +219,8 @@ export function useFloorPlanState(branchId) {
     }
   }, [activeZone, activeZoneTables, decorations])
 
-  const addDecoration = useCallback(async (shape, name) => {
-    const newDec = { id: `dec_${Date.now()}`, shape, name, x: 50, y: 50 }
+  const addDecoration = useCallback(async (shape, name, extra = {}) => {
+    const newDec = { id: `dec_${Date.now()}`, shape, name, x: 50, y: 50, ...extra }
     const ok = await persistDecorations([...decorations, newDec])
     if (ok) toast.success(`Đã thêm ${name}`)
     return ok
@@ -178,6 +238,15 @@ export function useFloorPlanState(branchId) {
     await persistDecorations(decorations.map((d) => d.id === dec.id ? { ...d, x: positionX, y: positionY } : d))
   }, [decorations, persistDecorations])
 
+  // Keo tay cam resize/rotate tren ShapeItem - luu ngay (khong doi selection)
+  const resizeDecoration = useCallback(async (dec, width, height) => {
+    await persistDecorations(decorations.map((d) => d.id === dec.id ? { ...d, width, height } : d))
+  }, [decorations, persistDecorations])
+
+  const rotateDecoration = useCallback(async (dec, rotation) => {
+    await persistDecorations(decorations.map((d) => d.id === dec.id ? { ...d, rotation } : d))
+  }, [decorations, persistDecorations])
+
   const deleteDecoration = useCallback(async (decId) => {
     const ok = await persistDecorations(decorations.filter((d) => d.id !== decId))
     if (ok) { setSelected(null); toast.success('Đã xoá vật thể') }
@@ -189,6 +258,8 @@ export function useFloorPlanState(branchId) {
     selectZone: setActiveZoneId, reloadZones: loadZones,
     selectTable, selectDecoration, clearSelection,
     isTableEditable, moveTable, addTable, updateTable, deleteTable,
+    resizeTable, rotateTable, updateTableGeometry,
     addDecoration, updateDecoration, moveDecoration, deleteDecoration,
+    resizeDecoration, rotateDecoration,
   }
 }

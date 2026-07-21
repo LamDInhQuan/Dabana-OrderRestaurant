@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,9 @@ import java.util.TreeMap;
 public class DiningTableService implements IDiningTableService {
 
     private static final double MIN_DISTANCE = 15.0;
+    private static final int DEFAULT_WIDTH = 90;
+    private static final int DEFAULT_HEIGHT = 80;
+    private static final BigDecimal DEFAULT_ROTATION = BigDecimal.ZERO;
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES = List.of(
             BookingStatus.HOLDING,
             BookingStatus.AWAITING_PAYMENT,
@@ -79,6 +83,9 @@ public class DiningTableService implements IDiningTableService {
         table.setCapacity(request.getCapacity());
         table.setPositionX(request.getPositionX());
         table.setPositionY(request.getPositionY());
+        table.setWidth(request.getWidth() != null ? request.getWidth() : DEFAULT_WIDTH);
+        table.setHeight(request.getHeight() != null ? request.getHeight() : DEFAULT_HEIGHT);
+        table.setRotation(request.getRotation() != null ? request.getRotation() : DEFAULT_ROTATION);
         table.setStatus(DiningTableStatus.EMPTY);
 
         DiningTable savedTable = diningTableRepository.save(table);
@@ -144,6 +151,15 @@ public class DiningTableService implements IDiningTableService {
             DiningTablePositionItemRequest item = requestByTableId.get(tableId);
             table.setPositionX(item.getPositionX());
             table.setPositionY(item.getPositionY());
+            if (item.getWidth() != null) {
+                table.setWidth(item.getWidth());
+            }
+            if (item.getHeight() != null) {
+                table.setHeight(item.getHeight());
+            }
+            if (item.getRotation() != null) {
+                table.setRotation(item.getRotation());
+            }
             lockedTables.add(table);
         }
 

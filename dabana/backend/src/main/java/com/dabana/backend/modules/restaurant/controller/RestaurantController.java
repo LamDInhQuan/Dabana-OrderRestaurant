@@ -10,6 +10,7 @@ import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
 import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
+import com.dabana.backend.modules.restaurant.Dto.report.PerDayReport;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
@@ -53,7 +54,15 @@ public class RestaurantController {
      public ResponseEntity<ApiResponse<List<BranchReportDto>>> dashboard() {
           User owner = getLoggedOwner();
           return ResponseEntity.ok(
-                    ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.dashboard(owner.getId())));
+                    ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.dashboard(owner.getId())));
+
+     }
+     //TODO: đổi tên endpoint
+     @GetMapping("/perDayReportForBranch/{branchId}")
+     public ResponseEntity<ApiResponse<List<PerDayReport>>> perDayReportForBranch(@PathVariable Long branchId) {
+          User owner = getLoggedOwner();
+          return ResponseEntity.ok(
+                    ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.getPerDayReports( branchId, owner.getId() )));
 
      }
      @PostMapping
