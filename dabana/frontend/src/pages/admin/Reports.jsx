@@ -37,7 +37,7 @@ export default function Reports() {
   const download = (type) => window.open(adminApi.exportReportUrl(type), '_blank')
 
   return (
-    <AdminLayout title="Báo cáo & thống kê" subtitle="F47–F50 · Doanh thu theo nhà hàng, thống kê lượt đặt bàn và xuất báo cáo">
+    <AdminLayout title="Báo cáo & thống kê" >
       <div className="flex gap-2" style={{ marginBottom: '2rem', flexWrap: 'wrap' }}>
         <button className="btn-outline btn-sm" onClick={() => download('users')}>⬇️ Xuất báo cáo người dùng (CSV)</button>
         <button className="btn-outline btn-sm" onClick={() => download('restaurants')}>⬇️ Xuất báo cáo nhà hàng (CSV)</button>

@@ -80,7 +80,7 @@ export default function UserManagement() {
   }
 
   return (
-    <AdminLayout title="Quản lý tài khoản người dùng" subtitle="F44 · Xem, khoá/mở khoá tài khoản Khách hàng và Nhà hàng đối tác toàn hệ thống">
+    <AdminLayout title="Quản lý tài khoản người dùng" >
       <form onSubmit={search} className="flex gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <input value={keyword} onChange={e => setKeyword(e.target.value)}
           placeholder="Tìm theo tên, email, SĐT..." style={{ flex: 1, minWidth: 200 }} />

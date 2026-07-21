@@ -54,7 +54,7 @@ export default function ReviewModeration() {
   }
 
   return (
-    <AdminLayout title="Kiểm duyệt đánh giá" subtitle="F41 · Ẩn hoặc loại bỏ đánh giá ảo/vi phạm khỏi hiển thị công khai">
+    <AdminLayout title="Kiểm duyệt đánh giá" >
       <div className="flex gap-2" style={{ marginBottom: '1.5rem' }}>
         {[['all', 'Tất cả'], ['visible', 'Đang hiển thị'], ['hidden', 'Đã ẩn']].map(([k, l]) => (
           <button key={k} onClick={() => { setFilter(k); setPage(0) }}

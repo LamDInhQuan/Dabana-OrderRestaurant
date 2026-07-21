@@ -29,6 +29,7 @@ import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.mapper.RestaurantMapper;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
+import com.dabana.backend.modules.review.ReviewRepository;
 import com.dabana.backend.modules.waitlist.WaitlistRepository;
 import com.dabana.backend.modules.waitlist.WaitlistStatus;
 
@@ -43,8 +44,10 @@ public class RestaurantService  {
     private final UserRepository userRepository;
     private final WaitlistRepository waitlistRepository;
     private final DiningTableRepository diningTableRepository;
-    private final BookingMapper bookingMapper;
+    private final ReviewRepository reviewRepository;
+
     private final RestaurantMapper restaurantMapper;
+    private final BookingMapper bookingMapper;
 
     public RestaurantResponse findByOwnerId(Long ownerId) {
         return restaurantMapper.toResponse( restaurantRepos.findByOwnerUserId(ownerId).
@@ -89,8 +92,8 @@ public class RestaurantService  {
 
     public List<BranchReportDto> dashboard(Long ownerId) {
         List<Branch> branches = branchRepository.findByRestaurant_Owner_Id(ownerId);
-        //de tam phuc vu test
-        LocalDate now =  LocalDate.of(2026, 6, 30);
+
+        LocalDate now = LocalDate.now();
 
         return branches.stream()
                 .map(branch -> buildBranchReport(branch, now))
@@ -101,7 +104,8 @@ public class RestaurantService  {
         Long branchId = branch.getId();
 
         List<Booking> branchBookings = bookingRepository.findByBranchId(branchId);
-        List<Booking> branchBookings30Day = bookingRepository.findByBranchIdAndCreatedAtAfter(branchId,now.minusDays(30));
+        List<Booking> branchBookings30Day = bookingRepository.findByBranchIdAndCreatedAtAfter(branchId,
+                now.minusDays(30));
         List<Booking> bookingsForToday = branchBookings.stream()
                 .filter(booking -> isSameDate(booking.getCreatedAt(), now))
                 .toList();
@@ -135,15 +139,10 @@ public class RestaurantService  {
                 ? 0.0
                 : noShow30day * 100.0 / finished30day;
 
-        Map<LocalDate, List<Booking>> bookingsByDate = branchBookings.stream()
-                .collect(Collectors.groupingBy(
-                        booking -> booking.getCreatedAt().toLocalDate(),
-                        TreeMap::new,
-                        Collectors.toList()));
+        
+        double reviewScore = 0;
 
-        List<PerDayReport> perDayReports = bookingsByDate.entrySet().stream()
-                .map(entry -> buildPerDayReport(branchId, entry.getValue(), entry.getKey()))
-                .toList();
+        // reviewScore = reviewRepository.calculateAverageRating(branchId);
 
         return BranchReportDto.builder()
                 .branchId(branchId)
@@ -154,8 +153,44 @@ public class RestaurantService  {
                 .TotalWait(totalWait)
                 .fillRate(fillRate)
                 .no_showRate30Day(noShowRate)
-                .perDayReports(perDayReports)
+                // .perDayReports(perDayReports)
+                .totalReviewScore(reviewScore)
                 .build();
+    }
+    
+
+    /**
+     * lấy tất cả booking của từng ngày cho 1 chi nhánh
+     * @param branchId 
+     * @return PerDayReport
+    */
+    public List<PerDayReport> getPerDayReports(Long branchId, Long ownerId) {
+
+        Branch branch = branchRepository.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("cannot find branch : " + branchId));
+        
+        if (! branchRepository.findByRestaurant_Owner_Id(ownerId)
+            .contains( branch ) ) {
+            throw new RuntimeException("branch do not belong to owner: " + ownerId);
+        }
+
+
+        List<Booking> branchBookings = bookingRepository.findByBranchId(branchId);
+
+        if (branchBookings.isEmpty()) {
+            throw new RuntimeException("no booking found");
+        }
+
+        Map<LocalDate, List<Booking>> bookingsByDate = branchBookings.stream()
+                .collect(Collectors.groupingBy(
+                        booking -> booking.getCreatedAt().toLocalDate(),
+                        TreeMap::new,
+                        Collectors.toList()));
+
+        return bookingsByDate.entrySet().stream()
+                .map(entry -> buildPerDayReport(branchId, entry.getValue(), entry.getKey()))
+                .toList();
+
     }
 
     private PerDayReport buildPerDayReport(Long branchId, List<Booking> bookings, LocalDate date) {

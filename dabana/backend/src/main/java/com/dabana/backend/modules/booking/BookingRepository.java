@@ -151,5 +151,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         where b.branch.id = :branchId
         and date(b.createdAt) >= :from
     """)
-    List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId,@Param("from") LocalDate from);
+    List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId, @Param("from") LocalDate from);
+    
+    
 }
