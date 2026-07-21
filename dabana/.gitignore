@@ -7,3 +7,6 @@ frontend/node_modules/
 postman/
 backend/target/
 .vscode/
+node_modules/
+package-lock.json
+package.json
