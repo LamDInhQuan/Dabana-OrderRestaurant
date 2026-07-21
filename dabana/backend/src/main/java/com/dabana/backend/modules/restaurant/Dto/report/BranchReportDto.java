@@ -24,5 +24,5 @@ public class BranchReportDto {
     private Long TotalWait;
     private double totalReviewScore;
     private double fillRate;
-    private double no_showRate;
+    private double no_showRate30Day;
 }
