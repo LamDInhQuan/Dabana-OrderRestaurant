@@ -29,4 +29,8 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Long> 
     Optional<DiningTable> findByIdForUpdate(@Param("id") Long id);
 
     List<DiningTable> findByZoneBranchIdAndStatus(Long branchId, DiningTableStatus status);
+    
+    long countByZone_Branch_Id(Long branchId);
+
+    long countByZone_Branch_IdAndStatusIn(Long branchId, List<DiningTableStatus> statuses);
 }

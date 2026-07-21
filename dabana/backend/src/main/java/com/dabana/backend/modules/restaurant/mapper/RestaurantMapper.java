@@ -13,6 +13,7 @@ import com.dabana.backend.modules.restaurant.entity.Restaurant;
 @Component
 public class RestaurantMapper {
 
+
     public Restaurant toEntity(RestaurantRegisterRequest request) {
         Restaurant restaurant = new Restaurant();
 
@@ -50,7 +51,12 @@ public class RestaurantMapper {
         response.setRestaurantName(restaurant.getRestaurantName());
         response.setLogoUrl(restaurant.getLogoUrl());
         response.setDescription(restaurant.getDescription());
-       
-        return response;    
+        response.setEmail(restaurant.getEmail());
+        response.setPhone(restaurant.getPhone());
+        response.setWebsite(restaurant.getWebsite());
+        response.setCuisineType(restaurant.getCuisineType());
+        
+        return response;
     }
+    
 }

@@ -22,7 +22,10 @@ public class RestaurantResponse {
 
     private String description;
 
-
+    private String website;
+    private String email;
+    private String phone;
+    private String cuisineType;
   
 
 

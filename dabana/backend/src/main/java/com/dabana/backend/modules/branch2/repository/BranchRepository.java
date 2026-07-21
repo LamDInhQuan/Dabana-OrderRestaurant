@@ -33,4 +33,5 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
              OR LOWER(b.address) LIKE LOWER(CONCAT('%', :keyword, '%')))
         """)
     Page<Branch> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+    List<Branch> findByRestaurant_Owner_Id(Long ownerId);
 }

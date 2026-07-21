@@ -9,6 +9,7 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
@@ -34,7 +35,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 //TODO: phan quyen cho chu nha hang
 @RestController
-@RequestMapping("/api/restaurants/me/")
+@RequestMapping("/api/restaurants/me")
 @RequiredArgsConstructor
 public class RestaurantController {
 
@@ -45,7 +46,14 @@ public class RestaurantController {
      public ResponseEntity<ApiResponse<RestaurantResponse>> GetRestaurantByOwnerId() {
           User owner = getLoggedOwner();
           return ResponseEntity.ok(
-                    ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.findByOwnerId(owner.getId())));
+                    ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.findByOwnerId(owner.getId())));
+
+     }
+     @GetMapping("/dashboard")
+     public ResponseEntity<ApiResponse<List<BranchReportDto>>> dashboard() {
+          User owner = getLoggedOwner();
+          return ResponseEntity.ok(
+                    ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.dashboard(owner.getId())));
 
      }
      @PostMapping
