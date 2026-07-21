@@ -63,6 +63,8 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/payment/**").permitAll()
+                .requestMatchers("/api/auth/change-password").authenticated()
+
                 // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
                 .requestMatchers("/api/auth/**").permitAll()
 

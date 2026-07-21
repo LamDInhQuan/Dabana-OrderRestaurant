@@ -107,7 +107,12 @@ public enum AuthErrorCode implements ErrorCode {
     PASSWORD_TOO_WEAK(
             "AUTH_303",
             "Mật khẩu không đủ mạnh."
+            
     ),
+    NEW_PASSWORD_SAME_AS_OLD(
+            "AUTH_304",
+            "Mật khẩu mới phải khác mật khẩu hiện tại."
+        ),
 
     // ==========================
     // Token
