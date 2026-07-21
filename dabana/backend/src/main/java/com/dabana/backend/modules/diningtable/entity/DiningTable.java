@@ -1,5 +1,7 @@
 package com.dabana.backend.modules.diningtable.entity;
 
+import java.math.BigDecimal;
+
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatusConverter;
@@ -41,6 +43,15 @@ public class DiningTable extends BaseEntity {
 
     @Column(name = "position_y")
     private Integer positionY;
+
+    @Column(name = "width")
+    private Integer width;
+
+    @Column(name = "height")
+    private Integer height;
+
+    @Column(name = "rotation")
+    private BigDecimal rotation;
 
     @Transient
     public String getTableCode() {

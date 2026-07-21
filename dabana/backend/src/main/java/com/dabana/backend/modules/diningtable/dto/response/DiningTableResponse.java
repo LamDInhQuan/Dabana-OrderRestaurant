@@ -1,8 +1,8 @@
 package com.dabana.backend.modules.diningtable.dto.response;
 
-import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 
 @Data
 public class DiningTableResponse {
@@ -14,4 +14,7 @@ public class DiningTableResponse {
     private Integer status;
     private Integer positionX;
     private Integer positionY;
+    private Integer width;
+    private Integer height;
+    private BigDecimal rotation;
 }

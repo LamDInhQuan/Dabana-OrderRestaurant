@@ -5,7 +5,8 @@ import ObjectPanel from './components/ObjectPanel'
 
 export default function FloorPlanManagementTab({ floorPlan }) {
   const { zones, activeZone, activeZoneTables, decorations, selected, savingTableId,
-    selectZone, isTableEditable, moveTable, moveDecoration, selectTable, selectDecoration } = floorPlan
+    selectZone, isTableEditable, moveTable, moveDecoration, selectTable, selectDecoration,
+    resizeTable, rotateTable, resizeDecoration, rotateDecoration } = floorPlan
 
   return (
     <div>
@@ -23,6 +24,10 @@ export default function FloorPlanManagementTab({ floorPlan }) {
             onMoveDecoration={moveDecoration}
             onSelectTable={selectTable}
             onSelectDecoration={selectDecoration}
+            onResizeTable={resizeTable}
+            onRotateTable={rotateTable}
+            onResizeDecoration={resizeDecoration}
+            onRotateDecoration={rotateDecoration}
           />
           <BulkPositionConfig savingTableId={savingTableId} />
         </div>
