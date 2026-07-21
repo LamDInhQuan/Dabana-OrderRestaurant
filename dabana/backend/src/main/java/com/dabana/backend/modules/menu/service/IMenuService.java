@@ -5,6 +5,7 @@ import com.dabana.backend.modules.menu.dto.response.MenuCategoryResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemImageResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemResponse;
 import com.dabana.backend.modules.menu.dto.response.PageResponse;
+import com.dabana.backend.modules.menu.dto.response.MenuItemStatsResponse;
 
 import java.util.List;
 
@@ -30,6 +31,8 @@ public interface IMenuService {
     List<MenuItemResponse> bulkUpdateItemStatus(BulkUpdateItemStatusRequest request);
 
     PageResponse<MenuItemResponse> searchItems(MenuItemSearchRequest request);
+
+    MenuItemStatsResponse getItemStats(Long branchId);
 
     void deleteItem(Long itemId);
 

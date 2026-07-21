@@ -1,4 +1,4 @@
-export default function MenuBulkActionBar({ count, onSetStatus, onClear, saving }) {
+export default function MenuBulkActionBar({ count, onSetStatus, onBulkDelete, onClear, saving }) {
   if (count === 0) return null
 
   return (
@@ -9,6 +9,7 @@ export default function MenuBulkActionBar({ count, onSetStatus, onClear, saving 
         <button className="btn-outline btn-sm" disabled={saving} onClick={() => onSetStatus('SELLING')}>Đưa vào bán</button>
         <button className="btn-outline btn-sm" disabled={saving} onClick={() => onSetStatus('OUT_OF_STOCK')}>Tạm ẩn</button>
         <button className="btn-outline btn-sm" disabled={saving} onClick={() => onSetStatus('DISCONTINUED')}>Ngừng bán</button>
+        <button className="btn-outline btn-sm red" disabled={saving} onClick={onBulkDelete}>Xoá hàng loạt</button>
         <button className="btn-outline btn-sm" disabled={saving} onClick={onClear}>Bỏ chọn</button>
       </div>
     </div>

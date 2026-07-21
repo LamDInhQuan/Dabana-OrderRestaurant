@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { STATUS_OPTIONS } from '../utils/menuStatusMeta'
+import { resizedImageUrl, IMAGE_PRESETS } from '../utils/imageProxy'
 
 const EMPTY_FORM = { categoryId: '', itemName: '', description: '', price: '', imageUrl: '', status: 'SELLING', displayOrder: 0 }
 const label = { fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }
@@ -69,13 +70,22 @@ export default function MenuItemFormModal({ open, item, categories, onClose, onS
 
             <div>
               <label style={label}>Giá (₫)</label>
-              <input type="number" min="1" step="1000" value={form.price}
+              <input type="number" min="1000" step="1000" value={form.price}
                 onChange={(e) => change('price', e.target.value)} required />
             </div>
 
             <div>
               <label style={label}>Ảnh (URL)</label>
               <input value={form.imageUrl} onChange={(e) => change('imageUrl', e.target.value)} placeholder="https://..." />
+              {form.imageUrl && (
+                <img
+                  src={resizedImageUrl(form.imageUrl, IMAGE_PRESETS.card)}
+                  alt="Xem trước"
+                  loading="lazy"
+                  style={{ marginTop: '.5rem', width: 120, height: 90, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              )}
             </div>
 
             <div>

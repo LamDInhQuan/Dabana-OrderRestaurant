@@ -8,6 +8,7 @@ import com.dabana.backend.modules.menu.dto.response.MenuCategoryResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemImageResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemResponse;
 import com.dabana.backend.modules.menu.dto.response.PageResponse;
+import com.dabana.backend.modules.menu.dto.response.MenuItemStatsResponse;
 import com.dabana.backend.modules.menu.service.IMenuService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -75,6 +76,11 @@ public class MenuController {
     @PatchMapping("/items/bulk-status")
     public ResponseEntity<ApiResponse<List<MenuItemResponse>>> bulkUpdateItemStatus(@Valid @RequestBody BulkUpdateItemStatusRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, menuService.bulkUpdateItemStatus(request)));
+    }
+
+    @GetMapping("/branches/{branchId}/items/stats")
+    public ResponseEntity<ApiResponse<MenuItemStatsResponse>> getItemStats(@PathVariable Long branchId) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, menuService.getItemStats(branchId)));
     }
 
     @GetMapping("/items/search")
