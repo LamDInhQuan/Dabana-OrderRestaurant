@@ -22,6 +22,7 @@ import com.dabana.backend.modules.policy.DepositPolicyRepository;
 import com.dabana.backend.modules.policy.DepositType;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
+import com.dabana.backend.modules.diningtable.service.IDiningTableService;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
@@ -58,6 +59,7 @@ public class BookingService {
     private final BookingItemService bookingItemService;
     private final BookingTableService bookingTableService;
     private final BookingMapper bookingMapper;
+    private final IDiningTableService diningTableService;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
@@ -121,7 +123,7 @@ public class BookingService {
         // 1. Tìm tất cả các booking thuộc về user hiện tại
         List<Booking> bookings = bookingRepository.findByCustomerIdOrderByCreatedAtDesc(user.getId());
         return bookings.stream()
-                .map(bookingMapper::toResponse) // Hoặc .map(b -> bookingMapper.toResponse(b))
+                .map(bookingMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -138,7 +140,7 @@ public class BookingService {
         // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
         if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn giữ bàn
+            LocalDateTime expiresAt = booking.getHoldExpiresAt();
             if (expiresAt != null && expiresAt.isAfter(now)) {
                 // Tính số giây còn lại: holdExpiresAt - bây giờ
                 long remainSeconds = java.time.Duration.between(now, expiresAt).toSeconds();
@@ -154,166 +156,97 @@ public class BookingService {
         }
         return response;
     }
+
+    // ============================================================
+    // B08: nhan vien check-in cho khach da xac nhan / nghi no-show
+    // ============================================================
+    @Transactional
+    public BookingResponse checkIn(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+        if (booking.getStatus() != BookingStatus.CONFIRMED
+                && booking.getStatus() != BookingStatus.PENDING_NO_SHOW) {
+            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_IN);
+        }
+        booking.setStatus(BookingStatus.CHECKED_IN);
+        booking = bookingRepository.save(booking);
+        applyTableStatus(booking, DiningTableStatus.OCCUPIED);
+        return bookingMapper.toResponse(booking);
+    }
+
+    // ============================================================
+    // B12: nhan vien check-out sau khi khach dung bua xong
+    // LUU Y: phan thanh toan/xuat hoa don (rs_invoices) CHUA lam o day - TODO,
+    // se bo sung khi module thanh toan hoan thien. O day chi doi trang thai don + ban.
+    // ============================================================
+    @Transactional
+    public BookingResponse checkOut(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
+            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_OUT);
+        }
+        // TODO: tinh rs_invoices (preorder_subtotal + extra_order_subtotal + surcharge - deposit_paid)
+        // khi module thanh toan duoc thiet ke xong. Hien tai chi dong don, chua tao hoa don.
+        booking.setStatus(BookingStatus.COMPLETED);
+        booking = bookingRepository.save(booking);
+        applyTableStatus(booking, DiningTableStatus.CLEANING);
+        return bookingMapper.toResponse(booking);
+    }
+
+    // ============================================================
+    // B11: nhan vien chot No-show cho don da xac nhan / dang nghi ngo
+    // ============================================================
+    @Transactional
+    public BookingResponse markNoShow(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+        if (booking.getStatus() != BookingStatus.CONFIRMED
+                && booking.getStatus() != BookingStatus.PENDING_NO_SHOW) {
+            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_MARK_NO_SHOW);
+        }
+        booking.setStatus(BookingStatus.NO_SHOW);
+        booking = bookingRepository.save(booking);
+        applyTableStatus(booking, DiningTableStatus.CLEANING);
+        return bookingMapper.toResponse(booking);
+    }
+
+    // ============================================================
+    // B11: huy don - tu khach (cancelledByRestaurant=false) hoac tu nha hang (=true)
+    // Chi cho huy khi don CHUA check-in. Da CHECKED_IN/COMPLETED/CANCELLED*/NO_SHOW/EXPIRED
+    // deu khong the huy nua.
+    // ============================================================
+    @Transactional
+    public BookingResponse cancel(Long bookingId, CancelRequest request) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+        List<BookingStatus> cancellableFrom = List.of(
+                BookingStatus.HOLDING, BookingStatus.AWAITING_PAYMENT, BookingStatus.CONFIRMED);
+        if (!cancellableFrom.contains(booking.getStatus())) {
+            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CANCEL);
+        }
+        boolean byRestaurant = request != null && Boolean.TRUE.equals(request.getCancelledByRestaurant());
+        booking.setStatus(byRestaurant ? BookingStatus.CANCELLED_BY_RESTAURANT : BookingStatus.CANCELLED_BY_CUSTOMER);
+        // TODO: neu request.getReason() can luu lai, hien Booking entity chua co cot rieng
+        // cho ly do huy - can bo sung cot (vd cancel_reason) neu nghiep vu yeu cau hien thi lai.
+        booking = bookingRepository.save(booking);
+        applyTableStatus(booking, DiningTableStatus.CLEANING);
+        return bookingMapper.toResponse(booking);
+    }
+
     /**
-     * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
+     * Doi trang thai tat ca ban gan voi 1 booking (1 booking co the co nhieu ban
+     * qua rs_reservation_tables) theo dung bang transition da chot voi doi tac:
+     * CONFIRMED -> RESERVED (chua lam, thuoc luong xac nhan/thanh toan - TODO rieng),
+     * CHECKED_IN -> OCCUPIED, COMPLETED/NO_SHOW/CANCELLED_* / EXPIRED -> CLEANING.
      */
-    // private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
-    //     List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
-    //             .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
-    //             .filter(t -> t.getCapacity() >= guestCount)
-    //             .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
-    //             .collect(Collectors.toList());
+    private void applyTableStatus(Booking booking, DiningTableStatus status) {
+        List<Long> tableIds = booking.getBookingTables().stream()
+                .map(bt -> bt.getDiningTable().getId())
+                .toList();
+        diningTableService.updateStatusForBooking(tableIds, status);
+    }
 
-    //     if (candidates.isEmpty()) {
-    //         throw new BusinessException("NO_TABLE_AVAILABLE",
-    //                 "Khong co ban phu hop trong khung gio nay, vui long thu khung gio khac " +
-    //                         "hoac dang ky hang cho (B10)");
-    //     }
-    //     return candidates.get(0);
-    // }
-//
-//    /**
-//     * Buoc 6 + BR06: chot (snapshot) chinh sach dat coc vao don.
-//     */
-//    private void applyDepositSnapshot(Booking booking, DepositPolicy policy) {
-//        if (policy == null || Boolean.FALSE.equals(policy.getDepositRequired())) {
-//            // AF03: nha hang khong yeu cau dat coc
-//            booking.setSnapshotDepositRequired(false);
-//            booking.setSnapshotDepositAmount(BigDecimal.ZERO);
-//            booking.setSnapshotFreeCancellationHours(0);
-//            return;
-//        }
-//
-//        booking.setSnapshotDepositRequired(true);
-//        booking.setSnapshotFreeCancellationHours(policy.getFreeCancellationHours());
-//
-//        BigDecimal depositAmount;
-//        if (policy.getDepositType() == DepositType.FIXED_AMOUNT) {
-//            depositAmount = policy.getDepositValue();
-//        } else {
-//            // PERCENTAGE: ap dung theo % tren gia tri don du kien (uoc tinh toi thieu theo so khach)
-//            BigDecimal baseEstimate = BigDecimal.valueOf(booking.getGuestCount())
-//                    .multiply(BigDecimal.valueOf(100000)); // muc uoc tinh co so/khach, co the cau hinh
-//            depositAmount = baseEstimate
-//                    .multiply(policy.getDepositValue())
-//                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
-//        }
-//        booking.setSnapshotDepositAmount(depositAmount);
-//    }
-//
-//    // ============================================================
-//    // B01 Buoc 4: nhap thong tin lien he
-//    // ============================================================
-//    @Transactional
-//    public BookingResponse updateContactInfo(Long bookingId, Long customerId, ContactInfoRequest req) {
-//        Booking booking = getOwnedBooking(bookingId, customerId);
-//        ensureHoldingNotExpired(booking);
-//
-//        booking.setContactName(req.getContactName());
-//        booking.setContactPhone(req.getContactPhone());
-//        booking.setNote(req.getNote());
-//        bookingRepository.save(booking);
-//        return toResponse(booking);
-//    }
-
-    // ============================================================
-    // B01 Buoc 5 + AF02: dat mon truoc (tuy chon)
-    // ============================================================
-//    @Transactional
-//    public BookingResponse addPreOrderItems(Long bookingId, Long customerId, PreOrderRequest req) {
-//        Booking booking = getOwnedBooking(bookingId, customerId);
-//        ensureHoldingNotExpired(booking);
-//
-//        if (req.getItems() == null || req.getItems().isEmpty()) {
-//            return toResponse(booking); // AF02: khach bo qua dat mon truoc
-//        }
-//
-//        for (var itemReq : req.getItems()) {
-//            MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
-//                    .orElseThrow(() -> new BusinessException("MENU_ITEM_NOT_FOUND", "Khong tim thay mon an"));
-//
-//            // BR02 cua B06: chi mon "Dang ban" moi duoc dat truoc
-//            if (menuItem.getStatus() != MenuItemStatus.SELLING) {
-//                throw new BusinessException("MENU_ITEM_NOT_AVAILABLE",
-//                        "Mon \"" + menuItem.getName() + "\" hien khong con ban");
-//            }
-//
-//            BookingItem item = new BookingItem();
-//            item.setBooking(booking);
-//            item.setMenuItem(menuItem);
-//            // BR04 cua B06 / BR09 cua B01: chot snapshot ten + gia ngay tai day
-//            item.setSnapshotName(menuItem.getName());
-//            item.setSnapshotPrice(menuItem.getPrice());
-//            item.setQuantity(itemReq.getQuantity());
-//            item.setIsWalkInOrder(false);
-//
-//            booking.getItems().add(item);
-//        }
-//
-//        bookingRepository.save(booking);
-//        return toResponse(booking);
-//    }
-//
-//    // ============================================================
-//    // B01 Buoc 8: thanh toan dat coc (goi tu callback cong thanh toan)
-//    // ============================================================
-//    @Transactional
-//    public BookingResponse processPaymentResult(Long bookingId, PaymentResultRequest req) {
-//        Booking booking = bookingRepository.findById(bookingId)
-//                .orElseThrow(() -> new BusinessException("BOOKING_NOT_FOUND", "Khong tim thay don dat ban"));
-//
-//        booking.setPaymentTransactionId(req.getTransactionId());
-//
-//        if ("SUCCESS".equalsIgnoreCase(req.getStatus())) {
-//            booking.setPaymentStatus("SUCCESS");
-//            confirmBooking(booking); // Buoc 9
-//        } else {
-//            // ===== EF03: thanh toan that bai =====
-//            booking.setPaymentStatus("FAILED");
-//            // Giu ban trong thoi gian con lai, giu nguyen chinh sach/gia da snapshot,
-//            // khach duoc phep thuc hien lai giao dich (khong doi trang thai HOLDING)
-//            bookingRepository.save(booking);
-//            throw new BusinessException("PAYMENT_FAILED",
-//                    "Thanh toan that bai. Ban van duoc giu trong thoi gian con lai, " +
-//                            "vui long thuc hien lai giao dich (EF03)");
-//        }
-//
-//        return toResponse(booking);
-//    }
-//
-//    /**
-//     * Buoc 9: he thong phe duyet don, khoa ban co dinh, phat hanh xac nhan.
-//     */
-//    private void confirmBooking(Booking booking) {
-//        booking.setStatus(BookingStatus.CONFIRMED);
-//
-//        RestaurantTable table = booking.getTable();
-//        table.setStatus(TableStatus.RESERVED); // khoa co dinh tren so do
-//        tableRepository.save(table);
-//
-//        bookingRepository.save(booking);
-//
-//        // Buoc 10: thiet lap nhac lich - duoc xu ly boi NotificationService (B09)
-//        // qua scheduled job rieng, theo dung BR05 cua B09 (B01 khong tu gui thong bao).
-//    }
-//
-//    /**
-//     * AF03: nha hang khong yeu cau dat coc - xac nhan ngay khong qua buoc 8.
-//     */
-//    @Transactional
-//    public BookingResponse confirmWithoutDeposit(Long bookingId, Long customerId) {
-//        Booking booking = getOwnedBooking(bookingId, customerId);
-//        ensureHoldingNotExpired(booking);
-//
-//        if (Boolean.TRUE.equals(booking.getSnapshotDepositRequired())) {
-//            throw new BusinessException("DEPOSIT_REQUIRED",
-//                    "Chi nhanh nay yeu cau dat coc, vui long thuc hien thanh toan");
-//        }
-//
-//        confirmBooking(booking);
-//        return toResponse(booking);
-//    }
-//
     // ============================================================
     // EF04: tu dong huy don het han giu ban (chay dinh ky)
     // ============================================================
@@ -325,50 +258,4 @@ public class BookingService {
             bookingRepository.save(booking);
         }
     }
-
-//    // ============================================================
-//    // Helpers
-//    // ============================================================
-//    private Booking getOwnedBooking(Long bookingId, Long customerId) {
-//        Booking booking = bookingRepository.findById(bookingId)
-//                .orElseThrow(() -> new BusinessException("BOOKING_NOT_FOUND", "Khong tim thay don dat ban"));
-//        if (!booking.getCustomer().getId().equals(customerId)) {
-//            throw new BusinessException("FORBIDDEN", "Ban khong co quyen voi don dat ban nay");
-//        }
-//        return booking;
-//    }
-//
-//    private void ensureHoldingNotExpired(Booking booking) {
-//        if (booking.getStatus() != BookingStatus.HOLDING) {
-//            throw new BusinessException("INVALID_STATE", "Don khong o trang thai cho xu ly");
-//        }
-//        if (booking.getHoldExpiresAt().isBefore(LocalDateTime.now())) {
-//            throw new BusinessException("HOLD_EXPIRED", "Da het thoi gian giu ban (EF04)");
-//        }
-//    }
-//
-//    public BookingResponse toResponse(Booking booking) {
-//        BigDecimal totalPreOrder = booking.getItems().stream()
-//                .map(i -> i.getSnapshotPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-//        return BookingResponse.builder()
-//                .id(booking.getId())
-//                .branchName(booking.getBranch().getName())
-//                .tableCode(booking.getTable().getTableCode())
-//                .guestCount(booking.getGuestCount())
-//                .reservationTime(booking.getReservationTime())
-//                .holdExpiresAt(booking.getHoldExpiresAt())
-//                .status(booking.getStatus().name())
-//                .depositAmount(booking.getSnapshotDepositAmount())
-//                .totalPreOrderAmount(totalPreOrder)
-//                .items(booking.getItems().stream()
-//                        .map(i -> BookingItemResponse.builder()
-//                                .name(i.getSnapshotName())
-//                                .price(i.getSnapshotPrice())
-//                                .quantity(i.getQuantity())
-//                                .build())
-//                        .collect(Collectors.toList()))
-//                .build();
-//    }
 }

@@ -47,6 +47,43 @@ public class BookingController extends BaseController {
         return ResponseEntity.ok(response);
     }
 
+    // ============================================================
+    // B08: nhan vien check-in cho khach da xac nhan / nghi no-show
+    // -> BookingService dong bo ban lien quan sang OCCUPIED
+    // ============================================================
+    @PostMapping("/{id}/check-in")
+    public ResponseEntity<ApiResponse<BookingResponse>> checkIn(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.checkIn(id)));
+    }
+
+    // ============================================================
+    // B12: nhan vien check-out sau khi khach dung bua xong
+    // -> BookingService dong bo ban lien quan sang CLEANING
+    // ============================================================
+    @PostMapping("/{id}/check-out")
+    public ResponseEntity<ApiResponse<BookingResponse>> checkOut(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.checkOut(id)));
+    }
+
+    // ============================================================
+    // B11: nhan vien chot No-show cho don Da xac nhan / dang Nghi no-show
+    // -> BookingService dong bo ban lien quan sang CLEANING
+    // ============================================================
+    @PostMapping("/{id}/no-show")
+    public ResponseEntity<ApiResponse<BookingResponse>> markNoShow(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.markNoShow(id)));
+    }
+
+    // ============================================================
+    // B11: huy don (tu khach hoac tu nha hang, tuy cancelledByRestaurant)
+    // -> BookingService dong bo ban lien quan sang CLEANING
+    // ============================================================
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<BookingResponse>> cancel(
+            @PathVariable Long id, @RequestBody(required = false) CancelRequest request) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.cancel(id, request)));
+    }
+
 //    /** Buoc 4: cap nhat thong tin lien he */
 //    @PatchMapping("/{id}/contact-info")
 //    public ResponseEntity<BookingResponse> updateContactInfo(

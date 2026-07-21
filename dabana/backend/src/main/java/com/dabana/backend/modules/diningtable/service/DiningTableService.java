@@ -9,6 +9,7 @@ import com.dabana.backend.modules.diningtable.dto.request.BulkUpdateDiningTableP
 import com.dabana.backend.modules.diningtable.dto.request.CreateDiningTableRequest;
 import com.dabana.backend.modules.diningtable.dto.request.DiningTablePositionItemRequest;
 import com.dabana.backend.modules.diningtable.dto.request.UpdateDiningTableRequest;
+import com.dabana.backend.modules.diningtable.dto.request.UpdateDiningTableStatusRequest;
 import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
@@ -23,7 +24,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,16 +34,22 @@ import java.util.TreeMap;
 public class DiningTableService implements IDiningTableService {
 
     private static final double MIN_DISTANCE = 15.0;
-    private static final int DEFAULT_WIDTH = 90;
-    private static final int DEFAULT_HEIGHT = 80;
-    private static final BigDecimal DEFAULT_ROTATION = BigDecimal.ZERO;
+
+    // BR (muc 3): nhan vien chi duoc phep chuyen thu cong ban giua 3 trang thai
+    // nay tren UI Tab Goi mon. RESERVED/OCCUPIED do Backend tu dong dong bo theo
+    // vong doi Booking (xem updateStatusForBooking + BookingService), khong duoc
+    // set thu cong o day de tranh lech du lieu.
+    private static final List<DiningTableStatus> MANUALLY_ALLOWED_STATUSES = List.of(
+            DiningTableStatus.EMPTY,
+            DiningTableStatus.CLEANING,
+            DiningTableStatus.MAINTENANCE);
+
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES = List.of(
             BookingStatus.HOLDING,
             BookingStatus.AWAITING_PAYMENT,
             BookingStatus.CONFIRMED,
             BookingStatus.CHECKED_IN,
-            BookingStatus.PENDING_NO_SHOW
-    );
+            BookingStatus.PENDING_NO_SHOW);
 
     private final BranchRepository branchRepository;
     private final ZoneRepository zoneRepository;
@@ -58,7 +64,9 @@ public class DiningTableService implements IDiningTableService {
         validateBranch(branchId);
         if (zoneId != null) {
             validateZone(zoneId);
-            if (!zoneRepository.findById(zoneId).orElseThrow(() -> new BusinessException(DiningTableErrorCode.ZONE_NOT_FOUND)).getBranch().getId().equals(branchId)) {
+            if (!zoneRepository.findById(zoneId)
+                    .orElseThrow(() -> new BusinessException(DiningTableErrorCode.ZONE_NOT_FOUND)).getBranch().getId()
+                    .equals(branchId)) {
                 throw new BusinessException(DiningTableErrorCode.ZONE_NOT_FOUND);
             }
             return diningTableRepository.findByZoneIdOrderByIdAsc(zoneId).stream()
@@ -83,9 +91,6 @@ public class DiningTableService implements IDiningTableService {
         table.setCapacity(request.getCapacity());
         table.setPositionX(request.getPositionX());
         table.setPositionY(request.getPositionY());
-        table.setWidth(request.getWidth() != null ? request.getWidth() : DEFAULT_WIDTH);
-        table.setHeight(request.getHeight() != null ? request.getHeight() : DEFAULT_HEIGHT);
-        table.setRotation(request.getRotation() != null ? request.getRotation() : DEFAULT_ROTATION);
         table.setStatus(DiningTableStatus.EMPTY);
 
         DiningTable savedTable = diningTableRepository.save(table);
@@ -132,7 +137,8 @@ public class DiningTableService implements IDiningTableService {
     @Transactional
     public List<DiningTableResponse> bulkUpdatePositions(BulkUpdateDiningTablePositionsRequest request) {
         // TreeMap thay vi HashMap: dam bao thu tu lock tableId LUON co dinh, tang dan.
-        // Neu 2 request bulkUpdatePositions cung luc dung tap tableId giao nhau, ca 2 se
+        // Neu 2 request bulkUpdatePositions cung luc dung tap tableId giao nhau, ca 2
+        // se
         // lock theo cung 1 thu tu -> tranh deadlock giua cac transaction.
         Map<Long, DiningTablePositionItemRequest> requestByTableId = new TreeMap<>();
         for (DiningTablePositionItemRequest item : request.getTables()) {
@@ -151,21 +157,13 @@ public class DiningTableService implements IDiningTableService {
             DiningTablePositionItemRequest item = requestByTableId.get(tableId);
             table.setPositionX(item.getPositionX());
             table.setPositionY(item.getPositionY());
-            if (item.getWidth() != null) {
-                table.setWidth(item.getWidth());
-            }
-            if (item.getHeight() != null) {
-                table.setHeight(item.getHeight());
-            }
-            if (item.getRotation() != null) {
-                table.setRotation(item.getRotation());
-            }
             lockedTables.add(table);
         }
 
         validateNoOverlap(lockedTables);
 
-        // Lock FloorPlan cua tung zone lien quan, cung theo thu tu zoneId tang dan, TRUOC
+        // Lock FloorPlan cua tung zone lien quan, cung theo thu tu zoneId tang dan,
+        // TRUOC
         // khi ghi bat ky JSON nao - tranh deadlock va tranh lost-update voi
         // createOrUpdateFloorPlan (ZoneService) dang chay song song tren cung zone.
         Map<Long, FloorPlan> floorPlanByZone = new TreeMap<>();
@@ -182,6 +180,52 @@ public class DiningTableService implements IDiningTableService {
             responses.add(diningTableMapper.toResponse(savedTable));
         }
         return responses;
+    }
+
+    @Override
+    @Transactional
+    public void updateStatusForBooking(List<Long> tableIds, DiningTableStatus status) {
+        if (tableIds == null || tableIds.isEmpty()) {
+            return;
+        }
+        List<DiningTable> tables = diningTableRepository.findAllByIdForUpdate(tableIds);
+        for (DiningTable table : tables) {
+            table.setStatus(status);
+        }
+        diningTableRepository.saveAll(tables);
+    }
+
+    @Override
+    @Transactional
+    public DiningTableResponse updateStatusManually(Long tableId, UpdateDiningTableStatusRequest request) {
+        DiningTableStatus targetStatus;
+        try {
+            targetStatus = DiningTableStatus.fromCode(request.getStatus());
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(DiningTableErrorCode.TABLE_STATUS_INVALID);
+        }
+
+        // Chi cho phep dich la EMPTY / CLEANING / MAINTENANCE - RESERVED/OCCUPIED
+        // la trang thai chi Backend duoc tu dong doi theo vong doi Booking.
+        if (targetStatus == null || !MANUALLY_ALLOWED_STATUSES.contains(targetStatus)) {
+            throw new BusinessException(DiningTableErrorCode.TABLE_STATUS_INVALID);
+        }
+
+        DiningTable table = diningTableRepository.findByIdForUpdate(tableId)
+                .orElseThrow(() -> new BusinessException(DiningTableErrorCode.TABLE_NOT_FOUND));
+
+        // Ban dang RESERVED/OCCUPIED thi khong cho doi tay - phai di qua cac hanh dong
+        // vong doi cua Booking (check-in/check-out/no-show/cancel).
+        if (table.getStatus() == DiningTableStatus.RESERVED) {
+            throw new BusinessException(DiningTableErrorCode.TABLE_RESERVED);
+        }
+        if (table.getStatus() == DiningTableStatus.OCCUPIED) {
+            throw new BusinessException(DiningTableErrorCode.TABLE_OCCUPIED);
+        }
+
+        table.setStatus(targetStatus);
+        DiningTable savedTable = diningTableRepository.save(table);
+        return diningTableMapper.toResponse(savedTable);
     }
 
     @Override
@@ -214,7 +258,9 @@ public class DiningTableService implements IDiningTableService {
     private void ensureTableNameAvailable(Long zoneId, String tableName, Long currentTableId) {
         diningTableRepository.findByZoneIdAndTableNameIgnoreCase(zoneId, tableName.trim())
                 .filter(existing -> currentTableId == null || !existing.getId().equals(currentTableId))
-                .ifPresent(existing -> { throw new BusinessException(DiningTableErrorCode.TABLE_ALREADY_EXISTS); });
+                .ifPresent(existing -> {
+                    throw new BusinessException(DiningTableErrorCode.TABLE_ALREADY_EXISTS);
+                });
     }
 
     private void enforceEditableStructure(DiningTable table) {
@@ -224,9 +270,10 @@ public class DiningTableService implements IDiningTableService {
     }
 
     private void ensureNoFutureBookings(Long tableId) {
-//        if (bookingRepository.existsFutureBookingsByTableId(tableId, LocalDateTime.now(), ACTIVE_BOOKING_STATUSES)) {
-//            throw new BusinessException(DiningTableErrorCode.TABLE_HAS_FUTURE_BOOKING);
-//        }
+        // if (bookingRepository.existsFutureBookingsByTableId(tableId,
+        // LocalDateTime.now(), ACTIVE_BOOKING_STATUSES)) {
+        // throw new BusinessException(DiningTableErrorCode.TABLE_HAS_FUTURE_BOOKING);
+        // }
     }
 
     private void validateNoOverlap(List<DiningTable> tables) {
