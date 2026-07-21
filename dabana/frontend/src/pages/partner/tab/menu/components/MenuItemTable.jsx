@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { getStatusMeta } from '../utils/menuStatusMeta'
+import { resizedImageUrl, IMAGE_PRESETS } from '../utils/imageProxy'
 
 const cellHead = { textAlign: 'left', padding: '.75rem 1rem', fontSize: '.75rem', color: 'var(--text-muted)', fontWeight: 600 }
 const cell = { padding: '.75rem 1rem', fontSize: '.85rem', verticalAlign: 'middle' }
@@ -46,13 +47,14 @@ function MenuItemTable({
                   <td style={cell}>
                     {item.imageUrl
                       ? <img
-                          src={item.imageUrl}
+                          src={resizedImageUrl(item.imageUrl, IMAGE_PRESETS.thumbnail)}
                           alt={item.itemName}
                           width={40}
                           height={40}
                           loading="lazy"
                           decoding="async"
                           style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }}
+                          onError={(e) => { e.currentTarget.src = item.imageUrl }} // fallback nếu proxy lỗi
                         />
                       : <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--border)' }} />}
                   </td>
