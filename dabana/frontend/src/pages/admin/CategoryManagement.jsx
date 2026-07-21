@@ -52,7 +52,7 @@ export default function CategoryManagement() {
   }, {})
 
   return (
-    <AdminLayout title="Danh mục hệ thống" subtitle="F45 · Quản lý danh mục dùng chung: loại ẩm thực, tiện ích, khu vực...">
+    <AdminLayout title="Danh mục hệ thống" >
       <div className="card" style={{ marginBottom: '2rem' }}>
         <h3 style={{ fontWeight: 700, marginBottom: '.75rem' }}>{editing ? 'Sửa danh mục' : 'Thêm danh mục mới'}</h3>
         <form onSubmit={submit} className="flex gap-2" style={{ flexWrap: 'wrap' }}>

@@ -19,6 +19,7 @@ import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.modules.review.Review;
 import com.dabana.backend.modules.review.ReviewRepository;
+import com.dabana.backend.modules.auth.service.MailService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -60,6 +61,7 @@ public class AdminController {
     private final ReviewRepository reviewRepository;
     private final SystemCategoryRepository systemCategoryRepository;
     private final BookingRepository bookingRepository;
+    private final MailService mailService;
 
     // ======================================================
     // DTOs dung chung
@@ -124,7 +126,7 @@ public class AdminController {
     }
 
     /** B02 buoc 4-5: phe duyet/tu choi dang ky tai khoan doi tac. */
-    @PostMapping("/users/{id}/approve")
+     @PostMapping("/users/{id}/approve")
     @Transactional
     public ResponseEntity<UserResponse> approveUser(@PathVariable Long id, @RequestBody ApprovalRequest req) {
         User user = userRepository.findById(id)
@@ -141,7 +143,17 @@ public class AdminController {
             user.setStatus(AccountStatus.REJECTED.getStatus());
             user.setStatusReason(req.getReason());
         }
-        return ResponseEntity.ok(userMapper.userResponse(userRepository.save(user)));
+        User saved = userRepository.save(user);
+
+        // Gui email thong bao ket qua duyet cho chu tai khoan nha hang doi tac (B02 buoc 5).
+        // Khong lam that bai thao tac duyet neu gui email loi (MailService tu bat va log loi).
+        if (Boolean.TRUE.equals(req.getApproved())) {
+            mailService.sendPartnerApprovedEmail(saved.getEmail(), saved.getFullName());
+        } else {
+            mailService.sendPartnerRejectedEmail(saved.getEmail(), saved.getFullName(), req.getReason());
+        }
+
+        return ResponseEntity.ok(userMapper.userResponse(saved));
     }
 
     /** F44: khoa/mo khoa tai khoan Khach hang hoac Nha hang doi tac. */
@@ -215,6 +227,7 @@ public class AdminController {
 
         return ResponseEntity.ok(restaurantRepository.save(restaurant));
     }
+
 
     // ======================================================
     // B04: Phe duyet chi nhanh

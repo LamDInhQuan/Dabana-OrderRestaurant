@@ -111,4 +111,83 @@ public class MailService {
                 </div>
                 """.formatted(newPassword);
     }
+    public void sendPartnerApprovedEmail(String toEmail, String fullName) {
+        if (!mailEnabled) {
+            log.info("[MAIL-DISABLED] Email duyet tai khoan doi tac danh cho {}", toEmail);
+            return;
+        }
+
+        String subject = "[Dabana Order] Tài khoản nhà hàng đối tác của bạn đã được duyệt";
+        String html = buildPartnerApprovedEmailHtml(fullName);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("Da gui email duyet tai khoan doi tac den {}", toEmail);
+        } catch (Exception e) {
+            log.error("Gui email duyet tai khoan doi tac that bai toi {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildPartnerApprovedEmailHtml(String fullName) {
+        String greetingName = (fullName == null || fullName.isBlank()) ? "" : " " + fullName;
+        return """
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
+                  <h2 style="color: #ff6600; margin-bottom: 4px;">Dabana Order</h2>
+                  <p>Xin chào%s,</p>
+                  <p>Chúc mừng! Tài khoản <b>Nhà hàng đối tác</b> của bạn trên Dabana Order đã được quản trị viên <b>phê duyệt</b>.</p>
+                  <p>Bạn có thể đăng nhập ngay bây giờ để bắt đầu thiết lập chi nhánh, thực đơn và quản lý đặt bàn.</p>
+                  <p style="color:#999; font-size: 12px; margin-top: 24px;">Nếu bạn không thực hiện yêu cầu đăng ký này, vui lòng liên hệ với chúng tôi ngay.</p>
+                </div>
+                """.formatted(greetingName);
+    }
+
+    /**
+     * Gui email thong bao tai khoan Nha hang doi tac bi TU CHOI boi Admin, kem ly do (neu co).
+     */
+    public void sendPartnerRejectedEmail(String toEmail, String fullName, String reason) {
+        if (!mailEnabled) {
+            log.info("[MAIL-DISABLED] Email tu choi tai khoan doi tac danh cho {} (ly do: {})", toEmail, reason);
+            return;
+        }
+
+        String subject = "[Dabana Order] Đăng ký nhà hàng đối tác chưa được duyệt";
+        String html = buildPartnerRejectedEmailHtml(fullName, reason);
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("Da gui email tu choi tai khoan doi tac den {}", toEmail);
+        } catch (Exception e) {
+            log.error("Gui email tu choi tai khoan doi tac that bai toi {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String buildPartnerRejectedEmailHtml(String fullName, String reason) {
+        String greetingName = (fullName == null || fullName.isBlank()) ? "" : " " + fullName;
+        String reasonBlock = (reason == null || reason.isBlank())
+                ? ""
+                : """
+                  <p>Lý do: <b>%s</b></p>
+                  """.formatted(reason);
+        return """
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
+                  <h2 style="color: #ff6600; margin-bottom: 4px;">Dabana Order</h2>
+                  <p>Xin chào%s,</p>
+                  <p>Rất tiếc, hồ sơ đăng ký <b>Nhà hàng đối tác</b> của bạn trên Dabana Order <b>chưa được duyệt</b>.</p>
+                  %s
+                  <p>Vui lòng kiểm tra và cập nhật lại thông tin, hoặc liên hệ với chúng tôi để được hỗ trợ thêm.</p>
+                </div>
+                """.formatted(greetingName, reasonBlock);
+    }
 }
