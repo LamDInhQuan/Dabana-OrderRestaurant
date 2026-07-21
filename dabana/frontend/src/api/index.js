@@ -58,6 +58,7 @@ export const authApi = {
   resendOtp: (data) => api.post('/auth/resend-otp', data),
   refresh: (data) => api.post('/auth/refresh', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  changePassword: (data) => api.post('/auth/change-password', data),
 }
 
 // ===== Branch/Restaurant API =====

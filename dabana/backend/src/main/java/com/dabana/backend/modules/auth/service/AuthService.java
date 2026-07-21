@@ -3,6 +3,7 @@ package com.dabana.backend.modules.auth.service;
 import com.dabana.backend.exception.BusinessException;
 //import com.dabana.backend.modules.auth.OtpService;
 import com.dabana.backend.modules.auth.service.OtpService;
+import com.dabana.backend.modules.auth.dto.request.ChangePasswordRequest;
 import com.dabana.backend.modules.auth.dto.request.ForgotPasswordRequest;
 import com.dabana.backend.modules.auth.dto.request.LoginRequest;
 import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
@@ -216,6 +217,33 @@ public class AuthService implements IAuthService {
         userRepository.save(user);
 
         mailService.sendNewPasswordEmail(user.getEmail(), newPassword);
+        return true;
+    }
+
+    /**
+     * Doi mat khau: nguoi dung da dang nhap nhap mat khau hien tai de xac thuc,
+     * sau do xac nhan mat khau moi truoc khi luu.
+     */
+    @Override
+    @Transactional
+    public Boolean changePassword(Long userId, ChangePasswordRequest req) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(AuthErrorCode.PASSWORD_INCORRECT);
+        }
+
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new BusinessException(AuthErrorCode.PASSWORD_CONFIRM_NOT_MATCH);
+        }
+
+        if (passwordEncoder.matches(req.getNewPassword(), user.getPassword())) {
+            throw new BusinessException(AuthErrorCode.NEW_PASSWORD_SAME_AS_OLD);
+        }
+
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        userRepository.save(user);
         return true;
     }
 

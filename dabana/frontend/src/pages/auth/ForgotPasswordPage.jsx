@@ -1,30 +1,22 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { authApi } from '../../api'
-import { useAuth } from '../../context/AuthContext'
 
-export default function LoginPage() {
-  const { login } = useAuth()
-  const navigate   = useNavigate()
-  const [form, setForm] = useState({ identifier: '', password: '' })
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }))
+  const [sent, setSent] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data: res } = await authApi.login(form)
-      const userData = res.data
-      login(userData)
-      toast.success(`Chào mừng, ${userData.fullName}!`)
-      if (userData.role === 'ADMIN')               navigate('/admin')
-      else if (userData.role === 'RESTAURANT_PARTNER') navigate('/partner')
-      else                                          navigate('/')
+      await authApi.forgotPassword({ email })
+      setSent(true)
+      toast.success('Mật khẩu mới đã được gửi về email của bạn!')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Đăng nhập thất bại')
+      toast.error(err.response?.data?.message || 'Không thể xử lý yêu cầu. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
@@ -37,51 +29,48 @@ export default function LoginPage() {
           🍽️ Dabana
         </h1>
         <h2 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-          Đăng nhập tài khoản
+          Quên mật khẩu
         </h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
-          <div>
-            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>
-              Email hoặc Số điện thoại
-            </label>
-            <input value={form.identifier} onChange={set('identifier')} placeholder="abc@gmail.com" required />
-          </div>
-          <div>
-            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>
-              Mật khẩu
-            </label>
-            <input type="password" value={form.password} onChange={set('password')} placeholder="••••••••" required />
-            <div style={{ textAlign: 'right', marginTop: '.35rem' }}>
-              <Link to="/forgot-password" style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>
-                Quên mật khẩu?
-              </Link>
-            </div>
-          </div>
-          <button className="btn-primary" type="submit" disabled={loading} style={{ marginTop: '.5rem', padding: '.8rem' }}>
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </button>
-        </form>
-        {/* --- Phần UI mới cho Google Login --- */}
-        {/* <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0' }}>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }}></div>
-          <span style={{ margin: '0 10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>hoặc</span>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }}></div>
-        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => toast.error('Lỗi kết nối với Google')}
-            theme="outline"
-            size="large"
-            text="signin_with"
-            shape="rectangular"
-          />
-        </div> */}
-        {/* --------------------------------- */}
-        <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '.87rem', color: 'var(--text-muted)' }}>
-          Chưa có tài khoản? <Link to="/register" style={{ color: 'var(--brand)', fontWeight: 600 }}>Đăng ký ngay</Link>
-        </p>
+        {sent ? (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ marginBottom: '1rem' }}>
+              Chúng tôi đã gửi mật khẩu mới đến email <b>{email}</b>.
+              Vui lòng kiểm tra hộp thư (kể cả mục spam) và đăng nhập lại bằng mật khẩu mới.
+            </p>
+            <Link to="/login" style={{ color: 'var(--brand)', fontWeight: 600 }}>
+              Quay lại đăng nhập
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
+            <div>
+              <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>
+                Email đăng ký
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="abc@gmail.com"
+                required
+              />
+            </div>
+            <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', margin: 0 }}>
+              Nhập email bạn đã dùng để đăng ký. Chúng tôi sẽ gửi một mật khẩu mới về email này,
+              bạn có thể đổi lại mật khẩu sau khi đăng nhập.
+            </p>
+            <button className="btn-primary" type="submit" disabled={loading} style={{ marginTop: '.5rem', padding: '.8rem' }}>
+              {loading ? 'Đang gửi...' : 'Gửi mật khẩu mới'}
+            </button>
+          </form>
+        )}
+
+        {!sent && (
+          <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '.87rem', color: 'var(--text-muted)' }}>
+            Nhớ ra mật khẩu rồi? <Link to="/login" style={{ color: 'var(--brand)', fontWeight: 600 }}>Đăng nhập</Link>
+          </p>
+        )}
       </div>
     </div>
   )
