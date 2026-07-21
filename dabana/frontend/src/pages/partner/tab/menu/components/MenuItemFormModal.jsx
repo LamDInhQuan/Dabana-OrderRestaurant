@@ -69,7 +69,7 @@ export default function MenuItemFormModal({ open, item, categories, onClose, onS
 
             <div>
               <label style={label}>Giá (₫)</label>
-              <input type="number" min="1" step="1000" value={form.price}
+              <input type="number" min="1000" step="1000" value={form.price}
                 onChange={(e) => change('price', e.target.value)} required />
             </div>
 

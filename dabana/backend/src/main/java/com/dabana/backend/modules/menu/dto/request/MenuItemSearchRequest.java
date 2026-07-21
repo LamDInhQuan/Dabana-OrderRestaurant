@@ -1,8 +1,11 @@
 package com.dabana.backend.modules.menu.dto.request;
 
 import com.dabana.backend.modules.menu.util.MenuItemStatus;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 /**
  * Tham so loc/tim kiem/phan trang cho danh sach mon an.
@@ -21,9 +24,14 @@ public class MenuItemSearchRequest {
 
     private String keyword;
 
+    private BigDecimal priceMin;
+
+    private BigDecimal priceMax;
+
     @Min(0)
     private int page = 0;
 
     @Min(1)
+    @Max(100)
     private int size = 20;
 }

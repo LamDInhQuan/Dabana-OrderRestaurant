@@ -130,6 +130,11 @@ export const menuApi = {
   updateItemStatus:     (id, status)      => api.patch(`/menu/items/${id}/status`, { status }),
   bulkUpdateItemStatus: (itemIds, status) => api.patch('/menu/items/bulk-status', { itemIds, status }),
 
+  // --- Thong ke (4 the: tong so, dang ban, tam an, danh muc) ---
+  // 1 endpoint gop, BE tra ve bang 1 query GROUP BY duy nhat,
+  // thay the cho viec goi searchItems 3 lan (size=1) nhu truoc.
+  getItemStats: (bid) => api.get(`/menu/branches/${bid}/items/stats`),
+
   // --- Anh phu cua mon (ngoai imageUrl chinh tren item) ---
   getImagesByItem: (itemId)        => api.get(`/menu/items/${itemId}/images`),
   addImage:        (data)          => api.post('/menu/images', data),

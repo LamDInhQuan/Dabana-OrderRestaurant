@@ -8,6 +8,7 @@ import com.dabana.backend.modules.menu.dto.response.MenuCategoryResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemImageResponse;
 import com.dabana.backend.modules.menu.dto.response.MenuItemResponse;
 import com.dabana.backend.modules.menu.dto.response.PageResponse;
+import com.dabana.backend.modules.menu.dto.response.MenuItemStatsResponse;
 import com.dabana.backend.modules.menu.entity.MenuCategory;
 import com.dabana.backend.modules.menu.entity.MenuItem;
 import com.dabana.backend.modules.menu.entity.MenuItemImage;
@@ -111,7 +112,8 @@ public class MenuService implements IMenuService {
 
         MenuItem item = new MenuItem();
         item.setCategory(category);
-        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(), request.getImageUrl(), request.getStatus(), request.getDisplayOrder());
+        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(),
+                request.getImageUrl(), request.getStatus(), request.getDisplayOrder());
         return buildItemResponse(itemRepository.save(item), true);
     }
 
@@ -123,7 +125,8 @@ public class MenuService implements IMenuService {
         ensureItemNameAvailable(targetCategory.getId(), request.getItemName(), item.getId());
 
         item.setCategory(targetCategory);
-        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(), request.getImageUrl(), request.getStatus(), request.getDisplayOrder());
+        applyItemRequest(item, request.getItemName(), request.getDescription(), request.getPrice(),
+                request.getImageUrl(), request.getStatus(), request.getDisplayOrder());
         return buildItemResponse(itemRepository.save(item), true);
     }
 
@@ -145,10 +148,29 @@ public class MenuService implements IMenuService {
         Specification<MenuItem> spec = buildSearchSpecification(request);
         Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by(
                 Sort.Order.asc("displayOrder"),
-                Sort.Order.asc("id")
-        ));
+                Sort.Order.asc("id")));
         Page<MenuItem> page = itemRepository.findAll(spec, pageable);
         return PageResponse.from(page.map(item -> buildItemResponse(item, false)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MenuItemStatsResponse getItemStats(Long branchId) {
+        validateBranch(branchId);
+        List<MenuItemRepository.StatusCount> counts = itemRepository.countByBranchGroupedByStatus(branchId);
+
+        long selling = 0;
+        long outOfStock = 0;
+        long total = 0;
+        for (MenuItemRepository.StatusCount c : counts) {
+            total += c.getTotal();
+            if (c.getStatus() == MenuItemStatus.SELLING) {
+                selling = c.getTotal();
+            } else if (c.getStatus() == MenuItemStatus.OUT_OF_STOCK) {
+                outOfStock = c.getTotal();
+            }
+        }
+        return new MenuItemStatsResponse(total, selling, outOfStock);
     }
 
     private Specification<MenuItem> buildSearchSpecification(MenuItemSearchRequest request) {
@@ -167,6 +189,12 @@ public class MenuService implements IMenuService {
             if (request.getKeyword() != null && !request.getKeyword().isBlank()) {
                 String likeKeyword = "%" + request.getKeyword().trim().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get("itemName")), likeKeyword));
+            }
+            if (request.getPriceMin() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("price"), request.getPriceMin()));
+            }
+            if (request.getPriceMax() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("price"), request.getPriceMax()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -246,22 +274,26 @@ public class MenuService implements IMenuService {
     private void ensureCategoryNameAvailable(Long branchId, String categoryName, Long currentCategoryId) {
         categoryRepository.findByBranchIdAndCategoryNameIgnoreCase(branchId, categoryName.trim())
                 .filter(existing -> currentCategoryId == null || !existing.getId().equals(currentCategoryId))
-                .ifPresent(existing -> { throw new BusinessException(MenuErrorCode.CATEGORY_ALREADY_EXISTS); });
+                .ifPresent(existing -> {
+                    throw new BusinessException(MenuErrorCode.CATEGORY_ALREADY_EXISTS);
+                });
     }
 
     private void ensureItemNameAvailable(Long categoryId, String itemName, Long currentItemId) {
         itemRepository.findByCategoryIdAndItemNameIgnoreCase(categoryId, itemName.trim())
                 .filter(existing -> currentItemId == null || !existing.getId().equals(currentItemId))
-                .ifPresent(existing -> { throw new BusinessException(MenuErrorCode.MENU_ITEM_ALREADY_EXISTS); });
+                .ifPresent(existing -> {
+                    throw new BusinessException(MenuErrorCode.MENU_ITEM_ALREADY_EXISTS);
+                });
     }
 
     private void applyItemRequest(MenuItem item,
-                                  String itemName,
-                                  String description,
-                                  java.math.BigDecimal price,
-                                  String imageUrl,
-                                  MenuItemStatus status,
-                                  Integer displayOrder) {
+            String itemName,
+            String description,
+            java.math.BigDecimal price,
+            String imageUrl,
+            MenuItemStatus status,
+            Integer displayOrder) {
         item.setItemName(itemName.trim());
         item.setDescription(description);
         item.setPrice(price);

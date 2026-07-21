@@ -15,7 +15,10 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "rt_menu_items")
+@Table(name = "rt_menu_items", indexes = {
+        @Index(name = "idx_menu_items_category_status", columnList = "category_id, status")
+})
+
 public class MenuItem {
 
     @Id

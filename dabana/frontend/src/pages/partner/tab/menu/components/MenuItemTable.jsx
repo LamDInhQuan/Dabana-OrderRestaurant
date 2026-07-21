@@ -1,12 +1,13 @@
+import { memo } from 'react'
 import { getStatusMeta } from '../utils/menuStatusMeta'
 
 const cellHead = { textAlign: 'left', padding: '.75rem 1rem', fontSize: '.75rem', color: 'var(--text-muted)', fontWeight: 600 }
 const cell = { padding: '.75rem 1rem', fontSize: '.85rem', verticalAlign: 'middle' }
 
-export default function MenuItemTable({
+function MenuItemTable({
   items, loading, pageInfo, savingItemId,
   selectedIds, onToggleSelect, onToggleSelectAll,
-  onEdit, onToggleStatus, onGoToPage, categoryNameById,
+  onEdit, onToggleStatus, onDelete, onGoToPage, categoryNameById,
 }) {
   const allOnPageSelected = items.length > 0 && items.every((it) => selectedIds.includes(it.id))
 
@@ -44,7 +45,15 @@ export default function MenuItemTable({
                   </td>
                   <td style={cell}>
                     {item.imageUrl
-                      ? <img src={item.imageUrl} alt={item.itemName} style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }} />
+                      ? <img
+                          src={item.imageUrl}
+                          alt={item.itemName}
+                          width={40}
+                          height={40}
+                          loading="lazy"
+                          decoding="async"
+                          style={{ width: 40, height: 40, borderRadius: 6, objectFit: 'cover' }}
+                        />
                       : <div style={{ width: 40, height: 40, borderRadius: 6, background: 'var(--border)' }} />}
                   </td>
                   <td style={cell}>
@@ -63,6 +72,9 @@ export default function MenuItemTable({
                       <button className="btn-outline btn-sm" onClick={() => onEdit(item)}>Sửa</button>
                       <button className="btn-outline btn-sm" disabled={saving} onClick={() => onToggleStatus(item)}>
                         {item.status === 'SELLING' ? 'Ẩn' : 'Hiện'}
+                      </button>
+                      <button className="btn-outline btn-sm red" disabled={saving} onClick={() => onDelete(item.id)}>
+                        Xoá
                       </button>
                     </div>
                   </td>
@@ -87,3 +99,5 @@ export default function MenuItemTable({
     </div>
   )
 }
+
+export default memo(MenuItemTable)

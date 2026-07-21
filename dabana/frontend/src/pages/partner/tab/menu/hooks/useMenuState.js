@@ -1,20 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { menuApi } from '../../../../../api'
-
-/**
- * menuApi (src/api/index.js) co cac ham sau, map 1-1 voi MenuController:
- *   getCategories(branchId)                          GET  /api/menu/branches/{branchId}/categories
- *   createCategory(payload)                          POST /api/menu/categories
- *   updateCategory(categoryId, payload)               PUT  /api/menu/categories/{categoryId}
- *   deleteCategory(categoryId)                     DELETE /api/menu/categories/{categoryId}
- *   searchItems(params)                              GET  /api/menu/items/search
- *   createItem(payload)                              POST /api/menu/items
- *   updateItem(itemId, payload)                       PUT  /api/menu/items/{itemId}
- *   deleteItem(itemId)                              DELETE /api/menu/items/{itemId}
- *   updateItemStatus(itemId, status)                PATCH /api/menu/items/{itemId}/status
- *   bulkUpdateItemStatus(itemIds, status)            PATCH /api/menu/items/bulk-status
- */
 
 export const MENU_ITEM_STATUS = {
   SELLING: 'SELLING',
@@ -100,11 +86,9 @@ export function useMenuState(branchId) {
       await menuApi.deleteCategory(categoryId)
       toast.success('Đã xoá danh mục')
       await loadCategories()
-      // Neu dang loc theo danh muc vua xoa thi bo loc do di
       setFilters((prev) => prev.categoryId === categoryId ? { ...prev, categoryId: null } : prev)
       return true
     } catch (err) {
-      // BE co the chan xoa neu danh muc con mon (MENU_ITEM_ALREADY_EXISTS-kieu rang buoc), giu nguyen message tu BE
       toast.error(err.response?.data?.message || 'Không thể xoá danh mục')
       return false
     }
@@ -119,6 +103,8 @@ export function useMenuState(branchId) {
       categoryId: f.categoryId || undefined,
       status: f.status || undefined,
       keyword: f.keyword?.trim() || undefined,
+      priceMin: f.priceMin ?? undefined,
+      priceMax: f.priceMax ?? undefined,
       page: overrides.page ?? pageInfo.page,
       size: pageInfo.size,
     }
@@ -138,7 +124,7 @@ export function useMenuState(branchId) {
         totalPages: data.totalPages ?? 0,
         last: data.last ?? true,
       })
-      setSelectedIds([]) // doi trang/loc -> bo chon cu de tranh bulk nham sang item khong con hien thi
+      setSelectedIds([])
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không tải được danh sách món')
     } finally {
@@ -146,15 +132,12 @@ export function useMenuState(branchId) {
     }
   }, [branchId, buildSearchParams])
 
-  useEffect(() => { loadItems({ page: 0 }) }, [branchId, filters]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadItems({ page: 0 }) }, [branchId, filters])
 
   const setFilter = useCallback((key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
   }, [])
 
-  // Dung cho form filter co nut "Loc" rieng: gop nhieu field (keyword, categoryId,
-  // status, priceMin, priceMax) vao 1 lan setState -> chi 1 lan re-fetch, thay vi
-  // goi setFilter() tung field roi moi field kich hoat 1 lan render/fetch.
   const applyFilters = useCallback((patch) => {
     setFilters((prev) => ({ ...prev, ...patch }))
   }, [])
@@ -163,19 +146,7 @@ export function useMenuState(branchId) {
 
   const goToPage = useCallback((page) => { loadItems({ page }) }, [loadItems])
 
-  // Khoang gia: BE /items/search chua ho tro minPrice/maxPrice nen loc tam o phia FE
-  // tren du lieu cua TRANG HIEN TAI. Luu y: cach nay khong chinh xac 100% khi ket hop
-  // voi phan trang server (vi du trang 1 co the het mon phu hop du con o trang 2).
-  // Neu can loc gia chinh xac, nen bo sung minPrice/maxPrice vao MenuItemSearchRequest o BE.
-  const visibleItems = useMemo(() => {
-    if (filters.priceMin == null && filters.priceMax == null) return items
-    return items.filter((it) => {
-      const price = Number(it.price)
-      if (filters.priceMin != null && price < filters.priceMin) return false
-      if (filters.priceMax != null && price > filters.priceMax) return false
-      return true
-    })
-  }, [items, filters.priceMin, filters.priceMax])
+  const visibleItems = items
 
   const createItem = useCallback(async (payload) => {
     try {
@@ -188,7 +159,6 @@ export function useMenuState(branchId) {
       toast.error(err.response?.data?.message || 'Lỗi thêm món')
       return false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadItems])
 
   const updateItem = useCallback(async (itemId, payload) => {
@@ -205,10 +175,10 @@ export function useMenuState(branchId) {
     } finally {
       setSavingItemId(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadItems])
 
   const deleteItem = useCallback(async (itemId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xoá món ăn này?')) return false
     try {
       await menuApi.deleteItem(itemId)
       toast.success('Đã xoá món')
@@ -219,17 +189,13 @@ export function useMenuState(branchId) {
       toast.error(err.response?.data?.message || 'Lỗi xoá món')
       return false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadItems])
 
-  // Nut "An" tren tung dong: chi dao SELLING <-> OUT_OF_STOCK (tam an / hien lai),
-  // KHONG dung de chuyen sang DISCONTINUED (ngung ban han che qua form sua mon).
   const toggleItemStatus = useCallback(async (item) => {
     const next = item.status === MENU_ITEM_STATUS.SELLING
       ? MENU_ITEM_STATUS.OUT_OF_STOCK
       : MENU_ITEM_STATUS.SELLING
     setSavingItemId(item.id)
-    // Cap nhat lac quan tren danh sach dang hien de UI phan hoi ngay
     const previous = items
     setItems((prev) => prev.map((it) => it.id === item.id ? { ...it, status: next } : it))
     try {
@@ -242,10 +208,9 @@ export function useMenuState(branchId) {
     } finally {
       setSavingItemId(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items])
 
-  // ---------------- Chon nhieu + bulk status ----------------
+  // ---------------- Chon nhieu + bulk action ----------------
 
   const toggleSelect = useCallback((itemId) => {
     setSelectedIds((prev) => prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId])
@@ -277,29 +242,42 @@ export function useMenuState(branchId) {
     } finally {
       setSavingBulk(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, loadItems])
+
+  const bulkDeleteItems = useCallback(async () => {
+    if (selectedIds.length === 0) return false
+    if (!window.confirm(`Bạn có chắc muốn xoá ${selectedIds.length} món ăn đã chọn?`)) return false
+
+    setSavingBulk(true)
+    try {
+      await Promise.all(selectedIds.map((id) => menuApi.deleteItem(id)))
+      toast.success(`Đã xoá ${selectedIds.length} món`)
+      setSelectedIds([])
+      await loadItems()
+      await loadStats()
+      return true
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi xoá hàng loạt')
+      return false
+    } finally {
+      setSavingBulk(false)
+    }
   }, [selectedIds, loadItems])
 
   // ---------------- Thong ke (4 the) ----------------
-  // Khong co API tong hop rieng nen goi searchItems voi size=1 chi de doc totalElements,
-  // gon nhe hon la tai toan bo danh sach mon ve FE roi dem tay.
 
   const loadStats = useCallback(async () => {
     if (!branchId) return
     setLoadingStats(true)
     try {
-      const [totalRes, sellingRes, outOfStockRes] = await Promise.all([
-        menuApi.searchItems({ branchId: Number(branchId), page: 0, size: 1 }),
-        menuApi.searchItems({ branchId: Number(branchId), status: MENU_ITEM_STATUS.SELLING, page: 0, size: 1 }),
-        menuApi.searchItems({ branchId: Number(branchId), status: MENU_ITEM_STATUS.OUT_OF_STOCK, page: 0, size: 1 }),
-      ])
+      const res = await menuApi.getItemStats(branchId)
+      const data = unwrap(res) || {}
       setStats({
-        total: unwrap(totalRes)?.totalElements ?? 0,
-        selling: unwrap(sellingRes)?.totalElements ?? 0,
-        outOfStock: unwrap(outOfStockRes)?.totalElements ?? 0,
+        total: data.total ?? 0,
+        selling: data.selling ?? 0,
+        outOfStock: data.outOfStock ?? 0,
       })
     } catch (err) {
-      // Khong show toast cho phan thong ke de tranh spam loi, chi log
       console.error('Không tải được thống kê thực đơn', err)
     } finally {
       setLoadingStats(false)
@@ -320,11 +298,8 @@ export function useMenuState(branchId) {
     reloadItems: loadItems, goToPage,
     createItem, updateItem, deleteItem, toggleItemStatus,
 
-    // filter
-    filters, setFilter, applyFilters, resetFilters,
-
     // chon nhieu + bulk
-    selectedIds, toggleSelect, toggleSelectAllOnPage, clearSelection, savingBulk, bulkUpdateStatus,
+    selectedIds, toggleSelect, toggleSelectAllOnPage, clearSelection, savingBulk, bulkUpdateStatus, bulkDeleteItems,
 
     // thong ke
     stats: { ...stats, categoryCount: categories.length }, loadingStats,
