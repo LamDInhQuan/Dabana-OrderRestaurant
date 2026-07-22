@@ -3,7 +3,9 @@ package com.dabana.backend.modules.booking;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.service.BookingItemService;
@@ -13,10 +15,12 @@ import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.service.AvailableSlotService;
 import com.dabana.backend.modules.branch2.util.BranchErrorCode;
+import com.dabana.backend.modules.diningtable.service.DiningTableService;
 import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
 //import com.dabana.backend.modules.menu.MenuItem;
 //import com.dabana.backend.modules.menu.MenuItemStatus;
 import com.dabana.backend.modules.menu.repository.MenuItemRepository;
+import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.policy.DepositPolicy;
 import com.dabana.backend.modules.policy.DepositPolicyRepository;
 import com.dabana.backend.modules.policy.DepositType;
@@ -27,6 +31,7 @@ import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -58,10 +63,12 @@ public class BookingService {
     private final BookingItemService bookingItemService;
     private final BookingTableService bookingTableService;
     private final BookingMapper bookingMapper;
-    private final IDiningTableService diningTableService;
+    private final DiningTableService diningTableService;
+    private final UserRepository userRepository ;
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va broadcast.
     private final ApplicationEventPublisher eventPublisher;
+    private final OtpService otpService ;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(

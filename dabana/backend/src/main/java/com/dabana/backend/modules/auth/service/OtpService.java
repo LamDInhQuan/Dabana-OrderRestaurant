@@ -29,8 +29,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OtpService implements IOtpService {
 
     private final MailService mailService;
-    private final OtpVerificationRepository otpVerificationRepository ;
-    private record OtpEntry(String code, LocalDateTime expiresAt, int failedAttempts, LocalDateTime lockedUntil) {}
+    private final OtpVerificationRepository otpVerificationRepository;
+
+    private record OtpEntry(String code, LocalDateTime expiresAt, int failedAttempts, LocalDateTime lockedUntil) {
+    }
 
     private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
     private static final int OTP_VALID_MINUTES = 5;
@@ -39,7 +41,7 @@ public class OtpService implements IOtpService {
 
     @Transactional
     @Override
-    public String generateAndSend(String identifier , OtpPurpose purpose) {
+    public String generateAndSend(String identifier, OtpPurpose purpose) {
         if (!StringUtils.hasText(identifier)) {
             throw new BusinessException(AuthErrorCode.OTP_EMAIL_INVAILID);
         }
@@ -59,7 +61,7 @@ public class OtpService implements IOtpService {
         // Gui OTP that qua email. Neu identifier khong phai dinh dang email (vi du la SDT)
         // thi tam thoi chi log lai, vi he thong hien chua tich hop SMS.
         if (identifier.contains("@")) {
-            mailService.sendOtpEmail(identifier, code, OTP_VALID_MINUTES);
+            mailService.sendOtpEmail(identifier, code, OTP_VALID_MINUTES, purpose);
         } else {
             log.info("[OTP] Identifier {} khong phai email, chua ho tro gui SMS. Ma OTP: {}", identifier, code);
         }
@@ -69,7 +71,7 @@ public class OtpService implements IOtpService {
 
     @Transactional
     @Override
-    public Boolean verify(String identifier, String inputCode , OtpPurpose purpose) {
+    public Boolean verify(String identifier, String inputCode, OtpPurpose purpose) {
         OtpVerification otp = otpVerificationRepository.findFirstByEmailAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(identifier, purpose)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.OTP_EMAIL_INVAILID));
         // Check hết hạn

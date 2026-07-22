@@ -4,8 +4,13 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.BaseController;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.auth.service.OtpService;
+import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
 import com.dabana.backend.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +31,7 @@ public class BookingController extends BaseController {
 
     private final BookingService bookingService;
     private final CurrentUserProvider currentUserProvider;
+    private final OtpService otpService ;
 
     /** Buoc 3 (+ AF01): tao yeu cau giu ban tam thoi */
     @PostMapping("/hold")

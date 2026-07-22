@@ -2,6 +2,7 @@ package com.dabana.backend.modules.auth.service;
 
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +33,6 @@ public class MailService {
      * Neu app.mail.enabled=false (moi truong dev khong co SMTP that) thi chi log ra console,
      * khong nem loi de khong chan luong dang ky.
      */
-    public void sendOtpEmail(String toEmail, String otpCode, int validMinutes) {
-        sendOtpEmail(toEmail, otpCode, validMinutes, OtpPurpose.REGISTER);
-    }
 
     /**
      * Gửi email OTP động theo mục đích (OtpPurpose)
