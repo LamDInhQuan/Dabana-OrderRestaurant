@@ -14,6 +14,7 @@ import { useFloorPlanState } from './tab/table_layout/hooks/useFloorPlanState';
 
 import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
+import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -575,6 +576,7 @@ export default function PartnerDashboard() {
     { id: 'reviews', icon: '⭐', label: 'Đánh giá', badge: reviews.filter(r => !r.reply && !r.hidden).length },
     { id: 'reports', icon: '📈', label: 'Thống kê' },
     { id: 'policy', icon: '💰', label: 'Chính sách' },
+    { id: 'operating-hours', icon: '⏰', label: 'Khung giờ hoạt động' },
     { id: 'notifications', icon: '🔔', label: 'Thông báo', badge: unreadCount },
     { id: 'settings', icon: '⚙️', label: 'Cài đặt' },
   ]
@@ -1175,6 +1177,11 @@ export default function PartnerDashboard() {
           {/* ══════ POLICY ══════ */}
           {activeTab === "policy" && (
             <PolicyBranchTab branch={activeBranch} branches={branches} />
+          )}
+
+          {/* ══════ OPERATING HOUR ══════ */}
+          {activeTab === "operating-hours" && (
+            <BranchScheduleTab branch={activeBranch} />
           )}
 
           {/* ══════ SETTINGS: B03 + B04 ══════ */}

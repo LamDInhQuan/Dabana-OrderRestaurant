@@ -58,6 +58,7 @@ export const authApi = {
   resendOtp: (data) => api.post('/auth/resend-otp', data),
   refresh: (data) => api.post('/auth/refresh', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  sendOtp: (data) => api.post('/auth/send-otp', data),
 }
 
 // ===== Branch/Restaurant API =====
@@ -108,26 +109,27 @@ export const bookingApi = {
   cancel: (id, d) => api.post(`/bookings/${id}/cancel`, d),
   checkIn: (id) => api.post(`/bookings/${id}/check-in`),
   checkOut: (id) => api.post(`/bookings/${id}/check-out`),
+  guestLookup: (data) => api.post('/bookings/guest-lookup', data),
 }
 
 // ===== Menu API (B06) =====
 // Returns categories with items nested: [{ id, categoryName, items:[{ id, itemName, price, imageUrl, status }] }]
 export const menuApi = {
   // --- Chi nhanh / danh muc ---
-  getByBranch:    (bid)                => api.get(`/menu/branches/${bid}`),
-  getCategories:  (bid)                => api.get(`/menu/branches/${bid}/categories`),
-  createCategory: (data)               => api.post('/menu/categories', data),
-  updateCategory: (categoryId, data)   => api.put(`/menu/categories/${categoryId}`, data),
-  deleteCategory: (categoryId)         => api.delete(`/menu/categories/${categoryId}`),
+  getByBranch: (bid) => api.get(`/menu/branches/${bid}`),
+  getCategories: (bid) => api.get(`/menu/branches/${bid}/categories`),
+  createCategory: (data) => api.post('/menu/categories', data),
+  updateCategory: (categoryId, data) => api.put(`/menu/categories/${categoryId}`, data),
+  deleteCategory: (categoryId) => api.delete(`/menu/categories/${categoryId}`),
 
   // --- Mon an ---
   getItemsByCategory: (categoryId) => api.get(`/menu/categories/${categoryId}/items`),
   // params: { branchId, categoryId, status, keyword, page, size } - tat ca deu optional
-  searchItems:  (params)      => api.get('/menu/items/search', { params }),
-  createItem:   (data)        => api.post('/menu/items', data),
-  updateItem:   (id, d)       => api.put(`/menu/items/${id}`, d),
-  deleteItem:   (id)          => api.delete(`/menu/items/${id}`),
-  updateItemStatus:     (id, status)      => api.patch(`/menu/items/${id}/status`, { status }),
+  searchItems: (params) => api.get('/menu/items/search', { params }),
+  createItem: (data) => api.post('/menu/items', data),
+  updateItem: (id, d) => api.put(`/menu/items/${id}`, d),
+  deleteItem: (id) => api.delete(`/menu/items/${id}`),
+  updateItemStatus: (id, status) => api.patch(`/menu/items/${id}/status`, { status }),
   bulkUpdateItemStatus: (itemIds, status) => api.patch('/menu/items/bulk-status', { itemIds, status }),
 
   // --- Thong ke (4 the: tong so, dang ban, tam an, danh muc) ---
@@ -136,10 +138,10 @@ export const menuApi = {
   getItemStats: (bid) => api.get(`/menu/branches/${bid}/items/stats`),
 
   // --- Anh phu cua mon (ngoai imageUrl chinh tren item) ---
-  getImagesByItem: (itemId)        => api.get(`/menu/items/${itemId}/images`),
-  addImage:        (data)          => api.post('/menu/images', data),
-  updateImage:      (imageId, data) => api.put(`/menu/images/${imageId}`, data),
-  deleteImage:      (imageId)       => api.delete(`/menu/images/${imageId}`),
+  getImagesByItem: (itemId) => api.get(`/menu/items/${itemId}/images`),
+  addImage: (data) => api.post('/menu/images', data),
+  updateImage: (imageId, data) => api.put(`/menu/images/${imageId}`, data),
+  deleteImage: (imageId) => api.delete(`/menu/images/${imageId}`),
 }
 
 // ===== Waitlist API (B10) =====
@@ -175,8 +177,16 @@ export const restaurantApi = {
 // để khung giờ đặt bàn lấy đúng giờ mở/đóng cửa thật; UI đã có fallback an toàn
 // nếu call này 404/lỗi (xem BookingFlow.jsx).
 export const operatingHourApi = {
-  getByBranch: (branchId) => api.get(`/branchs/operating-hours/branch/${branchId}`),
+  getByBranch: (branchId) => api.get(`/branchs/operating-hours/${branchId}`),
   save: (branchId, arr) => api.post(`/branchs/operating-hours/branch/${branchId}/save`, arr),
+}
+
+export const branchScheduleExceptionApi = {
+  getByBranch: (branchId) => api.get(`/branchs/${branchId}/schedule-exceptions`),
+  getById: (branchId, id) => api.get(`/branchs/${branchId}/schedule-exceptions/${id}`),
+  create: (branchId, data) => api.post(`/branchs/${branchId}/schedule-exceptions`, data),
+  update: (branchId, id, data) => api.put(`/branchs/${branchId}/schedule-exceptions/${id}`, data),
+  delete: (branchId, id) => api.delete(`/branchs/${branchId}/schedule-exceptions/${id}`),
 }
 
 // ===== Available slot API (B01) =====
@@ -321,14 +331,14 @@ export const adminApi = {
 }
 
 export const paymentApi = {
-  createPaymentLink: (bookingId) => api.post('/payment/create-link', { 
-    bookingId: parseInt(bookingId) 
+  createPaymentLink: (bookingId) => api.post('/payment/create-link', {
+    bookingId: Number(bookingId)
   }),
   // API lấy thông tin thanh toán chi tiết (QR, ngân hàng, số tiền)
-  getDetail: (bookingId) => api.get(`/api/v1/payments/${bookingId}`),
-  
+  getDetail: (bookingId) => api.get(`/payment/info/${bookingId}`),
+
   // API Polling kiểm tra trạng thái thanh toán hiện tại
-  getStatus: (bookingId) => api.get(`/api/v1/payments/${bookingId}/status`),
+  getStatus: (bookingId) => api.get(`/api/v1/payment/${bookingId}/status`),
 
   // 🌟 ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
   mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`)
