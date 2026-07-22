@@ -10,7 +10,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/dabana_order_restaurant?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
     username: root
-    password: 1234
+    password: 
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -61,6 +61,11 @@ app:
 
   cors:
     allowed-origins: http://localhost:5173,http://localhost:3000
+
+  payment:
+    encryption-secret: ${PAYMENT_ENCRYPTION_SECRET:CS3TEvzM7F1QbiPfK2c50JhtAROnHlNG}
+    cancel-url-template: http://localhost:3000/booking/{reservationId}/deposit-cancelled
+    return-url-template: http://localhost:3000/booking/{reservationId}/deposit-success
 
 logging:
   level:

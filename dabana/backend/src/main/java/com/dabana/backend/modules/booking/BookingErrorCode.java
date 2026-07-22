@@ -109,6 +109,13 @@ public enum BookingErrorCode implements ErrorCode {
             "Món ăn hiện không còn phục vụ"
     ),
 
+    // Tab Goi Mon: sua/xoa mon dat truoc (rs_preorder_items) chi cho phep khi
+    // booking dang CONFIRMED/CHECKED_IN - dung boi BookingItemService.
+    PREORDER_ITEM_NOT_EDITABLE(
+            "PREORDER_ITEM_NOT_EDITABLE",
+            "Chỉ có thể sửa/xoá món đặt trước khi đơn đang Đã xác nhận hoặc Đang phục vụ"
+    ),
+
     // ========= Booking table =========
     TABLE_ALREADY_ASSIGNED(
             "TABLE_ALREADY_ASSIGNED",

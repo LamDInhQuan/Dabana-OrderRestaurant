@@ -1,0 +1,113 @@
+package com.dabana.backend.modules.payment.service;
+
+import com.dabana.backend.modules.payment.entity.DepositPayment;
+import com.dabana.backend.modules.payment.entity.PayosWebhookLog;
+import com.dabana.backend.modules.payment.repository.DepositPaymentRepository;
+import com.dabana.backend.modules.payment.repository.PayosWebhookLogRepository;
+import com.dabana.backend.modules.payment.util.AesEncryptionUtil;
+import com.dabana.backend.modules.payment.util.DepositPaymentStatus;
+import com.dabana.backend.modules.payment.util.PayosSignatureVerifier;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+
+@Slf4j
+@Service
+public class PayosWebhookService {
+
+    private static final DateTimeFormatter PAYOS_DATETIME_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final DepositPaymentRepository depositPaymentRepository;
+    private final PayosWebhookLogRepository payosWebhookLogRepository;
+    private final AesEncryptionUtil aesEncryptionUtil;
+
+    public PayosWebhookService(DepositPaymentRepository depositPaymentRepository,
+                                PayosWebhookLogRepository payosWebhookLogRepository,
+                                AesEncryptionUtil aesEncryptionUtil) {
+        this.depositPaymentRepository = depositPaymentRepository;
+        this.payosWebhookLogRepository = payosWebhookLogRepository;
+        this.aesEncryptionUtil = aesEncryptionUtil;
+    }
+
+    @Transactional
+    public void process(String rawBody) throws Exception {
+        JsonNode root = objectMapper.readTree(rawBody);
+        JsonNode dataNode = root.path("data");
+        String signature = root.path("signature").asText(null);
+        Long orderCode = dataNode.path("orderCode").asLong();
+
+        PayosWebhookLog logEntry = new PayosWebhookLog();
+        logEntry.setOrderCode(orderCode);
+        logEntry.setRawPayload(rawBody);
+        logEntry.setSignature(signature);
+
+        Optional<DepositPayment> depositOpt = depositPaymentRepository.findByOrderCode(orderCode);
+        if (depositOpt.isEmpty()) {
+            logEntry.setSignatureVerified(false);
+            logEntry.setProcessed(false);
+            payosWebhookLogRepository.save(logEntry);
+            log.warn("Webhook payOS: khong tim thay DepositPayment cho orderCode={}", orderCode);
+            return;
+        }
+
+        DepositPayment deposit = depositOpt.get();
+        logEntry.setDepositPayment(deposit);
+        logEntry.setAmount(dataNode.path("amount").decimalValue());
+        logEntry.setReference(dataNode.path("reference").asText(null));
+        logEntry.setAccountNumber(dataNode.path("accountNumber").asText(null));
+        logEntry.setCounterAccountBankId(dataNode.path("counterAccountBankId").asText(null));
+        logEntry.setCounterAccountBankName(dataNode.path("counterAccountBankName").asText(null));
+        logEntry.setCounterAccountName(dataNode.path("counterAccountName").asText(null));
+        logEntry.setCounterAccountNumber(dataNode.path("counterAccountNumber").asText(null));
+        logEntry.setWebhookCode(dataNode.path("code").asText(null));
+        logEntry.setWebhookDesc(dataNode.path("desc").asText(null));
+
+        String transactionDateTimeRaw = dataNode.path("transactionDateTime").asText(null);
+        if (transactionDateTimeRaw != null) {
+            try {
+                logEntry.setTransactionDatetime(LocalDateTime.parse(transactionDateTimeRaw, PAYOS_DATETIME_FORMAT));
+            } catch (Exception ignored) {
+                // giu null neu payOS doi dinh dang, khong lam fail ca webhook
+            }
+        }
+
+        // checksum key CUA BRANCH so huu link thanh toan nay (kenh thanh toan rieng cua branch)
+        String checksumKey = aesEncryptionUtil.decrypt(
+                deposit.getBranchBankAccount().getPayosChecksumKeyEncrypted());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dataMap = objectMapper.convertValue(dataNode, LinkedHashMap.class);
+        boolean verified = PayosSignatureVerifier.verify(dataMap, signature, checksumKey);
+        logEntry.setSignatureVerified(verified);
+
+        if (!verified) {
+            logEntry.setProcessed(false);
+            payosWebhookLogRepository.save(logEntry);
+            log.error("Webhook payOS: SAI CHU KY cho orderCode={} - bo qua", orderCode);
+            return;
+        }
+
+        if ("00".equals(logEntry.getWebhookCode()) && deposit.getStatus() != DepositPaymentStatus.PAID) {
+            BigDecimal paidAmount = logEntry.getAmount() != null ? logEntry.getAmount() : deposit.getAmount();
+            deposit.setAmountPaid(paidAmount);
+            deposit.setAmountRemaining(deposit.getAmount().subtract(paidAmount));
+            deposit.setStatus(DepositPaymentStatus.PAID);
+            deposit.setPaidAt(LocalDateTime.now());
+            depositPaymentRepository.save(deposit);
+        }
+
+        logEntry.setProcessed(true);
+        payosWebhookLogRepository.save(logEntry);
+    }
+}

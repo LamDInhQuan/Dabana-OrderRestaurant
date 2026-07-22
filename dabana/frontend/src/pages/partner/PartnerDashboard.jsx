@@ -12,6 +12,9 @@ import PolicyBranchTab from './tab/reservation_policy/policyBranch/PolicyBranchT
 import TableLayoutTab from './tab/table_layout/TableLayoutTab';
 import { useFloorPlanState } from './tab/table_layout/hooks/useFloorPlanState';
 
+import OrderBoardTab from './tab/order_board/OrderBoardTab'
+import { useOrderBoardState } from './tab/order_board/hooks/useOrderBoardState'
+
 import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
 
@@ -239,6 +242,7 @@ export default function PartnerDashboard() {
   const [bkFilter, setBkFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const floorPlan = useFloorPlanState(activeBranch?.id)
+  const orderBoard = useOrderBoardState(activeBranch?.id)
   const menuState = useMenuState(activeBranch?.id)
 
   // ── modal states ───────────────────────────────────
@@ -568,6 +572,7 @@ export default function PartnerDashboard() {
   const TABS = [
     { id: 'dashboard', icon: '📊', label: 'Tổng quan' },
     { id: 'bookings', icon: '📋', label: 'Đặt bàn' },
+    { id: 'order_board', icon: '🛎️', label: 'Gọi món' },
     { id: 'tables', icon: '🪑', label: 'Sơ đồ bàn' },
     { id: 'menu', icon: '🍜', label: 'Thực đơn' },
     { id: 'waitlist', icon: '⏳', label: 'Hàng chờ' },
@@ -878,6 +883,11 @@ export default function PartnerDashboard() {
                 })}
               </div>
             </div>
+          )}
+
+          {/* ══════ GỌI MÓN (TAB GỌI MÓN - realtime bàn) ══════ */}
+          {activeTab === 'order_board' && (
+            <OrderBoardTab orderBoard={orderBoard} />
           )}
 
           {/* ══════ TABLES / SƠ ĐỒ BÀN ══════ */}

@@ -88,6 +88,9 @@ export const tableApi = {
   create: (data) => api.post('/dining-tables/create', data),
   update: (id, data) => api.put(`/dining-tables/update/${id}`, data),
   updateLayout: (payload) => api.put('/dining-tables/positions', payload),
+  // Doi trang thai ban THU CONG (chi EMPTY=1 / CLEANING=4 / MAINTENANCE=5) - dung
+  // o Tab Goi Mon, khong duoc dung de set RESERVED/OCCUPIED (BE se tu choi).
+  updateStatus: (id, status) => api.patch(`/dining-tables/${id}/status`, { status }),
   delete: (id) => api.delete(`/dining-tables/delete/${id}`),
   getAvailable: (branchId, reservationTime, zoneId) =>
     api.get('/dining-tables/available-tables', {
@@ -319,6 +322,31 @@ export const adminApi = {
 
   // F50: xuất báo cáo
   exportReportUrl: (type) => `/api/admin/reports/export?type=${type}`,
+}
+
+// ===== Preorder Item API (Tab Gọi Món - món đặt trước, rs_preorder_items) =====
+// Khop dung backend PreorderItemController (/api/preorder-items).
+export const preorderItemApi = {
+  getByBooking: (bookingId) => api.get(`/preorder-items/booking/${bookingId}`),
+  updateQuantity: (id, quantity) => api.patch(`/preorder-items/${id}/quantity`, { quantity }),
+  deleteItem: (id) => api.delete(`/preorder-items/${id}`),
+}
+
+// ===== Extra Order API (Tab Gọi Món - món gọi thêm, rs_extra_orders) =====
+// Khop dung backend ExtraOrderController (/api/extra-orders).
+export const extraOrderApi = {
+  getByBooking: (bookingId) => api.get(`/extra-orders/booking/${bookingId}`),
+  addItem: (data) => api.post('/extra-orders', data), // { bookingId, menuItemId, quantity }
+  updateQuantity: (id, quantity) => api.patch(`/extra-orders/${id}/quantity`, { quantity }),
+  deleteItem: (id) => api.delete(`/extra-orders/${id}`),
+}
+
+// ===== Order Board API (Tab Gọi Món - realtime bàn/đơn hàng) =====
+// Khop dung backend: GET /api/order-board/branch/{branchId}?zoneId=
+// tra ve { branchId, zones: [{ zoneId, zoneName, description, tables: [...] }] }
+export const orderBoardApi = {
+  getBoard: (branchId, zoneId) =>
+    api.get(`/order-board/branch/${branchId}`, zoneId ? { params: { zoneId } } : undefined),
 }
 
 export const paymentApi = {
