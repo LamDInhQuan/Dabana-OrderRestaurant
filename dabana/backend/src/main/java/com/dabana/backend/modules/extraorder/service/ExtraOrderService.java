@@ -16,7 +16,9 @@ import com.dabana.backend.modules.extraorder.util.ExtraOrderErrorCode;
 import com.dabana.backend.modules.menu.entity.MenuItem;
 import com.dabana.backend.modules.menu.repository.MenuItemRepository;
 import com.dabana.backend.modules.menu.util.MenuItemStatus;
+import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,9 @@ public class ExtraOrderService implements IExtraOrderService {
     private final BookingRepository bookingRepository;
     private final MenuItemRepository menuItemRepository;
     private final ExtraOrderMapper extraOrderMapper;
+    // Task 5: publish event de OrderBoardWebSocketListener (module orderboard) broadcast
+    // qua STOMP khi mon goi them thay doi (khong doi trang thai ban, chi doi don hang/tong tien).
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public List<ExtraOrderResponse> getByBooking(Long bookingId) {
@@ -76,6 +81,7 @@ public class ExtraOrderService implements IExtraOrderService {
         extraOrder.setRecordedBy(currentUser);
 
         extraOrder = extraOrderRepository.save(extraOrder);
+        publishTableBoardChanged(booking);
         return extraOrderMapper.toResponse(extraOrder);
     }
 
@@ -100,6 +106,7 @@ public class ExtraOrderService implements IExtraOrderService {
         extraOrder.setRecordedBy(currentUser);
 
         extraOrder = extraOrderRepository.save(extraOrder);
+        publishTableBoardChanged(extraOrder.getBooking());
         return extraOrderMapper.toResponse(extraOrder);
     }
 
@@ -115,6 +122,21 @@ public class ExtraOrderService implements IExtraOrderService {
             throw new BusinessException(ExtraOrderErrorCode.BOOKING_NOT_CHECKED_IN);
         }
 
+        Booking booking = extraOrder.getBooking();
         extraOrderRepository.delete(extraOrder);
+        publishTableBoardChanged(booking);
+    }
+
+    /**
+     * Task 5: bao Tab Goi Mon realtime rang don hang cua (cac) ban gan voi booking
+     * nay vua thay doi (them/sua/xoa mon goi them). Trang thai ban KHONG doi trong
+     * cac thao tac nay, nhung tong tien tam tinh + danh sach mon (Unified Order) thi
+     * co - listener se broadcast lai toan bo TableBoardResponse SAU KHI commit.
+     */
+    private void publishTableBoardChanged(Booking booking) {
+        List<Long> tableIds = booking.getBookingTables().stream()
+                .map(bt -> bt.getDiningTable().getId())
+                .toList();
+        eventPublisher.publishEvent(new TableBoardChangedEvent(booking.getBranch().getId(), tableIds));
     }
 }

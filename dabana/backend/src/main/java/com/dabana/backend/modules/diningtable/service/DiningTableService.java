@@ -16,11 +16,13 @@ import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.zone.entity.FloorPlan;
 import com.dabana.backend.modules.zone.entity.Zone;
 import com.dabana.backend.modules.zone.repository.ZoneRepository;
 import com.dabana.backend.modules.zone.service.FloorPlanSyncService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +59,9 @@ public class DiningTableService implements IDiningTableService {
     private final BookingRepository bookingRepository;
     private final DiningTableMapper diningTableMapper;
     private final FloorPlanSyncService floorPlanSyncService;
+    // Task 5: publish event de OrderBoardWebSocketListener (module orderboard) broadcast
+    // qua STOMP khi nhan vien doi trang thai ban thu cong (EMPTY/CLEANING/MAINTENANCE).
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -225,6 +230,12 @@ public class DiningTableService implements IDiningTableService {
 
         table.setStatus(targetStatus);
         DiningTable savedTable = diningTableRepository.save(table);
+
+        // Task 5: bao Tab Goi Mon realtime - listener se broadcast SAU KHI transaction
+        // nay commit thanh cong.
+        eventPublisher.publishEvent(new TableBoardChangedEvent(
+                savedTable.getZone().getBranch().getId(), List.of(savedTable.getId())));
+
         return diningTableMapper.toResponse(savedTable);
     }
 

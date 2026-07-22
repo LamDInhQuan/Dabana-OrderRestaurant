@@ -24,10 +24,12 @@ import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.service.IDiningTableService;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -60,6 +62,9 @@ public class BookingService {
     private final BookingTableService bookingTableService;
     private final BookingMapper bookingMapper;
     private final IDiningTableService diningTableService;
+    // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
+    // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va broadcast.
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
@@ -245,6 +250,9 @@ public class BookingService {
                 .map(bt -> bt.getDiningTable().getId())
                 .toList();
         diningTableService.updateStatusForBooking(tableIds, status);
+        // Task 5: bao cho Tab Goi Mon realtime - listener se broadcast qua STOMP
+        // SAU KHI transaction nay commit thanh cong (xem @TransactionalEventListener).
+        eventPublisher.publishEvent(new TableBoardChangedEvent(booking.getBranch().getId(), tableIds));
     }
 
     // ============================================================
