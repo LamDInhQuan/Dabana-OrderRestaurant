@@ -39,15 +39,6 @@ const C = {
 }
 
 // ── Status meta ─────────────────────────────────────────────────
-// Khop dung diningtable/util/DiningTableStatus.java: EMPTY(1) RESERVED(2) OCCUPIED(3) CLEANING(4) MAINTENANCE(5)
-const TABLE_STATUS = {
-  1: { color: C.green, bg: C.greenBg, label: 'Trống', icon: '✓' },
-  2: { color: C.red, bg: C.redBg, label: 'Đã đặt', icon: '📋' },
-  3: { color: C.amber, bg: C.amberBg, label: 'Đang dùng', icon: '👥' },
-  4: { color: C.slate, bg: 'rgba(148,163,184,.12)', label: 'Dọn dẹp', icon: '🧹' },
-  5: { color: C.brown, bg: 'rgba(61,43,31,.1)', label: 'Bảo trì', icon: '🔧' },
-  //   HELD_FOR_WAITLIST: { color: C.purple, bg: C.purpleBg, label: 'Hàng chờ', icon: '⏳' },
-}
 
 const BOOKING_STATUS = {
   CONFIRMED: { color: C.green, bg: C.greenBg, label: 'Đã xác nhận' },
@@ -59,23 +50,7 @@ const BOOKING_STATUS = {
   CANCELLED_BY_RESTAURANT: { color: C.red, bg: C.redBg, label: 'NH huỷ' },
 }
 
-// ── Demo data ────────────────────────────────────────────────────
-const DEMO_BRANCHES = [
-  { id: 1, name: 'Nhà Hàng Sen Vàng – Chi nhánh Hoàn Kiếm', address: '12 Hồ Hoàn Kiếm, Hà Nội', province: 'Hà Nội', phone: '0901234567', latitude: 21.0285, longitude: 105.8542, approvalStatus: 'APPROVED', operatingStatus: 'ACTIVE', status: 2 },
-  { id: 2, name: 'Nhà Hàng Sen Vàng – Chi nhánh Tây Hồ', address: '88 Xuân Diệu, Tây Hồ, Hà Nội', province: 'Hà Nội', phone: '0907654321', latitude: 21.0587, longitude: 105.8228, approvalStatus: 'APPROVED', operatingStatus: 'ACTIVE', status: 2 },
-]
-// B03: hồ sơ thương hiệu chung của nhà hàng đối tác
-const DEMO_RESTAURANT = {
-  restaurantName: 'Nhà Hàng Sen Vàng', logoUrl: '', description: 'Ẩm thực Việt Nam truyền thống với không gian sang trọng, phục vụ các món đặc sản ba miền.',
-  cuisineType: 'Ẩm thực Việt Nam', phone: '0901234567', email: 'contact@senvang.vn', website: 'https://senvang.vn',
-  approvalStatus: 'APPROVED', isActive: true,
-}
-const WEEKDAYS = [
-  ['MONDAY', 'Thứ 2'], ['TUESDAY', 'Thứ 3'], ['WEDNESDAY', 'Thứ 4'], ['THURSDAY', 'Thứ 5'],
-  ['FRIDAY', 'Thứ 6'], ['SATURDAY', 'Thứ 7'], ['SUNDAY', 'Chủ nhật'],
-]
-// B04: khung giờ hoạt động mặc định — mở/đóng cửa theo từng ngày trong tuần
-const DEMO_HOURS = WEEKDAYS.map(([day]) => ({ dayOfWeek: day, openTime: '10:00', closeTime: '22:00', shiftName: 'Cả ngày' }))
+// ── Shared UI helpers ────────────────────────────────────────────
 const BRANCH_STATUS = {
   1: { label: 'Ngừng hoạt động', color: C.muted },
   2: { label: 'Đã duyệt - Hoạt động', color: C.green },
@@ -83,81 +58,6 @@ const BRANCH_STATUS = {
   4: { label: 'Bị từ chối', color: C.red },
   5: { label: 'Tạm ngưng', color: C.red },
 }
-const DEMO_ZONES = {
-  1: [{ id: 1, name: 'Trong nhà', active: true }, { id: 2, name: 'Sân vườn', active: true }, { id: 3, name: 'Phòng VIP', active: true }],
-  2: [{ id: 4, name: 'Tầng 1', active: true }, { id: 5, name: 'Tầng 2', active: true }],
-}
-const DEMO_TABLES = {
-  1: [
-    { id: 101, tableCode: 'A1', capacity: 2, positionX: 12, positionY: 18, status: 'AVAILABLE' },
-    { id: 102, tableCode: 'A2', capacity: 4, positionX: 30, positionY: 18, status: 'RESERVED' },
-    { id: 103, tableCode: 'A3', capacity: 4, positionX: 50, positionY: 18, status: 'OCCUPIED' },
-    { id: 104, tableCode: 'A4', capacity: 6, positionX: 70, positionY: 18, status: 'AVAILABLE' },
-    { id: 105, tableCode: 'A5', capacity: 2, positionX: 12, positionY: 52, status: 'CLEANING' },
-    { id: 106, tableCode: 'A6', capacity: 4, positionX: 30, positionY: 52, status: 'AVAILABLE' },
-    { id: 107, tableCode: 'A7', capacity: 4, positionX: 50, positionY: 52, status: 'HELD_FOR_WAITLIST' },
-    { id: 108, tableCode: 'A8', capacity: 8, positionX: 72, positionY: 52, status: 'AVAILABLE' },
-  ],
-  2: [
-    { id: 201, tableCode: 'B1', capacity: 4, positionX: 20, positionY: 30, status: 'AVAILABLE' },
-    { id: 202, tableCode: 'B2', capacity: 4, positionX: 50, positionY: 30, status: 'RESERVED' },
-    { id: 203, tableCode: 'B3', capacity: 6, positionX: 80, positionY: 30, status: 'AVAILABLE' },
-    { id: 204, tableCode: 'B4', capacity: 2, positionX: 35, positionY: 65, status: 'OCCUPIED' },
-  ],
-  3: [
-    { id: 301, tableCode: 'VIP1', capacity: 8, positionX: 25, positionY: 35, status: 'AVAILABLE' },
-    { id: 302, tableCode: 'VIP2', capacity: 10, positionX: 65, positionY: 35, status: 'RESERVED' },
-    { id: 303, tableCode: 'VIP3', capacity: 6, positionX: 45, positionY: 70, status: 'AVAILABLE' },
-  ],
-  4: [
-    { id: 401, tableCode: 'T1-01', capacity: 2, positionX: 15, positionY: 20, status: 'AVAILABLE' },
-    { id: 402, tableCode: 'T1-02', capacity: 4, positionX: 40, positionY: 20, status: 'AVAILABLE' },
-    { id: 403, tableCode: 'T1-03', capacity: 4, positionX: 65, positionY: 20, status: 'RESERVED' },
-    { id: 404, tableCode: 'T1-04', capacity: 6, positionX: 15, positionY: 60, status: 'AVAILABLE' },
-    { id: 405, tableCode: 'T1-05', capacity: 8, positionX: 55, positionY: 60, status: 'OCCUPIED' },
-  ],
-  5: [
-    { id: 501, tableCode: 'T2-01', capacity: 6, positionX: 20, positionY: 30, status: 'AVAILABLE' },
-    { id: 502, tableCode: 'T2-02', capacity: 4, positionX: 60, positionY: 30, status: 'AVAILABLE' },
-    { id: 503, tableCode: 'T2-03', capacity: 10, positionX: 40, positionY: 65, status: 'AVAILABLE' },
-  ],
-}
-const DEMO_BOOKINGS = [
-  { id: 1001, contactName: 'Nguyễn Minh Châu', contactPhone: '0901234567', tableCode: 'A2', guestCount: 4, reservationTime: '2026-07-10T18:30:00', depositAmount: 200000, status: 'CONFIRMED', note: 'Sinh nhật' },
-  { id: 1002, contactName: 'Lê Trung Kiên', contactPhone: '0912345678', tableCode: 'A3', guestCount: 3, reservationTime: '2026-07-10T19:00:00', depositAmount: 150000, status: 'CHECKED_IN', note: '' },
-  { id: 1003, contactName: 'Trần Thu Hà', contactPhone: '0923456789', tableCode: 'VIP1', guestCount: 6, reservationTime: '2026-07-10T19:30:00', depositAmount: 500000, status: 'CONFIRMED', note: 'Phòng riêng' },
-  { id: 1004, contactName: 'Phạm Văn Bình', contactPhone: '0934567890', tableCode: 'A5', guestCount: 2, reservationTime: '2026-07-10T20:00:00', depositAmount: 0, status: 'PENDING_NO_SHOW', note: '' },
-  { id: 1005, contactName: 'Đỗ Thị Lan', contactPhone: '0945678901', tableCode: 'A6', guestCount: 4, reservationTime: '2026-07-11T12:00:00', depositAmount: 200000, status: 'CONFIRMED', note: 'Ăn trưa công ty' },
-]
-const DEMO_MENU = [
-  { id: 1, name: 'Lẩu Mắm Miền Tây', category: 'Lẩu', price: 320000, status: 'SELLING', emoji: '🥘' },
-  { id: 2, name: 'Tôm Hùm Hấp Gừng', category: 'Hải sản', price: 890000, status: 'SELLING', emoji: '🦞' },
-  { id: 3, name: 'Bò Wagyu Nướng Than', category: 'Món chính', price: 680000, status: 'SELLING', emoji: '🥩' },
-  { id: 4, name: 'Bún Bò Huế Hoàng Gia', category: 'Món chính', price: 95000, status: 'SELLING', emoji: '🍜' },
-  { id: 5, name: 'Chả Cá Lã Vọng', category: 'Món chính', price: 280000, status: 'OUT_OF_STOCK', emoji: '🐟' },
-  { id: 6, name: 'Chè Cung Đình Huế', category: 'Tráng miệng', price: 85000, status: 'SELLING', emoji: '🍮' },
-  { id: 7, name: 'Nước Ép Trái Cây', category: 'Đồ uống', price: 55000, status: 'SELLING', emoji: '🥤' },
-  { id: 8, name: 'Rượu Vang Đỏ Ý', category: 'Đồ uống', price: 450000, status: 'DISCONTINUED', emoji: '🍷' },
-]
-const DEMO_WAITLIST = [
-  { id: 1, customer: { fullName: 'Vũ Quốc Bình' }, guestCount: 4, desiredTime: '2026-07-10T19:00:00', status: 'WAITING', createdAt: '2026-07-10T17:30:00' },
-  { id: 2, customer: { fullName: 'Hoàng Thị Mai' }, guestCount: 2, desiredTime: '2026-07-10T20:00:00', status: 'INVITED', createdAt: '2026-07-10T18:00:00', inviteExpiresAt: new Date(Date.now() + 8 * 60 * 1000).toISOString() },
-]
-// B13: Đánh giá và xếp hạng nhà hàng
-const DEMO_REVIEWS = [
-  { id: 1, customer: { fullName: 'Nguyễn Minh Châu' }, rating: 5, comment: 'Món ăn tuyệt vời, phục vụ chu đáo. Sẽ quay lại!', createdAt: '2026-07-09T20:15:00', reply: null, hidden: false },
-  { id: 2, customer: { fullName: 'Trần Thu Hà' }, rating: 4, comment: 'Không gian đẹp, đồ ăn ngon nhưng chờ hơi lâu vào giờ cao điểm.', createdAt: '2026-07-08T21:00:00', reply: 'Cảm ơn anh/chị đã góp ý, nhà hàng sẽ cải thiện tốc độ phục vụ ạ!', hidden: false },
-  { id: 3, customer: { fullName: 'Phạm Văn Bình' }, rating: 2, comment: 'Bàn không đúng như đặt trước, nhân viên xử lý chưa nhanh.', createdAt: '2026-07-06T19:40:00', reply: null, hidden: false },
-  { id: 4, customer: { fullName: 'Đỗ Thị Lan' }, rating: 5, comment: 'Lẩu mắm ngon xuất sắc, không gian sang trọng.', createdAt: '2026-07-05T12:30:00', reply: null, hidden: false },
-]
-// B09: Thông báo, xác nhận và nhắc lịch hẹn
-const DEMO_NOTIFICATIONS = [
-  { id: 1, type: 'BOOKING_NEW', title: 'Đặt bàn mới', message: 'Nguyễn Minh Châu vừa đặt bàn A2 lúc 18:30 hôm nay', createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), read: false },
-  { id: 2, type: 'WAITLIST_ACCEPTED', title: 'Khách chấp nhận hàng chờ', message: 'Hoàng Thị Mai đã xác nhận nhận bàn từ hàng chờ', createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(), read: false },
-  { id: 3, type: 'CANCEL', title: 'Huỷ đặt bàn', message: 'Đơn #998 đã bị khách huỷ trước 3 giờ (miễn phí cọc)', createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), read: true },
-  { id: 4, type: 'REVIEW_NEW', title: 'Đánh giá mới', message: 'Phạm Văn Bình vừa để lại đánh giá 2 sao', createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), read: true },
-  { id: 5, type: 'NO_SHOW', title: 'Nghi vấn No-show', message: 'Đơn #1004 quá 15 phút chưa check-in, cần xác nhận', createdAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(), read: false },
-]
 
 // ── Shared UI helpers ────────────────────────────────────────────
 const serif = { fontFamily: "'Cormorant Garamond',Georgia,serif" }
@@ -239,12 +139,16 @@ export default function PartnerDashboard() {
   const [notifications, setNotifications] = useState([])  // B09
   const [customerQuery, setCustomerQuery] = useState('')  // B14
   const [reviewFilter, setReviewFilter] = useState('ALL')
+  const [branchStats, setBranchStats] = useState([])
+  const [branchDailyStats, setBranchDailyStats] = useState([])
+  const [statsLoading, setStatsLoading] = useState(false)
   const [replyDrafts, setReplyDrafts] = useState({})  // { [reviewId]: text }
   const [bkFilter, setBkFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const floorPlan = useFloorPlanState(activeBranch?.id)
   const orderBoard = useOrderBoardState(activeBranch?.id)
   const menuState = useMenuState(activeBranch?.id)
+  const [TABLE_STATUS, setTables] = useState([])
 
   // ── modal states ───────────────────────────────────
   const [policyModal, setPolicyModal] = useState(false)
@@ -259,7 +163,7 @@ export default function PartnerDashboard() {
   const [savingRestaurant, setSavingRestaurant] = useState(false)
 
   // B04: khung giờ hoạt động & tạo chi nhánh mới
-  const [operatingHours, setOperatingHours] = useState(DEMO_HOURS)
+  const [operatingHours, setOperatingHours] = useState([])
   const [savingHours, setSavingHours] = useState(false)
   const [newBranchModal, setNewBranchModal] = useState(false)
   const [newBranchForm, setNewBranchForm] = useState({ name: '', address: '', province: '', phone: '', latitude: '', longitude: '' })
@@ -268,17 +172,22 @@ export default function PartnerDashboard() {
   const CATEGORIES = ['Khai vị', 'Món chính', 'Lẩu', 'Hải sản', 'Đồ uống', 'Tráng miệng', 'Khác']
 
   // ── Load data ──────────────────────────────────────
+
+  //dining table status
+ 
+
+
   useEffect(() => {
     branchApi.getMyList()
       .then(r => {
         console.log("r", r);
-        const list = r.data.data || DEMO_BRANCHES; setBranches(list); if (list.length) setActiveBranch(list[0])
+        const list = r.data?.data || []; setBranches(list); if (list.length) setActiveBranch(list[0])
       })
-      .catch(() => { setBranches(DEMO_BRANCHES); setActiveBranch(DEMO_BRANCHES[0]) })
+      .catch(() => { setBranches([]); setActiveBranch(null) })
     // B03: hồ sơ thương hiệu chung của nhà hàng
     restaurantApi.getMine()
-      .then(r => { console.log("r", r); const d = r.data || DEMO_RESTAURANT; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...d })) })
-      .catch(() => { setRestaurant(DEMO_RESTAURANT); setRestaurantForm(f => ({ ...f, ...DEMO_RESTAURANT })) })
+      .then(r => { const d = r.data || null; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...(d || {}) })) })
+      .catch(() => { setRestaurant(null); setRestaurantForm(f => ({ ...f, restaurantName: '', logoUrl: '', description: '', cuisineType: '', phone: '', email: '', website: '' })) })
   }, [])
   console.log("activeBranch", activeBranch);
   useEffect(() => {
@@ -294,9 +203,9 @@ export default function PartnerDashboard() {
     })
     // B04: khung giờ hoạt động của chi nhánh
     operatingHourApi.getByBranch(bid)
-      .then(r => setOperatingHours(r.data?.length ? r.data : DEMO_HOURS))
-      .catch(() => setOperatingHours(DEMO_HOURS))
-    bookingApi.myBookings().then(r => setBookings(r.data.data || DEMO_BOOKINGS)).catch(() => setBookings(DEMO_BOOKINGS))
+      .then(r => setOperatingHours(r.data?.length ? r.data : []))
+      .catch(() => setOperatingHours([]))
+    bookingApi.myBookings().then(r => setBookings(r.data?.data || [])).catch(() => setBookings([]))
     // menu
     // menu (backend tra ve theo Danh muc -> Mon an, can flatten cho UI dang phang)
     menuApi.getByBranch(bid).then(r => {
@@ -311,15 +220,15 @@ export default function PartnerDashboard() {
         description: it.description || '',
         emoji: '🍽️', // backend chua ho tro emoji, chi hien thi mac dinh
       })))
-      setMenu(flat.length ? flat : DEMO_MENU)
-    }).catch(() => { setMenuCategories([]); setMenu(DEMO_MENU) })
-    // waitlist (demo)
-    setWaitlist(DEMO_WAITLIST)
+      setMenu(flat.length ? flat : [])
+    }).catch(() => { setMenuCategories([]); setMenu([]) })
+    // waitlist
+    setWaitlist([])
     // reviews (B13)
     reviewApi.getByBranch(bid).then(r => {
       const list = r.data?.content || r.data || []
-      setReviews(list.length ? list : DEMO_REVIEWS)
-    }).catch(() => setReviews(DEMO_REVIEWS))
+      setReviews(list.length ? list : [])
+    }).catch(() => setReviews([]))
     // B05: chính sách đặt cọc/hủy của chi nhánh
     // depositPolicyApi.getByBranch(bid).then(r => {
     //   if (r.data) setPolicy(p => ({ ...p, ...r.data }))
@@ -331,25 +240,106 @@ export default function PartnerDashboard() {
     notificationApi.getUnread()
       .then(r => {
         const unread = r.data || []
-        setNotifications(unread.length ? unread.map(n => ({ ...n, read: false })) : DEMO_NOTIFICATIONS)
+        setNotifications(unread.length ? unread.map(n => ({ ...n, read: false })) : [])
       })
-      .catch(() => setNotifications(DEMO_NOTIFICATIONS))
+      .catch(() => setNotifications([]))
   }, [])
 
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      if (!activeBranch?.id) return
+      try {
+        setStatsLoading(true)
+        const [dashboardRes, dailyRes] = await Promise.all([
+          restaurantApi.Dashboard(),
+          restaurantApi.PerDayReports(activeBranch.id),
+        ])
+
+        const dashboardData = dashboardRes?.data?.data || []
+        const dailyData = dailyRes?.data?.data || []
+
+        setBranchStats(dashboardData)
+        setBranchDailyStats(dailyData)
+      } catch (error) {
+        console.error('Failed to load branch dashboard stats:', error)
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+
+    fetchDashboardStats()
+  }, [activeBranch?.id])
+
+  // fetch tables
+   useEffect(() => {
+  if (!activeBranch?.id) {
+    setTables([])
+    return
+  }
+
+  tableApi.getByBranch(activeBranch.id)
+    .then(res => {
+      const payload =
+        Array.isArray(res?.data?.data) ? res.data.data :
+        Array.isArray(res?.data?.content) ? res.data.content :
+        Array.isArray(res?.data) ? res.data :
+        []
+
+      setTables(payload)
+    })
+    .catch(() => setTables([]))
+  }, [activeBranch?.id])
+  
+const allTables = TABLE_STATUS
+const tablesByStatus = {
+  1: [],
+  2: [],
+  3: [],
+  4: [],
+  5: [],
+  }
+  
+  allTables.forEach((table) => {
+  const rawStatus = table?.status ?? table?.statusCode ?? table?.statusValue
+  const statusCode = Number(rawStatus)
+
+  if (Number.isNaN(statusCode) || !tablesByStatus[statusCode]) {
+    tablesByStatus[1].push(table)
+    return
+  }
+
+  tablesByStatus[statusCode].push(table)
+})
+
   // ── Computed stats ─────────────────────────────────
-  const allTables = floorPlan.zones.flatMap(z => z.tables || [])
+  // const allTables = floorPlan.zones.flatMap(z => z.tables || [])
   const today = new Date().toDateString()
-  const todayBookings = bookings.filter(b => new Date(b.reservationTime).toDateString() === today)
+  const todayBookings = (bookings || []).filter(b => b?.reservationTime && new Date(b.reservationTime).toDateString() === today)
+
+  const activeBranchStats = branchStats.find(item => item.branchId === activeBranch?.id) || null
+  const branchSummary = activeBranchStats ? {
+    todayBooking: activeBranchStats.todayBooking || 0,
+    totalServing: activeBranchStats.totalServing || 0,
+    totalBooked: activeBranchStats.totalBooked || 0,
+    totalWait: activeBranchStats.totalWait || 0,
+    fillRate: activeBranchStats.fillRate ?? 0,
+    noShowRate30Day: activeBranchStats.no_showRate30Day ?? 0,
+    totalReviewScore: activeBranchStats.totalReviewScore ?? 0,
+  } : null
+  
   const stats = {
     totalTables: allTables.length,
-    available: allTables.filter(t => t.status === 1).length,   // EMPTY
-    occupied: allTables.filter(t => t.status === 3).length,    // OCCUPIED
-    reserved: allTables.filter(t => t.status === 2).length,    // RESERVED
-    fillRate: allTables.length ? Math.round((allTables.filter(t => t.status !== 1).length / allTables.length) * 100) : 0,
-    todayConfirmed: todayBookings.filter(b => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN').length,
+    available: tablesByStatus[1].length,
+    occupied: tablesByStatus[3].length,
+    reserved: tablesByStatus[2].length,
+    cleaning: tablesByStatus[4].length,
+    maintenance: tablesByStatus[5].length,
+    fillRate: branchSummary?.fillRate != null ? Number(branchSummary.fillRate) : (allTables.length ? Math.round((allTables.filter(t => t.status !== 1).length / allTables.length) * 100) : 0),
+    todayConfirmed: branchSummary?.todayBooking ?? todayBookings.filter(b => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN').length,
     totalRevenue: bookings.filter(b => b.status === 'COMPLETED').reduce((s, b) => s + (b.depositAmount || 0), 0),
-    noShowRate: bookings.length ? Math.round((bookings.filter(b => b.status === 'NO_SHOW').length / bookings.length) * 100) : 0,
+    noShowRate: branchSummary?.noShowRate30Day != null ? Number(branchSummary.noShowRate30Day) : (bookings.length ? Math.round((bookings.filter(b => b.status === 'NO_SHOW').length / bookings.length) * 100) : 0),
   }
+  
   // B13: điểm đánh giá trung bình
   const visibleReviews = reviews.filter(r => !r.hidden)
   const avgRating = visibleReviews.length
@@ -745,32 +735,35 @@ export default function PartnerDashboard() {
                       Xem chi tiết →
                     </button>
                   </div>
-                  // dòng 799-813
+  
                   <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                    {Object.entries(TABLE_STATUS).map(([k, { color, bg, label, icon }]) => {
-                      const cnt = allTables.filter(t => t.status === Number(k)).length
-                      if (!cnt) return null
-                      return (
-                        <div key={k} style={{
-                          display: 'flex', alignItems: 'center', gap: '.5rem',
-                          background: bg, border: `1px solid ${color}22`, borderRadius: 4, padding: '.4rem .75rem'
-                        }}>
-                          <span style={{ color, fontSize: '.9rem' }}>{icon}</span>
-                          <span style={{ fontSize: '.8rem', fontWeight: 600, color }}>{cnt}</span>
-                          <span style={{ fontSize: '.75rem', color: C.muted }}>{label}</span>
-                        </div>
-                      )
-                    })}
+                    {[
+                      { code: 1, label: 'Trống', count: tablesByStatus[1].length, color: C.green, bg: C.greenBg },
+                      { code: 2, label: 'Đã đặt', count: tablesByStatus[2].length, color: C.red, bg: C.redBg },
+                      { code: 3, label: 'Đang dùng', count: tablesByStatus[3].length, color: C.amber, bg: C.amberBg },
+                      { code: 4, label: 'Dọn dẹp', count: tablesByStatus[4].length, color: C.slate, bg: 'rgba(148,163,184,.12)' },
+                      { code: 5, label: 'Bảo trì', count: tablesByStatus[5].length, color: C.brown, bg: 'rgba(61,43,31,.1)' },
+                    ].map(({ code, label, count, color, bg }) => (
+                      <div key={code} style={{
+                        display: 'flex', alignItems: 'center', gap: '.5rem',
+                        background: bg, border: `1px solid ${color}22`, borderRadius: 4, padding: '.4rem .75rem'
+                      }}>
+                        <span style={{ color, fontSize: '.8rem', fontWeight: 700 }}>{count}</span>
+                        <span style={{ fontSize: '.75rem', color: C.muted }}>{label}</span>
+                      </div>
+                    ))}
                   </div>
+                  
                   {/* Bar chart */}
-                  {allTables.length > 0 && (
+
+                  {/* {allTables.length > 0 && (
                     <div style={{ height: 12, borderRadius: 99, overflow: 'hidden', display: 'flex' }}>
                       {Object.entries(TABLE_STATUS).map(([k, { color }]) => {
                         const w = allTables.length ? allTables.filter(t => t.status === Number(k)).length / allTables.length * 100 : 0
                         return w > 0 ? <div key={k} style={{ width: `${w}%`, background: color, transition: 'width .5s' }} /> : null
                       })}
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 {/* Upcoming bookings */}
