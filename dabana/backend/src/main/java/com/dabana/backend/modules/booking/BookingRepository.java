@@ -152,4 +152,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         and date(b.createdAt) >= :from
     """)
     List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId,@Param("from") LocalDate from);
+
+    List<Booking> findByContactEmailOrderByCreatedAtDesc(String email);
 }

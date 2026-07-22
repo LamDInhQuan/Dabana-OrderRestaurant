@@ -3,7 +3,10 @@ package com.dabana.backend.modules.booking;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.auth.repository.UserRoleRepository;
+import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.service.BookingItemService;
@@ -50,6 +53,7 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
     private final DiningTableRepository tableRepository;
     private final DepositPolicyRepository policyRepository;
     private final MenuItemRepository menuItemRepository;
@@ -58,6 +62,7 @@ public class BookingService {
     private final BookingItemService bookingItemService;
     private final BookingTableService bookingTableService;
     private final BookingMapper bookingMapper;
+    private final OtpService otpService;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
@@ -70,6 +75,22 @@ public class BookingService {
     // ============================================================
     @Transactional
     public BookingResponse createHold(User user, CreateHoldRequest req) {
+        if (user == null) {
+            // Guest bắt buộc phải nhập Email
+            if (!StringUtils.hasText(req.getContactEmail())) {
+                throw new BusinessException(AuthErrorCode.EMAIL_NOT_NULL);
+            }
+            // 2. CHECK EMAIL ĐÃ TỒN TẠI TRONG BẢNG USERS CHƯA
+            if (userRepository.existsByEmail(req.getContactEmail())) {
+                throw new BusinessException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            // Bắt buộc nhập OTP
+            if (!StringUtils.hasText(req.getOtpCode())) {
+                throw new BusinessException(AuthErrorCode.OTP_REQUIRED);
+            }
+            // Verify OTP cho luồng GUEST_BOOKING (Throw exception ngay nếu mã sai/hết hạn)
+            otpService.verify(req.getContactEmail(), req.getOtpCode(), OtpPurpose.GUEST_BOOKING);
+        }
         // 1. Validate Branch
         Branch branch = branchRepository.findById(req.getBranchId())
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
@@ -79,7 +100,7 @@ public class BookingService {
         }
         // 3. Resolve policy + tính tiền cọc
         BranchPolicy branchPolicy = branchPolicyResolverService.resolve(branch.getId(), req.getReservationTime());
-        DepositResult depositResult = branchPolicyResolverService.calculate(branchPolicy, req.getGuestCount());
+        DepositResult depositResult = branchPolicyResolverService.calculate(branchPolicy, req.getGuestCount(), req.getReservationTime());
         // 4. Validate bàn
         var requestedTableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
         if (requestedTableIds.isEmpty()) {
@@ -90,7 +111,16 @@ public class BookingService {
         bookingTableService.validateBookingConflict(req.getTableIds(), req.getReservationTime());
         // 5. Tạo Booking
         Booking booking = bookingMapper.toEntity(req, user, branch);
-        booking.setStatus(BookingStatus.HOLDING);
+        boolean isDepositRequired = depositResult.getDepositAmount() != null
+                && depositResult.getDepositAmount().compareTo(BigDecimal.ZERO) > 0;
+
+        if (isDepositRequired) {
+            booking.setStatus(BookingStatus.HOLDING);
+            booking.setHoldExpiresAt(LocalDateTime.now().plusMinutes(HOLD_MINUTES));
+        } else {
+            booking.setStatus(BookingStatus.CONFIRMED);
+            booking.setHoldExpiresAt(null); // Không giới hạn giữ bàn vì đã xác nhận đơn
+        }
         String contactName = StringUtils.hasText(req.getContactName())
                 ? req.getContactName()
                 : user.getFullName();
@@ -99,6 +129,7 @@ public class BookingService {
                 : user.getPhone();
         booking.setContactName(contactName);
         booking.setContactPhone(contactPhone);
+        booking.setContactEmail(req.getContactEmail());
         booking.setNote(req.getNote());
         // 6. Snapshot policy
         booking.setSnapshotDepositAmount(depositResult.getDepositAmount());
@@ -130,9 +161,10 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
         // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ
-        if (!booking.getCustomer().getId().equals(user.getId())) {
+        if (user != null && !booking.getCustomer().getId().equals(user.getId())) {
             throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
         }
+
         // 3. Map dữ liệu sang BookingResponse DTO
         BookingResponse response = bookingMapper.toResponse(booking);
         // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
@@ -154,6 +186,16 @@ public class BookingService {
         }
         return response;
     }
+
+    public List<BookingResponse> getBookingsByEmail(String email) {
+        // Truy vấn DB lấy các booking theo email của khách
+        var bookings = bookingRepository.findByContactEmailOrderByCreatedAtDesc(email);
+        // Map sang DTO trả về cho Client
+        return bookings.stream()
+                .map(bookingMapper::toResponse) // Dùng method reference cho gọn
+                .toList();
+    }
+
     /**
      * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
      */
@@ -321,6 +363,7 @@ public class BookingService {
     public void expireOverdueHoldings() {
         List<Booking> expired = bookingRepository.findExpiredHoldings(LocalDateTime.now());
         for (Booking booking : expired) {
+            booking.setQrCode(null);
             booking.setStatus(BookingStatus.EXPIRED);
             bookingRepository.save(booking);
         }

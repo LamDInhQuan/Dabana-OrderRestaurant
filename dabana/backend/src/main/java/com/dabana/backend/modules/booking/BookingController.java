@@ -4,8 +4,13 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.BaseController;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.auth.service.OtpService;
+import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
 import com.dabana.backend.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +30,7 @@ import java.util.List;
 public class BookingController extends BaseController {
 
     private final BookingService bookingService;
-    private final CurrentUserProvider currentUserProvider;
+    private final OtpService otpService ;
 
     /** Buoc 3 (+ AF01): tao yeu cau giu ban tam thoi */
     @PostMapping("/hold")
@@ -47,6 +52,19 @@ public class BookingController extends BaseController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/guest-lookup")
+    public ResponseEntity<ApiResponse<List<BookingResponse>>> getGuestBookings(
+            @Valid @RequestBody GuestLookupRequest request) {
+        // 1. Xác thực tính hợp lệ của OTP với mục đích "GUEST_LOOKUP"
+        boolean isValidOtp = otpService.verify(request.getEmail(), request.getOtp(), OtpPurpose.GUEST_LOOKUP);
+        if (!isValidOtp) {
+            throw new BusinessException(AuthErrorCode.OTP_INVALID);
+        }
+        // 2. Sau khi OTP đúng, truy vấn danh sách đặt bàn theo email
+        List<BookingResponse> bookings = bookingService.getBookingsByEmail(request.getEmail());
+
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookings));
+    }
 //    /** Buoc 4: cap nhat thong tin lien he */
 //    @PatchMapping("/{id}/contact-info")
 //    public ResponseEntity<BookingResponse> updateContactInfo(

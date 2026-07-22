@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -32,7 +33,7 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
 
     private final BranchPolicyRepository branchPolicyRepository;
     private final BranchPolicyMapper branchPolicyMapper;
-    private final ReservationPolicyDepositRuleRepository reservationPolicyDepositRuleRepository ;
+    private final ReservationPolicyDepositRuleRepository reservationPolicyDepositRuleRepository;
 
     @Override
     public BranchPolicyDetailResponse getActivePolicy(Long branchId, LocalDateTime reservationTime) {
@@ -49,40 +50,47 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
     }
 
     @Override
-    public DepositResult calculate(BranchPolicy policy, Integer guestCount) {
+    public DepositResult calculate(BranchPolicy policy, Integer guestCount ,LocalDateTime reservationTime) {
         BigDecimal depositAmount;
+        if (!isReservationTimeInActiveWindow(policy, reservationTime)) {
+            return createFreeDepositResult(policy);
+        }
+        // 1. Kiểm tra xem BranchPolicy có danh sách rule riêng hay không
+        boolean hasBranchRules = policy.getDepositRules() != null && !policy.getDepositRules().isEmpty();
 
-        // 1. Thử tìm Rule cụ thể đã được ghi đè tại Chi nhánh (Branch Level)
-        BranchPolicyDepositRule branchRule = null;
-        if (policy.getDepositRules() != null && !policy.getDepositRules().isEmpty()) {
-            branchRule = policy.getDepositRules().stream()
+        if (hasBranchRules) {
+            // Tìm Rule khớp với số lượng khách
+            BranchPolicyDepositRule branchRule = policy.getDepositRules().stream()
                     .filter(r -> guestCount >= r.getMinGuest() && guestCount <= r.getMaxGuest())
                     .findFirst()
                     .orElse(null);
-        }
 
-        // 2. Nếu Chi nhánh CÓ cấu hình riêng -> Sử dụng cấu hình của Chi nhánh
-        if (branchRule != null) {
-            switch (branchRule.getDepositType()) {
-                case FIXED:
-                    depositAmount = branchRule.getDepositValue();
-                    break;
-                case PER_PERSON:
-                    depositAmount = branchRule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
-                    break;
-                default:
-                    throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+            // CASE A: Chi nhánh có rule và TÌM THẤY rule khớp số khách -> Tính tiền cọc
+            if (branchRule != null) {
+                switch (branchRule.getDepositType()) {
+                    case FIXED:
+                        depositAmount = branchRule.getDepositValue();
+                        break;
+                    case PER_PERSON:
+                        depositAmount = branchRule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
+                        break;
+                    default:
+                        throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+                }
+                return new DepositResult(branchRule, depositAmount);
             }
-            return new DepositResult(branchRule, depositAmount);
+
+            // CASE B: Chi nhánh CÓ cấu hình rule cho khung giờ này, nhưng số khách KHÔNG RƠI VÀO KHU VỰC BẮT CỌC
+            // -> Nghĩa là khung giờ/số khách này ĐƯỢC MIỄN CỌC (0đ), KHÔNG fallback về hệ thống!
+            return createFreeDepositResult(policy);
         }
 
-        // 3. FALLBACK: Thử tìm Rule mặc định của hệ thống
+        // 2. FALLBACK CHỈ KHI: Chi nhánh HOÀN TOÀN KHÔNG CÓ rule nào (Dùng cấu hình mặc định của hệ thống)
         Optional<ReservationPolicyDepositRule> defaultRuleOpt = reservationPolicyDepositRuleRepository
                 .findFirstByPolicyIdAndMinGuestLessThanEqualAndMaxGuestGreaterThanEqual(
                         policy.getPolicy().getId(), guestCount, guestCount
                 );
 
-        // 4. Nếu tìm thấy Rule mặc định -> Tính toán bình thường
         if (defaultRuleOpt.isPresent()) {
             ReservationPolicyDepositRule defaultRule = defaultRuleOpt.get();
             switch (defaultRule.getDepositType()) {
@@ -95,7 +103,7 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
                 default:
                     throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
             }
-            branchRule.setId(defaultRule.getId()); // Giữ nguyên ID gốc hoặc set null tùy logic DB của bạn
+            BranchPolicyDepositRule branchRule = new BranchPolicyDepositRule();
             branchRule.setDepositType(defaultRule.getDepositType());
             branchRule.setDepositValue(defaultRule.getDepositValue());
             branchRule.setMinGuest(defaultRule.getMinGuest());
@@ -103,15 +111,72 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
             branchRule.setBranchPolicy(policy);
             return new DepositResult(branchRule, depositAmount);
         }
+        // 3. Không tìm thấy ở đâu -> Miễn phí cọc
+        return createFreeDepositResult(policy);
+    }
 
-        // 5. CHỐT HẠ: Nếu cả 2 nơi đều không cấu hình -> Không cần cọc, cho tạo đơn luôn!
-        // Trả về số tiền cọc = 0 và truyền null cho đối tượng Rule (FE/đơn hàng sẽ hiểu là miễn phí cọc)
+    private boolean isReservationTimeInActiveWindow(BranchPolicy policy, LocalDateTime reservationTime) {
+        // Nếu policy không có bất kỳ schedule nào, ta coi như nó áp dụng All-day (toàn thời gian)
+        if (policy.getSchedules() == null || policy.getSchedules().isEmpty()) {
+            return true;
+        }
+
+        LocalDate reqDate = reservationTime.toLocalDate();
+        LocalTime reqTime = reservationTime.toLocalTime();
+
+        // DayOfWeek trong Java: 1 = Monday (Thứ 2) ... 7 = Sunday (Chủ Nhật)
+        // Hãy đảm bảo column day_of_week trong DB của bạn map đúng logic này (nhìn ảnh số 6, 7 có vẻ đúng là T7, CN)
+        int reqDayOfWeek = reservationTime.getDayOfWeek().getValue();
+
+        // Duyệt qua từng schedule, nếu THỎA MÃN ÍT NHẤT 1 SCHEDULE ACTIVE -> Có hiệu lực
+        for (BranchPolicySchedule schedule : policy.getSchedules()) {
+            // Bỏ qua nếu schedule không ACTIVE
+            // (Giả sử bạn dùng Enum Status hoặc String, hãy điều chỉnh cho đúng)
+            if (schedule.getStatus() == null || !"ACTIVE".equalsIgnoreCase(schedule.getStatus().name())) {
+                continue;
+            }
+
+            boolean matchDate = true;
+            boolean matchDayOfWeek = true;
+            boolean matchTime = true;
+
+            // 1. Kiểm tra Ngày (Date Range - vd Lễ Tết 28/01 - 05/02)
+            if (schedule.getDateFrom() != null && schedule.getDateTo() != null) {
+                // dateFrom <= reqDate <= dateTo
+                matchDate = !reqDate.isBefore(schedule.getDateFrom()) && !reqDate.isAfter(schedule.getDateTo());
+            }
+            // 2. Kiểm tra Thứ trong tuần (Day of Week - vd Thứ 7, CN)
+            if (schedule.getDayOfWeek() != null) {
+                matchDayOfWeek = (schedule.getDayOfWeek() == reqDayOfWeek);
+            }
+            // 3. Kiểm tra Giờ (Time Range - vd 18:00 đến 23:00)
+            if (schedule.getTimeFrom() != null && schedule.getTimeTo() != null) {
+                LocalTime startTime = schedule.getTimeFrom();
+                LocalTime endTime = schedule.getTimeTo();
+
+                if (startTime.isBefore(endTime)) {
+                    // Giờ trong ngày (VD: 08:00 - 21:00)
+                    matchTime = !reqTime.isBefore(startTime) && !reqTime.isAfter(endTime);
+                } else {
+                    // Xử lý qua đêm (VD: 22:00 - 02:00 sáng hôm sau)
+                    matchTime = !reqTime.isBefore(startTime) || !reqTime.isAfter(endTime);
+                }
+            }
+            // Nếu tất cả các điều kiện (được set) của schedule này đều đúng
+            if (matchDate && matchDayOfWeek && matchTime) {
+                return true; // Thoát ngay, xác nhận khung giờ này CÓ hiệu lực!
+            }
+        }
+        // Sau khi duyệt hết tất cả schedules mà không có cái nào khớp -> Nằm ngoài khung giờ hiệu lực
+        return false;
+    }
+    private DepositResult createFreeDepositResult(BranchPolicy policy) {
         BranchPolicyDepositRule emptyRule = new BranchPolicyDepositRule();
-        emptyRule.setDepositType(DepositType.FIXED); // Hoặc loại mặc định nào đó của bạn
+        emptyRule.setDepositType(DepositType.FIXED);
         emptyRule.setDepositValue(BigDecimal.ZERO);
         emptyRule.setMinGuest(0);
         emptyRule.setMaxGuest(999);
-        emptyRule.setBranchPolicy(policy); // 🌟 Gắn policy vào đây để tránh lỗi lúc gọi getBranchPolicy()
+        emptyRule.setBranchPolicy(policy);
         return new DepositResult(emptyRule, BigDecimal.ZERO);
     }
 

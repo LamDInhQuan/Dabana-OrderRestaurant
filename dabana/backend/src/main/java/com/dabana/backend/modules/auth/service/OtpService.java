@@ -1,8 +1,12 @@
 package com.dabana.backend.modules.auth.service;
 
 import com.dabana.backend.exception.BusinessException;
+import com.dabana.backend.modules.auth.entity.OtpVerification;
+import com.dabana.backend.modules.auth.repository.OtpVerificationRepository;
 import com.dabana.backend.modules.auth.service.IOtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OtpService implements IOtpService {
 
     private final MailService mailService;
-
+    private final OtpVerificationRepository otpVerificationRepository ;
     private record OtpEntry(String code, LocalDateTime expiresAt, int failedAttempts, LocalDateTime lockedUntil) {}
 
     private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
@@ -33,21 +37,24 @@ public class OtpService implements IOtpService {
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCK_MINUTES = 30;
 
+    @Transactional
     @Override
-    public String generateAndSend(String identifier) {
+    public String generateAndSend(String identifier , OtpPurpose purpose) {
         if (!StringUtils.hasText(identifier)) {
             throw new BusinessException(AuthErrorCode.OTP_EMAIL_INVAILID);
         }
-
-        OtpEntry existing = otpStore.get(identifier);
-        if (existing != null && existing.lockedUntil() != null
-                && existing.lockedUntil().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(AuthErrorCode.OTP_LOCKED);
-        }
-
         String code = String.format("%06d", new Random().nextInt(999999));
-        otpStore.put(identifier, new OtpEntry(
-                code, LocalDateTime.now().plusMinutes(OTP_VALID_MINUTES), 0, null));
+        otpVerificationRepository.invalidatePreviousOtps(identifier, purpose);
+
+        OtpVerification otpEntity = OtpVerification.builder()
+                .email(identifier)
+                .otpCode(code)
+                .channel("email")
+                .purpose(purpose)
+                .isUsed(false)
+                .expiredAt(LocalDateTime.now().plusMinutes(OTP_VALID_MINUTES))
+                .build();
+        otpVerificationRepository.save(otpEntity);
 
         // Gui OTP that qua email. Neu identifier khong phai dinh dang email (vi du la SDT)
         // thi tam thoi chi log lai, vi he thong hien chua tich hop SMS.
@@ -60,34 +67,22 @@ public class OtpService implements IOtpService {
         return code;
     }
 
+    @Transactional
     @Override
-    public Boolean verify(String identifier, String inputCode) {
-        OtpEntry entry = otpStore.get(identifier);
-
-        if (entry == null) {
-            throw new BusinessException(AuthErrorCode.OTP_EMAIL_INVAILID);
-        }
-        if (entry.lockedUntil() != null && entry.lockedUntil().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(AuthErrorCode.OTP_LOCKED);
-        }
-        if (entry.expiresAt().isBefore(LocalDateTime.now())) {
-            otpStore.remove(identifier);
+    public Boolean verify(String identifier, String inputCode , OtpPurpose purpose) {
+        OtpVerification otp = otpVerificationRepository.findFirstByEmailAndPurposeAndIsUsedFalseOrderByCreatedAtDesc(identifier, purpose)
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.OTP_EMAIL_INVAILID));
+        // Check hết hạn
+        if (otp.getExpiredAt().isBefore(LocalDateTime.now())) {
             throw new BusinessException(AuthErrorCode.OTP_EXPIRED);
         }
-        if (!entry.code().equals(inputCode)) {
-            int attempts = entry.failedAttempts() + 1;
-            if (attempts >= MAX_FAILED_ATTEMPTS) {
-                otpStore.put(identifier, new OtpEntry(
-                        entry.code(), entry.expiresAt(), attempts,
-                        LocalDateTime.now().plusMinutes(LOCK_MINUTES)));
-                throw new BusinessException(AuthErrorCode.OTP_LOCKED);
-            }
-            otpStore.put(identifier, new OtpEntry(
-                    entry.code(), entry.expiresAt(), attempts, null));
+        // Check sai mã OTP
+        if (!otp.getOtpCode().equals(inputCode)) {
             throw new BusinessException(AuthErrorCode.OTP_INVALID);
         }
-
-        otpStore.remove(identifier); // xac thuc thanh cong - xoa entry
-        return true ;
+        // Xác thực thành công -> set is_used = true
+        otp.setIsUsed(true);
+        otpVerificationRepository.save(otp);
+        return true;
     }
 }

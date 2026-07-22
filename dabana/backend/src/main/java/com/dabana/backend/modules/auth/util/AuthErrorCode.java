@@ -57,6 +57,10 @@ public enum AuthErrorCode implements ErrorCode {
             "AUTH_104",
             "Vai trò không tồn tại."
     ),
+    EMAIL_NOT_NULL(
+            "AUTH_105",
+            "Email không được để trống."
+    ),
 
     // ==========================
     // OTP
@@ -88,7 +92,11 @@ public enum AuthErrorCode implements ErrorCode {
 
     OTP_EMAIL_INVAILID(
             "AUTH_206",
-            "Email xác thực Otp không hợp lệ."
+            "Otp xác thực email không hợp lệ."
+    ),
+    OTP_REQUIRED(
+            "AUTH_207",
+            "Otp không được để trống."
     ),
 
     // ==========================

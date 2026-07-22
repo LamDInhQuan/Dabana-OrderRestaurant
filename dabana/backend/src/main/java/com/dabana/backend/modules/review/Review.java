@@ -58,4 +58,5 @@ public class Review extends BaseEntity {
     /** F41/F42: ly do bi an (khi quan tri vien kiem duyet) hoac bi bao cao. */
     @Column(length = 500)
     private String moderationNote;
+
 }

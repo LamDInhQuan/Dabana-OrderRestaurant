@@ -2,6 +2,7 @@ package com.dabana.backend.modules.booking.dto;
 
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -27,11 +28,14 @@ public class BookingDtos {
         private Integer guestCount;
 
         @NotNull
+        @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
         private LocalDateTime reservationTime;
         private String contactName;
         private String contactPhone;
+        private String contactEmail ;
         private String note;
         private List<PreOrderItemRequest> items;
+        private String otpCode;
     }
 
 

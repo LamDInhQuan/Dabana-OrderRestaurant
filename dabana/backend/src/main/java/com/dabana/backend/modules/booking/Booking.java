@@ -62,6 +62,10 @@ public class Booking extends BaseEntity {
     @Column(name = "contact_phone", nullable = false, length = 20)
     private String contactPhone;
 
+    @NotBlank
+    @Column(name = "contact_email", nullable = false, length = 20)
+    private String contactEmail;
+
     @Column(name = "no_show_warning_at")
     private LocalDateTime noShowWarningAt;
 
@@ -86,9 +90,8 @@ public class Booking extends BaseEntity {
     @Column(name = "snapshot_free_cancellation_hours")
     private Integer snapshotFreeCancellationHours; // Khớp với int(11)
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false) // Khớp với customer_id kiểu bigint(20)
+    @JoinColumn(name = "customer_id", nullable = true) // Khớp với customer_id kiểu bigint(20)
     private User customer;
 
     @Column(name = "snapshot_policy_name", length = 150)
@@ -101,4 +104,7 @@ public class Booking extends BaseEntity {
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingTable> bookingTables = new ArrayList<>();
+
+    @Column(name = "qr_code", columnDefinition = "TEXT")
+    private String qrCode;
 }

@@ -3,13 +3,8 @@ package com.dabana.backend.modules.auth.controller;
 import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
+import com.dabana.backend.modules.auth.dto.request.*;
 import com.dabana.backend.modules.auth.service.OtpService;
-import com.dabana.backend.modules.auth.dto.request.ForgotPasswordRequest;
-import com.dabana.backend.modules.auth.dto.request.LoginRequest;
-import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
-import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
-import com.dabana.backend.modules.auth.dto.request.ResendOtpRequest;
-import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -67,4 +62,10 @@ public class AuthController {
         Boolean result = authService.forgotPassword(request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
     }
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<String>> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        String result = otpService.generateAndSend(request.getEmail() , request.getPurpose());
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, result));
+    }
+
 }

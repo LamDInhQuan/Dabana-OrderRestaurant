@@ -18,6 +18,7 @@ import com.dabana.backend.modules.auth.repository.UserRepository;
 import com.dabana.backend.modules.auth.repository.UserRoleRepository;
 import com.dabana.backend.modules.auth.util.AccountStatus;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.auth.util.RoleUser;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
@@ -45,7 +46,7 @@ public class AuthService implements IAuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final UserRoleRepository userRoleRepository ;
+    private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final JwtService jwtService;
@@ -58,7 +59,9 @@ public class AuthService implements IAuthService {
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    /** CHI true khi dev/test chua co SMTP that; production phai la false de khong lo OTP qua API. */
+    /**
+     * CHI true khi dev/test chua co SMTP that; production phai la false de khong lo OTP qua API.
+     */
     @Value("${app.otp.expose-in-response:false}")
     private boolean exposeOtpInResponse;
 
@@ -94,7 +97,7 @@ public class AuthService implements IAuthService {
 
         UserResponse userResponse = userMapper.userResponse(user);
         if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
-            String otp = otpService.generateAndSend(req.getEmail()); // B02 Buoc 3: gui OTP that qua email
+            String otp = otpService.generateAndSend(req.getEmail(), OtpPurpose.REGISTER); // B02 Buoc 3: gui OTP that qua email
             if (exposeOtpInResponse) {
                 // Chi dung khi dev/test chua cau hinh SMTP that, de tien kiem tra luong ma khong can mo email.
                 userResponse.setOtp(otp);
@@ -112,21 +115,21 @@ public class AuthService implements IAuthService {
     public Boolean resendOtp(String identifier) {
         User user = userRepository.findByEmailOrPhone(identifier)
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
-
         if (user.getStatus() != AccountStatus.PENDING_OTP.getStatus()) {
             // Tai khoan da xac thuc OTP roi hoac dang o trang thai khac, khong can gui lai.
             throw new BusinessException(AuthErrorCode.OTP_ALREADY_VERIFIED);
         }
-
-        otpService.generateAndSend(identifier);
+        otpService.generateAndSend(identifier, OtpPurpose.REGISTER);
         return true;
     }
 
-    /** B02 Buoc 3: Xac thuc OTP */
+    /**
+     * B02 Buoc 3: Xac thuc OTP
+     */
     @Override
     @Transactional
     public Boolean verifyOtp(VerifyOtpRequest req) {
-        otpService.verify(req.getIdentifier(), req.getOtpCode());
+        otpService.verify(req.getIdentifier(), req.getOtpCode(), OtpPurpose.REGISTER);
         User user = userRepository.findByEmailOrPhone(req.getIdentifier())
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.USER_NOT_FOUND));
 
@@ -139,7 +142,9 @@ public class AuthService implements IAuthService {
         return true;
     }
 
-    /** B02 Buoc 4-5: Quan tri vien duyet/tu choi - xem AdminService */
+    /**
+     * B02 Buoc 4-5: Quan tri vien duyet/tu choi - xem AdminService
+     */
 
 
     @Override
