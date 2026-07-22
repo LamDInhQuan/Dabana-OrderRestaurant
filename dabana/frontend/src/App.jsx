@@ -9,6 +9,8 @@ import BookingFlow from './pages/customer/BookingFlow'
 import MyBookings from './pages/customer/MyBookings'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
+import ChangePasswordPage from './pages/auth/ChangePasswordPage'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
 
 import PartnerDashboard from './pages/partner/PartnerDashboard'
 // import TableLayout      from './pages/partner/TableLayout'
@@ -53,6 +55,9 @@ export default function App() {
           <Route path="/branch/:id" element={<BranchDetail />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/change-password"
+            element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
 
           {/* ===== Booking & Payment (Mở cho cả Guest & Logged-in Customer) ===== */}
           <Route

@@ -28,6 +28,13 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Long> 
     @Query("SELECT t FROM DiningTable t WHERE t.id = :id")
     Optional<DiningTable> findByIdForUpdate(@Param("id") Long id);
 
+    // Dung cho BookingService khi doi trang thai nhieu ban cung luc theo vong doi 1 don
+    // (1 booking co the gan nhieu ban qua rs_reservation_tables). Lock ghi de tranh
+    // xung dot voi thao tac doi trang thai/sap xep khac dang chay song song.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM DiningTable t WHERE t.id IN :ids")
+    List<DiningTable> findAllByIdForUpdate(@Param("ids") Collection<Long> ids);
+
     List<DiningTable> findByZoneBranchIdAndStatus(Long branchId, DiningTableStatus status);
     
     long countByZone_Branch_Id(Long branchId);

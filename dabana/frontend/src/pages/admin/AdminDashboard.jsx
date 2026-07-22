@@ -56,22 +56,13 @@ export default function AdminDashboard() {
       adminApi.recentActivity(10).then(r => setActivity(r.data || [])),
     ]).then((results) => {
       const failed = results.filter(r => r.status === 'rejected')
-      if (failed.length > 0) {
-        setLoadError(true)
-        toast.error('Không thể tải dữ liệu admin. Kiểm tra backend đang chạy và bạn đã đăng nhập tài khoản ADMIN.')
-      }
     }).finally(() => setLoading(false))
   }, [])
 
   return (
-    <AdminLayout title="Tổng quan nền tảng" subtitle="F46/F49 · Giám sát hoạt động & báo cáo tổng hợp toàn hệ thống">
+    <AdminLayout title="Tổng quan nền tảng" >
       {loading ? <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p> : (
         <>
-          {loadError && (
-            <div className="card" style={{ marginBottom: '1.5rem', border: '1.5px solid var(--accent)', color: 'var(--accent)' }}>
-              Không thể kết nối API admin. Hãy đảm bảo backend chạy tại <code>http://localhost:8080</code> và bạn đăng nhập bằng tài khoản ADMIN.
-            </div>
-          )}
           <div className="grid-3" style={{ marginBottom: '2rem' }}>
             <StatCard icon="👥" label="Tổng người dùng"    value={summary?.totalUsers || 0}       color="var(--brand)" />
             <StatCard icon="🏢" label="Tổng nhà hàng"      value={summary?.totalRestaurants || 0}  color="#8B5CF6" />

@@ -5,6 +5,7 @@ import ShapeItem from './ShapeItem'
 export default function LayoutCanvas({
   tables, decorations, isTableEditable, savingTableId, selected,
   onMoveTable, onMoveDecoration, onSelectTable, onSelectDecoration,
+  onResizeTable, onRotateTable, onResizeDecoration, onRotateDecoration,
 }) {
   const canvasRef = useRef(null)
   const [dragging, setDragging] = useState(null) // { kind: 'table'|'decoration', item }
@@ -50,6 +51,8 @@ export default function LayoutCanvas({
           selected={selected?.type === 'table' && selected.data.id === table.id}
           onDragStart={onDragStart('table')}
           onClick={onSelectTable}
+          onResize={onResizeTable}
+          onRotate={onRotateTable}
         />
       ))}
       {decorations.map((dec) => (
@@ -59,6 +62,8 @@ export default function LayoutCanvas({
           selected={selected?.type === 'decoration' && selected.data.id === dec.id}
           onDragStart={onDragStart('decoration')}
           onClick={onSelectDecoration}
+          onResize={onResizeDecoration}
+          onRotate={onRotateDecoration}
         />
       ))}
     </div>

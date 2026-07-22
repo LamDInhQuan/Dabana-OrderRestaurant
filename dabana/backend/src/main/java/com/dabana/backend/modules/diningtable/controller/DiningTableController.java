@@ -6,6 +6,7 @@ import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.diningtable.dto.request.BulkUpdateDiningTablePositionsRequest;
 import com.dabana.backend.modules.diningtable.dto.request.CreateDiningTableRequest;
 import com.dabana.backend.modules.diningtable.dto.request.UpdateDiningTableRequest;
+import com.dabana.backend.modules.diningtable.dto.request.UpdateDiningTableStatusRequest;
 import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
 import com.dabana.backend.modules.diningtable.dto.response.TableAvailabilityResponse;
 import com.dabana.backend.modules.diningtable.service.DiningTableAvailabilityService;
@@ -44,6 +45,15 @@ public class DiningTableController {
     public ResponseEntity<ApiResponse<DiningTableResponse>> updateDiningTable(@PathVariable Long tableId,
                                                                               @Valid @RequestBody UpdateDiningTableRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, diningTableService.updateDiningTable(tableId, request)));
+    }
+
+    // Doi trang thai ban THU CONG boi nhan vien tren Tab Goi mon (chi EMPTY/CLEANING/MAINTENANCE).
+    // RESERVED/OCCUPIED khong duoc set o day - do BookingService tu dong dong bo.
+    @PatchMapping("/{tableId}/status")
+    public ResponseEntity<ApiResponse<DiningTableResponse>> updateStatusManually(
+            @PathVariable Long tableId, @Valid @RequestBody UpdateDiningTableStatusRequest request) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED,
+                diningTableService.updateStatusManually(tableId, request)));
     }
 
     @PutMapping("/positions")

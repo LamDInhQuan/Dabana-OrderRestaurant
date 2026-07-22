@@ -35,6 +35,21 @@ public enum BookingErrorCode implements ErrorCode {
             "Đơn đặt bàn không thể hủy"
     ),
 
+    BOOKING_CANNOT_CHECK_IN(
+            "BOOKING_CANNOT_CHECK_IN",
+            "Chỉ có thể check-in đơn đang ở trạng thái Đã xác nhận hoặc Nghi No-show"
+    ),
+
+    BOOKING_CANNOT_CHECK_OUT(
+            "BOOKING_CANNOT_CHECK_OUT",
+            "Chỉ có thể check-out đơn đang phục vụ (Đã check-in)"
+    ),
+
+    BOOKING_CANNOT_MARK_NO_SHOW(
+            "BOOKING_CANNOT_MARK_NO_SHOW",
+            "Chỉ có thể chốt No-show cho đơn Đã xác nhận hoặc đang Nghi No-show"
+    ),
+
     // ========= Time =========
     INVALID_RESERVATION_TIME(
             "INVALID_RESERVATION_TIME",
@@ -92,6 +107,13 @@ public enum BookingErrorCode implements ErrorCode {
     PREORDER_ITEM_NOT_AVAILABLE(
             "PREORDER_ITEM_NOT_AVAILABLE",
             "Món ăn hiện không còn phục vụ"
+    ),
+
+    // Tab Goi Mon: sua/xoa mon dat truoc (rs_preorder_items) chi cho phep khi
+    // booking dang CONFIRMED/CHECKED_IN - dung boi BookingItemService.
+    PREORDER_ITEM_NOT_EDITABLE(
+            "PREORDER_ITEM_NOT_EDITABLE",
+            "Chỉ có thể sửa/xoá món đặt trước khi đơn đang Đã xác nhận hoặc Đang phục vụ"
     ),
 
     // ========= Booking table =========

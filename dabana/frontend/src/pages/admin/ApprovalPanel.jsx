@@ -28,7 +28,7 @@ function ApprovalCard({ item, type, onApprove, onReject }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.625rem' }}>
-          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do từ chối (B02 EF04)..." />
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do từ chối " />
           <div className="flex gap-2">
             <button className="btn-outline btn-sm" onClick={() => setShowReject(false)}>Huỷ</button>
             <button className="btn-danger btn-sm" onClick={() => onReject(item.id, reason)}>Xác nhận từ chối</button>
@@ -91,7 +91,7 @@ export default function ApprovalPanel() {
   ]
 
   return (
-    <AdminLayout title="Phê duyệt nội dung" subtitle="F43 · B02–B04: xét duyệt hồ sơ đối tác, nhà hàng và chi nhánh">
+    <AdminLayout title="Phê duyệt nội dung" >
       {/* Sub-tabs */}
       <div className="flex gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         {TABS.map(([k, l]) => (

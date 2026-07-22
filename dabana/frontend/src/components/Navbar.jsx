@@ -128,6 +128,15 @@ export default function Navbar() {
               <span style={{ fontSize: '.82rem', color: linkColor, fontWeight: 500 }}>
                 {auth.fullName}
               </span>
+              <Link to="/change-password">
+                <button style={{
+                  background: 'transparent', color: linkColor,
+                  border: `1.5px solid ${scrolled ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                  padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
+                  letterSpacing: '.06em', textTransform: 'uppercase', borderRadius: 2,
+                  cursor: 'pointer'
+                }}>Đổi mật khẩu</button>
+              </Link>
               <button onClick={handleLogout} style={{
                 background: 'var(--accent)', color: '#fff', border: 'none',
                 padding: '.45rem 1rem', fontSize: '.78rem', fontWeight: 600,

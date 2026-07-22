@@ -154,4 +154,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId,@Param("from") LocalDate from);
 
     List<Booking> findByContactEmailOrderByCreatedAtDesc(String email);
+
+
 }

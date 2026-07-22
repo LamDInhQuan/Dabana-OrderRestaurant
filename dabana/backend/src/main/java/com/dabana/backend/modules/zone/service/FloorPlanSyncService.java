@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +40,11 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class FloorPlanSyncService {
+
+    private static final int DEFAULT_WIDTH = 90;
+    private static final int DEFAULT_HEIGHT = 80;
+    private static final BigDecimal DEFAULT_ROTATION = BigDecimal.ZERO;
+    private static final BigDecimal FULL_CIRCLE = BigDecimal.valueOf(360);
 
     private final FloorPlanRepository floorPlanRepository;
     private final DiningTableRepository diningTableRepository;
@@ -107,6 +114,9 @@ public class FloorPlanSyncService {
         item.put("tableName", table.getTableName());
         item.put("x", table.getPositionX() != null ? table.getPositionX() : 0);
         item.put("y", table.getPositionY() != null ? table.getPositionY() : 0);
+        item.put("width", table.getWidth() != null ? table.getWidth() : DEFAULT_WIDTH);
+        item.put("height", table.getHeight() != null ? table.getHeight() : DEFAULT_HEIGHT);
+        item.put("rotation", (table.getRotation() != null ? table.getRotation() : DEFAULT_ROTATION).doubleValue());
     }
 
     // ==================== Chieu layout_data -> DiningTable ====================
@@ -162,8 +172,22 @@ public class FloorPlanSyncService {
                 JsonNode xNode = tableNode.get("x");
                 JsonNode yNode = tableNode.get("y");
                 JsonNode tableIdNode = tableNode.get("tableId");
+                // width/height/rotation la OPTIONAL: layout_data cu (tao truoc khi co
+                // tinh nang resize/rotate) se khong co cac field nay -> khong duoc coi la loi.
+                JsonNode widthNode = tableNode.get("width");
+                JsonNode heightNode = tableNode.get("height");
+                JsonNode rotationNode = tableNode.get("rotation");
 
                 if (xNode == null || !xNode.isNumber() || yNode == null || !yNode.isNumber()) {
+                    throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
+                }
+                if (widthNode != null && (!widthNode.isNumber() || widthNode.intValue() < 20 || widthNode.intValue() > 500)) {
+                    throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
+                }
+                if (heightNode != null && (!heightNode.isNumber() || heightNode.intValue() < 20 || heightNode.intValue() > 500)) {
+                    throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
+                }
+                if (rotationNode != null && !rotationNode.isNumber()) {
                     throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);
                 }
                 if (tableIdNode == null || !tableIdNode.isNumber()) {
@@ -182,15 +206,39 @@ public class FloorPlanSyncService {
 
                 target.setPositionX(xNode.intValue());
                 target.setPositionY(yNode.intValue());
+                if (widthNode != null) {
+                    target.setWidth(widthNode.intValue());
+                }
+                if (heightNode != null) {
+                    target.setHeight(heightNode.intValue());
+                }
+                if (rotationNode != null) {
+                    target.setRotation(normalizeRotation(rotationNode.decimalValue()));
+                }
                 toUpdate.add(target);
 
-                // dam bao tableName luu trong layout_data luon khop DB, tranh lech ten hien thi
+                // dam bao tableName/width/height/rotation luu trong layout_data luon khop
+                // DB, tranh lech du lieu hien thi so voi ban ghi thuc te
                 ((ObjectNode) tableNode).put("tableName", target.getTableName());
+                ((ObjectNode) tableNode).put("width", target.getWidth() != null ? target.getWidth() : DEFAULT_WIDTH);
+                ((ObjectNode) tableNode).put("height", target.getHeight() != null ? target.getHeight() : DEFAULT_HEIGHT);
+                ((ObjectNode) tableNode).put("rotation",
+                        (target.getRotation() != null ? target.getRotation() : DEFAULT_ROTATION).doubleValue());
             }
         }
 
         diningTableRepository.saveAll(toUpdate);
         writeRoot(floorPlan, root);
+    }
+
+    // chuan hoa goc xoay ve khoang [0, 360) thay vi tu choi cac gia tri am/lon,
+    // giu 2 chu so thap phan cho khop scale cua cot DECIMAL(5,2)
+    private BigDecimal normalizeRotation(BigDecimal raw) {
+        BigDecimal normalized = raw.remainder(FULL_CIRCLE);
+        if (normalized.signum() < 0) {
+            normalized = normalized.add(FULL_CIRCLE);
+        }
+        return normalized.setScale(2, RoundingMode.HALF_UP);
     }
 
     // ==================== Helpers noi bo ====================
