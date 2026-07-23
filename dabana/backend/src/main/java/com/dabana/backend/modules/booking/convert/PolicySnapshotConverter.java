@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-@Converter
+@Converter(autoApply = false)
 public class PolicySnapshotConverter
         implements AttributeConverter<PolicySnapshotDto, String> {
 
@@ -13,19 +13,27 @@ public class PolicySnapshotConverter
 
     @Override
     public String convertToDatabaseColumn(PolicySnapshotDto attribute) {
+        if (attribute == null) {
+            return null;
+        }
         try {
-            return attribute == null ? null : objectMapper.writeValueAsString(attribute);
+            return objectMapper.writeValueAsString(attribute);
         } catch (Exception e) {
-            throw new IllegalArgumentException(e);
+            return null;
         }
     }
 
     @Override
     public PolicySnapshotDto convertToEntityAttribute(String dbData) {
+        // 💡 BẮT LỖI AN TOÀN: Nếu dbData null hoặc empty string thì trả về null ngay
+        if (dbData == null || dbData.trim().isEmpty()) {
+            return null;
+        }
         try {
-            return dbData == null ? null : objectMapper.readValue(dbData, PolicySnapshotDto.class);
+            return objectMapper.readValue(dbData, PolicySnapshotDto.class);
         } catch (Exception e) {
-            throw new IllegalArgumentException(e);
+            // Log warning hoặc return null thay vì crash query
+            return null;
         }
     }
 }

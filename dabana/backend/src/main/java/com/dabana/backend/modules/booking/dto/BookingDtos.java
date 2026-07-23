@@ -77,7 +77,7 @@ public class BookingDtos {
         private String phone;
         private String note;
         private List<BookingItemResponse> items;
-        private BigDecimal depositAmount;
+        private BigDecimal estimatedTotal;
         private BigDecimal totalPreOrderAmount;
         private String policyName;
         private LocalDateTime holdExpiresAt;

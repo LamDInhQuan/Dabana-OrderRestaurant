@@ -14,8 +14,11 @@ import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.branch2.entity.BranchCancellationPolicy;
+import com.dabana.backend.modules.branch2.repository.BranchCancellationPolicyRepository;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.service.AvailableSlotService;
+import com.dabana.backend.modules.branch2.service.BranchCancellationPolicyService;
 import com.dabana.backend.modules.branch2.util.BranchErrorCode;
 import com.dabana.backend.modules.diningtable.service.DiningTableService;
 //import com.dabana.backend.modules.menu.MenuItem;
@@ -61,6 +64,8 @@ public class BookingService implements IBookingService {
     private final BookingMapper bookingMapper;
     private final DiningTableService diningTableService;
     private final UserRepository userRepository;
+    private final BranchCancellationPolicyService branchCancellationPolicyService;
+
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va broadcast.
     private final ApplicationEventPublisher eventPublisher;
@@ -137,9 +142,11 @@ public class BookingService implements IBookingService {
         if (isDepositRequired) {
             booking.setStatus(BookingStatus.HOLDING);
             booking.setHoldExpiresAt(LocalDateTime.now().plusMinutes(HOLD_MINUTES));
+            booking.setEstimatedTotal(depositResult.getDepositAmount());
         } else {
             booking.setStatus(BookingStatus.CONFIRMED);
             booking.setHoldExpiresAt(null); // Không giới hạn giữ bàn vì đã xác nhận đơn
+            booking.setEstimatedTotal(BigDecimal.ZERO);
         }
         String contactName = StringUtils.hasText(req.getContactName())
                 ? req.getContactName()
@@ -152,7 +159,8 @@ public class BookingService implements IBookingService {
         booking.setContactEmail(req.getContactEmail());
         booking.setNote(req.getNote());
         // 6. Snapshot policy
-        booking.setPolicySnapshot(branchPolicy != null ? toPolicySnapShotDto(branchPolicy) : new PolicySnapshotDto());
+        BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
+        booking.setPolicySnapshot(branchPolicy != null ? toPolicySnapShotDto(branchPolicy, cancellationPolicy) : new PolicySnapshotDto());
         booking = bookingRepository.save(booking);
         // 7. Lưu bàn
         bookingTableService.saveBookingTables(booking, tables);
@@ -165,9 +173,55 @@ public class BookingService implements IBookingService {
         return bookingMapper.toResponse(booking);
     }
 
-    private PolicySnapshotDto toPolicySnapShotDto(BranchPolicy branchPolicy) {
+    private PolicySnapshotDto toPolicySnapShotDto(
+            BranchPolicy branchPolicy,
+            BranchCancellationPolicy cancellationPolicy) {
+
+        if (branchPolicy == null && cancellationPolicy == null) {
+            return null;
+        }
+
+        var policy = (branchPolicy != null) ? branchPolicy.getPolicy() : null;
+
+        // 💡 Lấy phần tử đầu tiên của Deposit Rules (nếu có)
+        var firstRule = (branchPolicy != null && branchPolicy.getDepositRules() != null && !branchPolicy.getDepositRules().isEmpty())
+                ? branchPolicy.getDepositRules().iterator().next()
+                : null;
+
+        // 💡 Lấy phần tử đầu tiên của Schedules (nếu có)
+        var firstSchedule = (branchPolicy != null && branchPolicy.getSchedules() != null && !branchPolicy.getSchedules().isEmpty())
+                ? branchPolicy.getSchedules().iterator().next()
+                : null;
+
         return PolicySnapshotDto.builder()
-                .policyDepositCode(branchPolicy.getPolicy().getPolicyCode())
+                // --- 1. Thông tin chung từ ReservationPolicy ---
+                .policyDepositCode(policy != null ? policy.getPolicyCode() : null)
+                .policyDepositName(policy != null ? policy.getName() : null)
+                .description(policy != null ? policy.getDescription() : null)
+                .termsAndConditions(policy != null ? policy.getTermsAndConditions() : null)
+
+                // --- 2. Thông tin chính sách hủy từ BranchCancellationPolicy (hoặc fallback về policy) ---
+                .freeCancellationHours(cancellationPolicy != null ? cancellationPolicy.getFreeCancellationHours() : null)
+                .freeRefundPercent(cancellationPolicy != null ? cancellationPolicy.getFreeCancellationRefundPercent() : null)
+                .lateRefundPercent(cancellationPolicy != null ? cancellationPolicy.getLateCancellationRefundPercent() : null)
+                .noShowRefundPercent(cancellationPolicy != null ? cancellationPolicy.getNoShowRefundPercent() : null)
+
+        // --- 3. Thông tin khung giờ áp dụng từ BranchPolicySchedule ---
+                .scheduleType(firstSchedule != null ? policy.getScheduleType() : null)
+                .dayOfWeek(firstSchedule != null ? firstSchedule.getDayOfWeek() : null)
+                .dateFrom(firstSchedule != null ? firstSchedule.getDateFrom() : null)
+                .dateTo(firstSchedule != null ? firstSchedule.getDateTo() : null)
+                .timeFrom(firstSchedule != null ? firstSchedule.getTimeFrom() : null)
+                .timeTo(firstSchedule != null ? firstSchedule.getTimeTo() : null)
+
+                // --- 4. Thông tin quy định cọc từ BranchPolicyDepositRule ---
+                .minGuest(firstRule != null ? firstRule.getMinGuest() : null)
+                .maxGuest(firstRule != null ? firstRule.getMaxGuest() : null)
+                .minTables(firstRule != null ? firstRule.getMinTables() : null)
+                .maxTables(firstRule != null ? firstRule.getMaxTables() : null)
+                .depositType(firstRule != null ? firstRule.getDepositType() : null)
+                .depositValue(firstRule != null ? firstRule.getDepositValue() : null)
+
                 .build();
     }
 
