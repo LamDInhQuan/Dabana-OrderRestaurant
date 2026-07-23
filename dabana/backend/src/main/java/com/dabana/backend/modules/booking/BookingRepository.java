@@ -92,13 +92,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByCreatedAtAfter(LocalDateTime from);
 
-    @Query("""
-        SELECT b.branch.id, COALESCE(SUM(b.snapshotDepositAmount), 0), COUNT(b)
-        FROM Booking b
-        WHERE b.status = 'COMPLETED'
-        GROUP BY b.branch.id
-        """)
-    List<Object[]> sumDepositRevenueByBranch();
+//    @Query("""
+//        SELECT b.branch.id, COALESCE(SUM(b.snapshotDepositAmount), 0), COUNT(b)
+//        FROM Booking b
+//        WHERE b.status = 'COMPLETED'
+//        GROUP BY b.branch.id
+//        """)
+//    List<Object[]> sumDepositRevenueByBranch();
 
     @Query("""
         SELECT FUNCTION('DATE', b.createdAt), COUNT(b)

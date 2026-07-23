@@ -20,7 +20,7 @@ public class DiningTableMapper {
         response.setPositionX(table.getPositionX());
         response.setPositionY(table.getPositionY());
         response.setWidth(table.getWidth());
-        // response.setHeight(table.getHeight());
+        response.setHeight(table.getHeight());
         response.setRotation(table.getRotation());
         return response;
     }
