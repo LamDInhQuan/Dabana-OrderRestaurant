@@ -1,4 +1,4 @@
-package com.dabana.backend.modules.booking;
+package com.dabana.backend.modules.booking.service;
 
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
@@ -6,6 +6,10 @@ import com.dabana.backend.modules.auth.repository.UserRepository;
 import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.auth.util.OtpPurpose;
+import com.dabana.backend.modules.booking.Booking;
+import com.dabana.backend.modules.booking.BookingErrorCode;
+import com.dabana.backend.modules.booking.BookingRepository;
+import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
