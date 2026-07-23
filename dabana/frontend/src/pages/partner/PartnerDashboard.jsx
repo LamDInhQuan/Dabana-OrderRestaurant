@@ -225,10 +225,14 @@ export default function PartnerDashboard() {
     // waitlist
     setWaitlist([])
     // reviews (B13)
-    reviewApi.getByBranch(bid).then(r => {
-      const list = r.data?.content || r.data || []
-      setReviews(list.length ? list : [])
-    }).catch(() => setReviews([]))
+reviewApi.getByBranch(bid).then(r => {
+  const raw = r.data?.data?.content || r.data?.content || r.data || []
+  const list = raw.map(rv => ({
+    ...rv,
+    rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
+  }))
+  setReviews(list.length ? list : DEMO_REVIEWS)
+}).catch(() => setReviews(DEMO_REVIEWS))
     // B05: chính sách đặt cọc/hủy của chi nhánh
     // depositPolicyApi.getByBranch(bid).then(r => {
     //   if (r.data) setPolicy(p => ({ ...p, ...r.data }))
