@@ -76,10 +76,10 @@ public class DepositPaymentService {
 
         // Doi chieu voi snapshot cua booking (neu co) de tranh FE gui sai/gian lan so
         // tien.
-        if (booking.getSnapshotDepositAmount() != null
-                && booking.getSnapshotDepositAmount().compareTo(request.getAmount()) != 0) {
-            throw new BusinessException(PaymentErrorCode.DEPOSIT_AMOUNT_INVALID);
-        }
+//        if (booking.getSnapshotDepositAmount() != null
+//                && booking.getSnapshotDepositAmount().compareTo(request.getAmount()) != 0) {
+//            throw new BusinessException(PaymentErrorCode.DEPOSIT_AMOUNT_INVALID);
+//        }
 
         BranchBankAccount branchBankAccount = branchBankAccountRepository
                 .findByBranch_Id(booking.getBranch().getId())

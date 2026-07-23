@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.booking;
 
+import com.dabana.backend.modules.booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

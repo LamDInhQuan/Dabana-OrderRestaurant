@@ -51,8 +51,6 @@ public class BookingMapper {
                                 .map(bookingItemMapper::toResponse
                                 )
                                 .toList())
-                .depositAmount(booking.getSnapshotDepositAmount())
-                .policyName(booking.getSnapshotPolicyName())
                 .totalPreOrderAmount(booking.getEstimatedTotal())
                 .holdExpiresAt(booking.getHoldExpiresAt())
                 .build();
