@@ -35,17 +35,6 @@ export default function OrderBoardTab({ orderBoard, onSelectTable }) {
   return (
     <div className="page-container" style={{ padding: '1.5rem 1rem' }}>
       {/* Header */}
-      <div className="flex items-center justify-between" style={{ marginBottom: '1rem', flexWrap: 'wrap', gap: '.75rem' }}>
-        <div>
-          <h1 style={{ fontWeight: 800, fontSize: '1.3rem' }}>Gọi món</h1>
-          <p style={{ fontSize: '.8rem', color: 'var(--text-muted, #8A6E57)' }}>
-            Trạng thái bàn theo thời gian thực{lastUpdatedAt ? ` · Cập nhật lúc ${lastUpdatedAt.toLocaleTimeString('vi-VN')}` : ''}
-          </p>
-        </div>
-        <button className="btn-outline btn-sm" onClick={() => reload?.()} disabled={refreshing}>
-          {refreshing ? '⏳ Đang làm mới...' : '🔄 Làm mới'}
-        </button>
-      </div>
 
       {/* Tong quan trang thai */}
       <div className="card" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>

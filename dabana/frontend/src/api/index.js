@@ -112,6 +112,7 @@ export const bookingApi = {
   cancel: (id, d) => api.post(`/bookings/${id}/cancel`, d),
   checkIn: (id) => api.post(`/bookings/${id}/check-in`),
   checkOut: (id) => api.post(`/bookings/${id}/check-out`),
+  createWalkIn: (payload) => api.post('/bookings/walk-in', payload),
 }
 
 // ===== Menu API (B06) =====

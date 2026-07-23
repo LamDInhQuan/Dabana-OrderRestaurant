@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { bookingApi, tableApi, extraOrderApi, preorderItemApi, menuApi } from '../../../../../api'
+import { bookingApi, tableApi, extraOrderApi, preorderItemApi } from '../../../../../api'
 import { TABLE_STATUS_META, DEFAULT_TABLE_STATUS_META, BOOKING_STATUS_LABEL, formatMoney, formatTime } from './statusMeta'
+import MenuPickerModal from './MenuPickerModal'
 
 const MANUAL_STATUS_OPTIONS = [
   { status: 1, label: 'Trống' },
@@ -12,13 +13,12 @@ const MANUAL_STATUS_OPTIONS = [
 export default function TableDetailDrawer({ table, branchId, onClose, onChanged }) {
   const open = !!table
 
-  const [menuItems, setMenuItems] = useState([]) // flatten, chi lay mon dang SELLING
-  const [loadingMenu, setLoadingMenu] = useState(false)
-  const [newItem, setNewItem] = useState({ menuItemId: '', quantity: 1 })
   const [savingRowId, setSavingRowId] = useState(null) // extraOrderId dang +/-/xoa
-  const [addingItem, setAddingItem] = useState(false)
   const [checking, setChecking] = useState(false)
   const [changingStatus, setChangingStatus] = useState(null) // status code dang doi toi
+  const [walkInGuestCount, setWalkInGuestCount] = useState(1)
+  const [creatingWalkIn, setCreatingWalkIn] = useState(false)
+  const [menuPickerOpen, setMenuPickerOpen] = useState(false)
 
   const booking = table?.activeBooking || null
   const orders = table?.orders || []
@@ -31,36 +31,17 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
   // BookingItemService#assertBookingEditable o backend.
   const canEditPreorderItem = booking?.status === 'CONFIRMED' || booking?.status === 'CHECKED_IN'
   const canEditExtraOrder = booking?.status === 'CHECKED_IN'
+  // Khach vang lai: chi nhan duoc khi ban dang THUC SU Trong (status 1) va
+  // chua gan booking nao - khop dung BookingService#createWalkIn o backend
+  // (chan neu table.status != EMPTY -> WALK_IN_TABLE_NOT_EMPTY).
+  const canReceiveWalkIn = !booking && table?.status === 1
 
-  // Nap thuc don (chi mon dang ban) khi mo drawer cho 1 ban co the goi them mon
-  useEffect(() => {
-    if (!open || !canAddOrder || !branchId) return
-    setLoadingMenu(true)
-    menuApi.getByBranch(branchId)
-      .then((res) => {
-        const categories = res.data || []
-        const flat = categories.flatMap((cat) => (cat.items || [])
-          .filter((it) => it.status === 'SELLING')
-          .map((it) => ({ id: it.id, name: it.itemName, price: Number(it.price), category: cat.categoryName })))
-        setMenuItems(flat)
-      })
-      .catch(() => setMenuItems([]))
-      .finally(() => setLoadingMenu(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, canAddOrder, branchId])
+  // Nap thuc don gio nam trong MenuPickerModal (tu-quan-ly, chi mo khi can) -
+  // thay cho useEffect nap truoc + <select> phang o day.
 
   useEffect(() => {
-    setNewItem({ menuItemId: '', quantity: 1 })
+    setWalkInGuestCount(1)
   }, [table?.tableId])
-
-  const menuItemsByCategory = useMemo(() => {
-    const map = {}
-    for (const it of menuItems) {
-      if (!map[it.category]) map[it.category] = []
-      map[it.category].push(it)
-    }
-    return map
-  }, [menuItems])
 
   if (!open) return null
 
@@ -107,24 +88,47 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
     }
   }
 
-  const handleAddItem = async (e) => {
+  // Khach vang lai: tao booking CHECKED_IN ngay cho ban dang Trong, khong qua
+  // giu ban/dat coc nhu luong dat online (POST /api/bookings/walk-in phia BE).
+  const handleCreateWalkIn = async (e) => {
     e.preventDefault()
-    if (!newItem.menuItemId) { toast.error('Vui lòng chọn món'); return }
-    setAddingItem(true)
+    const guestCount = Number(walkInGuestCount) || 1
+    setCreatingWalkIn(true)
     try {
-      await extraOrderApi.addItem({
-        bookingId: booking.bookingId,
-        menuItemId: Number(newItem.menuItemId),
-        quantity: Number(newItem.quantity) || 1,
+      await bookingApi.createWalkIn({
+        branchId,
+        tableIds: [table.tableId],
+        guestCount,
       })
-      toast.success('Đã thêm món')
-      setNewItem({ menuItemId: '', quantity: 1 })
+      toast.success('Đã nhận khách vãng lai, bàn chuyển sang Đang phục vụ')
       onChanged?.()
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Thêm món thất bại')
+      toast.error(err.response?.data?.message || 'Nhận khách vãng lai thất bại')
     } finally {
-      setAddingItem(false)
+      setCreatingWalkIn(false)
     }
+  }
+
+  // Nhan gio mon tu MenuPickerModal (co the nhieu dong) - BE chua co endpoint
+  // them hang loat nen goi lan luot tung dong; dung Promise.allSettled de 1
+  // dong loi (vd het mon) khong lam mat cac dong da them thanh cong.
+  const handleConfirmAddItems = async (cartLines) => {
+    const results = await Promise.allSettled(
+      cartLines.map((line) => extraOrderApi.addItem({
+        bookingId: booking.bookingId,
+        menuItemId: line.id,
+        quantity: line.quantity,
+      }))
+    )
+    const failed = results.filter((r) => r.status === 'rejected')
+    if (failed.length === 0) {
+      toast.success(`Đã thêm ${cartLines.length} món`)
+    } else if (failed.length < cartLines.length) {
+      toast.error(`Thêm được ${cartLines.length - failed.length}/${cartLines.length} món, một số món bị lỗi`)
+    } else {
+      toast.error('Thêm món thất bại')
+    }
+    onChanged?.()
   }
 
   const apiForSource = (source) => (source === 'PREORDER' ? preorderItemApi : extraOrderApi)
@@ -157,6 +161,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
   }
 
   return (
+    <>
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300 }} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
@@ -204,6 +209,29 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
               </div>
             )}
           </div>
+
+          {/* Nhan khach vang lai - chi khi ban dang Trong va chua gan booking nao */}
+          {canReceiveWalkIn && (
+            <div>
+              <h3 style={{ fontSize: '.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#8A6E57', marginBottom: '.5rem' }}>
+                Nhận khách vãng lai
+              </h3>
+              <form onSubmit={handleCreateWalkIn} className="card flex items-center gap-2" style={{ padding: '.9rem', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: '.82rem', color: '#8A6E57' }}>Số khách</label>
+                <input
+                  type="number" min={1} value={walkInGuestCount}
+                  onChange={(e) => setWalkInGuestCount(e.target.value)}
+                  style={{ width: 70 }}
+                />
+                <button type="submit" className="btn-primary btn-sm" disabled={creatingWalkIn}>
+                  {creatingWalkIn ? 'Đang nhận khách...' : '✅ Nhận khách vào bàn'}
+                </button>
+              </form>
+              <p style={{ fontSize: '.72rem', color: '#8A6E57', marginTop: '.4rem' }}>
+                * Bàn sẽ chuyển sang Đang phục vụ ngay, không cần đặt cọc/xác nhận như đặt bàn online.
+              </p>
+            </div>
+          )}
 
           {/* Unified Order: gop preorder + extra order */}
           <div>
@@ -276,38 +304,15 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
             )}
           </div>
 
-          {/* Them mon moi - chi khi ban dang CHECKED_IN */}
+          {/* Them mon moi - chi khi ban dang CHECKED_IN (bao gom ca sau khi vua nhan khach vang lai) */}
           {canAddOrder && (
             <div>
               <h3 style={{ fontSize: '.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#8A6E57', marginBottom: '.5rem' }}>
                 Thêm món
               </h3>
-              <form onSubmit={handleAddItem} className="flex gap-2" style={{ flexWrap: 'wrap' }}>
-                <select
-                  value={newItem.menuItemId}
-                  onChange={(e) => setNewItem((p) => ({ ...p, menuItemId: e.target.value }))}
-                  style={{ flex: '1 1 220px' }}
-                  disabled={loadingMenu}
-                  required
-                >
-                  <option value="" disabled>{loadingMenu ? 'Đang tải thực đơn...' : 'Chọn món'}</option>
-                  {Object.entries(menuItemsByCategory).map(([cat, items]) => (
-                    <optgroup key={cat} label={cat}>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>{it.name} — {formatMoney(it.price)}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                <input
-                  type="number" min={1} value={newItem.quantity}
-                  onChange={(e) => setNewItem((p) => ({ ...p, quantity: e.target.value }))}
-                  style={{ width: 70 }}
-                />
-                <button type="submit" className="btn-primary btn-sm" disabled={addingItem}>
-                  {addingItem ? 'Đang thêm...' : '+ Thêm'}
-                </button>
-              </form>
+              <button className="btn-primary btn-sm" onClick={() => setMenuPickerOpen(true)}>
+                🍽 Mở thực đơn để chọn món
+              </button>
             </div>
           )}
 
@@ -350,5 +355,14 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
         )}
       </div>
     </div>
+
+    <MenuPickerModal
+      open={menuPickerOpen}
+      branchId={branchId}
+      tableName={table.tableName}
+      onClose={() => setMenuPickerOpen(false)}
+      onConfirm={handleConfirmAddItems}
+    />
+    </>
   )
 }
