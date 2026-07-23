@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -55,10 +56,15 @@ import java.util.stream.Collectors;
 public class OrderBoardService implements IOrderBoardService {
 
     // Chi coi la "dang active" (hien thi thong tin khach + don hang tren the ban)
-    // khi booking o CONFIRMED (ung voi ban RESERVED) hoac CHECKED_IN (ung voi ban OCCUPIED),
-    // dung theo Bang chuyen doi trang thai ban - muc 3 tai lieu yeu cau.
+    // khi booking o CHECKED_IN (luon active, khach da ngoi) hoac CONFIRMED VA da
+    // gan toi gio hen (trong vong ACTIVE_BOOKING_LEAD_MINUTES phut truoc
+    // reservationTime). CONFIRMED con xa hon khong hien gi ca tren Tab Goi Mon -
+    // KHONG canh bao, KHONG khoa nhan khach vang lai; day CHI la cua so hien thi,
+    // khong con anh huong gi den viec nhan vien co duoc nhan khach vang lai hay
+    // khong (FE tu quyet dinh dua tren trang thai vat ly cua ban).
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES =
             List.of(BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN);
+    private static final long ACTIVE_BOOKING_LEAD_MINUTES = 60;
 
     private final BranchRepository branchRepository;
     private final ZoneRepository zoneRepository;
@@ -157,17 +163,22 @@ public class OrderBoardService implements IOrderBoardService {
         Map<Long, TableBoardResponse> result = new LinkedHashMap<>();
         for (DiningTable table : tables) {
             result.put(table.getId(), toTableBoardResponse(
-                    table, activeBookingByTableId.get(table.getId()), ordersByBookingId, totalByBookingId));
+                    table,
+                    activeBookingByTableId.get(table.getId()),
+                    ordersByBookingId,
+                    totalByBookingId));
         }
         return result;
     }
 
     /**
-     * Voi moi tableId, tim booking dang active (CONFIRMED/CHECKED_IN) gan voi no
-     * qua rs_reservation_tables. Ve nguyen tac 1 ban chi co dung 1 booking active
-     * tai 1 thoi diem (RESERVED/OCCUPIED do BookingService dong bo doc quyen);
-     * neu du lieu lech (vd sot lai 2 dong active), uu tien booking co
-     * reservationTime gan nhat de tranh vo API.
+     * Voi moi tableId, tim booking dang active gan voi no qua rs_reservation_tables:
+     * CHECKED_IN (luon active) hoac CONFIRMED da trong vong ACTIVE_BOOKING_LEAD_MINUTES
+     * phut truoc gio hen. CONFIRMED con xa hon bi bo qua hoan toan (khong hien gi).
+     * Neu 1 ban lo co nhieu ung vien active cung luc (du ve nguyen tac khong nen
+     * xay ra - vd vua nhan walk-in tren ban da co booking CONFIRMED sap toi), uu
+     * tien CHECKED_IN (khach dang ngoi thuc te) truoc, sau do moi den booking co
+     * reservationTime GAN NHAT.
      */
     private Map<Long, Booking> loadActiveBookings(List<Long> tableIds) {
         if (tableIds.isEmpty()) {
@@ -176,14 +187,26 @@ public class OrderBoardService implements IOrderBoardService {
         List<BookingTable> bookingTables =
                 bookingTableRepository.findByDiningTable_IdInAndBooking_StatusIn(tableIds, ACTIVE_BOOKING_STATUSES);
 
+        LocalDateTime activeThreshold = LocalDateTime.now().plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES);
+
         Map<Long, Booking> result = new HashMap<>();
         for (BookingTable bt : bookingTables) {
             Long tableId = bt.getDiningTable().getId();
             Booking candidate = bt.getBooking();
-            result.merge(tableId, candidate, (existing, next) ->
-                    next.getReservationTime().isAfter(existing.getReservationTime()) ? next : existing);
+
+            boolean isActive = candidate.getStatus() == BookingStatus.CHECKED_IN
+                    || !candidate.getReservationTime().isAfter(activeThreshold);
+            if (!isActive) continue;
+
+            result.merge(tableId, candidate, this::pickPreferredBooking);
         }
         return result;
+    }
+
+    private Booking pickPreferredBooking(Booking a, Booking b) {
+        if (a.getStatus() == BookingStatus.CHECKED_IN && b.getStatus() != BookingStatus.CHECKED_IN) return a;
+        if (b.getStatus() == BookingStatus.CHECKED_IN && a.getStatus() != BookingStatus.CHECKED_IN) return b;
+        return b.getReservationTime().isBefore(a.getReservationTime()) ? b : a;
     }
 
     /** Order Aggregation Rule (muc 2 tai lieu yeu cau): gop rs_preorder_items + rs_extra_orders thanh 1 danh sach. */
