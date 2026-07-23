@@ -12,7 +12,8 @@ import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
-import com.dabana.backend.modules.booking.service.BookingService;
+import com.dabana.backend.modules.booking.BookingService;
+
 import com.dabana.backend.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

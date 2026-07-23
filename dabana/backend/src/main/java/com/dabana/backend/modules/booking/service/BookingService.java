@@ -7,10 +7,12 @@ import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.service.BookingItemService;
 import com.dabana.backend.modules.booking.service.BookingTableService;
+import com.dabana.backend.modules.booking.service.IBookingService;
 import com.dabana.backend.modules.branch2.dto.OperatingPeriod;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
@@ -52,7 +54,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-public class BookingService {
+public class BookingService implements IBookingService {
 
     private final BookingRepository bookingRepository;
     private final BranchRepository branchRepository;
@@ -206,8 +208,6 @@ public class BookingService {
                 ? req.getContactEmail() : staff.getEmail());
         booking.setNote(req.getNote());
         // Khach vang lai khong dat coc, khong ap dung chinh sach huy/dat coc cua B01.
-        booking.setSnapshotDepositAmount(BigDecimal.ZERO);
-        booking.setSnapshotDepositRequired(false);
         booking = bookingRepository.save(booking);
 
         // 4. Gan ban + doi trang thai ban sang OCCUPIED ngay (khac createHold: ban

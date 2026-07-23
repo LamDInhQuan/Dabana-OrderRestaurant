@@ -1,6 +1,5 @@
 package com.dabana.backend.modules.booking;
 
-import com.dabana.backend.modules.booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -17,7 +16,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class BookingScheduledTasks {
 
-    private final BookingService bookingService;
+    private final com.dabana.backend.modules.booking.BookingService bookingService;
 
     @Scheduled(fixedRate = 60_000) // moi 60 giay
     public void expireOverdueHoldings() {
