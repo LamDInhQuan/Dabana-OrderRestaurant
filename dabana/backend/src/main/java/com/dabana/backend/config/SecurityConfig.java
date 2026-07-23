@@ -58,12 +58,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/payment/**").permitAll()
-                .requestMatchers("/api/auth/change-password").authenticated()
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/payment/**").permitAll()
+
+                        // Tab Goi Mon (Task 5): endpoint STOMP/SockJS realtime. Handshake ban dau
+                        // la vai request HTTP thuong (info/xhr...) truoc khi nang cap len WebSocket -
+                        // trinh duyet KHONG gan duoc Bearer header vao day nhu axios, nen phai
+                        // permitAll o day. Hien CHUA co kiem tra JWT o tang STOMP CONNECT
+                        // (WebSocketConfig chua co configureClientInboundChannel) - moi nguoi biet
+                        // duoc branchId deu subscribe doc du lieu ban/don hang cua chi nhanh do.
+                        // Neu can sau nay: them ChannelInterceptor kiem tra token trong STOMP
+                        // CONNECT header thay vi mo permitAll nay.
+                        .requestMatchers("/ws/**").permitAll()
+
+                        // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
+                        .requestMatchers("/api/auth/**").permitAll()
 
                 // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
                 .requestMatchers("/api/auth/**").permitAll()

@@ -170,6 +170,13 @@ public class BookingService {
                 ? req.getContactName() : "Khách vãng lai");
         booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
                 ? req.getContactPhone() : "N/A");
+        booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
+                ? req.getContactPhone() : "N/A");
+        // Booking.contactEmail dang @NotBlank o entity (bo sung sau, khong co luc
+        // viet luong nay) - khach vang lai thuong khong co email nen fallback ve
+        // email cua nhan vien dang thao tac de khong vi pham validation khi persist.
+        booking.setContactEmail(StringUtils.hasText(req.getContactEmail())
+                ? req.getContactEmail() : staff.getEmail());
         booking.setNote(req.getNote());
         // Khach vang lai khong dat coc, khong ap dung chinh sach huy/dat coc cua B01.
         booking.setSnapshotDepositAmount(BigDecimal.ZERO);

@@ -37,5 +37,8 @@ public class CreateWalkInBookingRequest {
 
     private String contactPhone;
 
+    /** Tuy chon - Booking.contactEmail dang @NotBlank o entity, se fallback ve email nhan vien neu bo trong. */
+    private String contactEmail;
+
     private String note;
 }
