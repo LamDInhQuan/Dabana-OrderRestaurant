@@ -116,15 +116,6 @@ public enum BookingErrorCode implements ErrorCode {
             "Chỉ có thể sửa/xoá món đặt trước khi đơn đang Đã xác nhận hoặc Đang phục vụ"
     ),
 
-    // ========= Walk-in (khach vang lai) =========
-    // Khac voi TABLE_ALREADY_ASSIGNED (trung khung gio dat truoc): khach vang
-    // lai khong co reservationTime nen phai chan ngay theo trang thai HIEN TAI
-    // cua ban - dung boi BookingService#createWalkIn.
-    WALK_IN_TABLE_NOT_EMPTY(
-            "WALK_IN_TABLE_NOT_EMPTY",
-            "Chỉ có thể nhận khách vãng lai vào bàn đang ở trạng thái Trống"
-    ),
-
     // ========= Booking table =========
     TABLE_ALREADY_ASSIGNED(
             "TABLE_ALREADY_ASSIGNED",

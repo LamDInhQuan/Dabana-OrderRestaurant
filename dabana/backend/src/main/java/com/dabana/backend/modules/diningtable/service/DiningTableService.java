@@ -83,15 +83,6 @@ public class DiningTableService implements IDiningTableService {
                 .map(diningTableMapper::toResponse)
                 .toList();
     }
-    
-    @Override
-    @Transactional(readOnly = true)
-    public List<DiningTableResponse> getTablesByBranchId(Long branchId) {
-        validateBranch(branchId);
-        return diningTableRepository.findByZoneBranchId(branchId).stream()
-                .map(diningTableMapper::toResponse)
-                .toList();
-    }
 
     @Override
     @Transactional
