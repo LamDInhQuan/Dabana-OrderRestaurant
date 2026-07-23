@@ -67,7 +67,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
     useEffect(() => {
         // 💡 Nếu đơn không yêu cầu tiền cọc (0đ) hoặc trạng thái đã CONFIRMED sẵn
-        if (Number(booking?.depositAmount || 0) === 0 || booking?.status === 'CONFIRMED') {
+        if (Number(booking?.estimatedTotal || 0) === 0 || booking?.status === 'CONFIRMED') {
             setIsPaidSuccess(true); // Nhảy thẳng sang màn hình Hóa đơn xác nhận
             setConfirmedBooking(booking);
             return;
@@ -209,7 +209,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontWeight: 700, color: '#0f172a' }}>Tiền cọc đã thanh toán:</span>
                             <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a' }}>
-                                {detail.depositAmount ? `${Number(detail.depositAmount).toLocaleString('vi-VN')}₫` : '0₫'}
+                                {detail.estimatedTotal ? `${Number(detail.estimatedTotal).toLocaleString('vi-VN')}₫` : '0₫'}
                             </span>
                         </div>
                     </div>

@@ -89,7 +89,7 @@ export default function BookingInvoicePage() {
                     <div className="flex justify-between items-center" style={{ marginTop: '1rem' }}>
                         <span style={{ fontWeight: 700 }}>Tiền cọc đã trả:</span>
                         <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--brand)' }}>
-                            {booking.depositAmount ? `${Number(booking.depositAmount).toLocaleString('vi-VN')}₫` : '0₫'}
+                            {booking.estimatedTotal ? `${Number(booking.estimatedTotal).toLocaleString('vi-VN')}₫` : '0₫'}
                         </span>
                     </div>
                 </div>

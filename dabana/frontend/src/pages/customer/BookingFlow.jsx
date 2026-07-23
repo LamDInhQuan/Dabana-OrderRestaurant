@@ -1447,10 +1447,10 @@ function BookingSuccess({ booking, branchId, zones, onGoToBookings, onGoHome }) 
           </div>
         )}
 
-        {Number(booking?.depositAmount) > 0 && (
+        {Number(booking?.estimatedTotal) > 0 && (
           <div className="flex justify-between" style={{ marginTop: '.75rem', padding: '.6rem .75rem', background: '#FFF7ED', borderRadius: 8 }}>
             <span style={{ fontSize: '.85rem', color: '#B45309', fontWeight: 600 }}>Tiền cọc</span>
-            <strong style={{ fontSize: '.9rem', color: '#B45309' }}>{formatVND(booking.depositAmount)}</strong>
+            <strong style={{ fontSize: '.9rem', color: '#B45309' }}>{formatVND(booking.estimatedTotal)}</strong>
           </div>
         )}
 
