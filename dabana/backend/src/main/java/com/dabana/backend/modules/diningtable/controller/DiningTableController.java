@@ -36,6 +36,12 @@ public class DiningTableController {
                 diningTableService.getTablesByBranchAndZone(branchId, zoneId)));
     }
 
+    @GetMapping("/{branchId}")
+    public ResponseEntity<ApiResponse<List<DiningTableResponse>>> getTablesByBranchId(@PathVariable Long branchId) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
+                diningTableService.getTablesByBranchId(branchId)));
+    }
+
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<DiningTableResponse>> createDiningTable(@Valid @RequestBody CreateDiningTableRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, diningTableService.createDiningTable(request)));

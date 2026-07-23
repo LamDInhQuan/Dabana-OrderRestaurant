@@ -7,6 +7,7 @@ import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.service.BookingItemService;
 import com.dabana.backend.modules.booking.service.BookingTableService;
@@ -151,6 +152,76 @@ public class BookingService {
         if (req.getItems() != null && !req.getItems().isEmpty()) {
             bookingItemService.saveItems(booking, req.getItems());
         }
+        return bookingMapper.toResponse(booking);
+    }
+
+    // ============================================================
+    // Luong rieng: nhan khach vang lai (walk-in) - khong qua B01.
+    // Tao thang Booking o trang thai CHECKED_IN cho ban dang EMPTY, khong giu
+    // ban/khong dat coc/khong xac nhan. Sau khi tao xong, ban chuyen OCCUPIED
+    // va FE (TableDetailDrawer) se tu dong cho phep "Them mon" vi da co
+    // activeBooking.status === CHECKED_IN - dung 1 dieu kien voi B12 buoc 2.
+    // ============================================================
+    @Transactional
+    public BookingResponse createWalkIn(User staff, CreateWalkInBookingRequest req) {
+        // 1. Validate Branch
+        Branch branch = branchRepository.findById(req.getBranchId())
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
+
+        // 2. Validate ban
+        var tableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
+        if (tableIds.isEmpty()) {
+            throw new BusinessException(BookingErrorCode.TABLE_IDS_REQUIRED);
+        }
+        List<DiningTable> tables = bookingTableService.loadTables(tableIds);
+        bookingTableService.validateTablesGuestCount(tables, req.getGuestCount());
+        // Khac voi createHold (chi check trung khung gio qua validateBookingConflict):
+        // khach vang lai khong co reservationTime dat truoc nen phai la ban dang
+        // THUC SU trong ngay luc nhan khach, tranh danh nham ban da RESERVED/OCCUPIED.
+        for (DiningTable table : tables) {
+            if (table.getStatus() != DiningTableStatus.EMPTY) {
+                throw new BusinessException(BookingErrorCode.WALK_IN_TABLE_NOT_EMPTY);
+            }
+        }
+
+        // 3. Tao Booking - CHECKED_IN ngay, khong qua HOLDING/AWAITING_PAYMENT/CONFIRMED.
+        // customer: gan tam vao tai khoan nhan vien dang thao tac (khach vang lai
+        // khong co tai khoan/dang nhap) - id_users.customer_id dang NOT NULL nen
+        // chua the de trong; ten/sdt khach thuc su (neu co) luu o contactName/contactPhone.
+        // TODO: neu ve sau can phan biet ro "booking cua nhan vien" voi "booking ho
+        // cho khach vang lai"
+        Booking booking = new Booking();
+        booking.setBranch(branch);
+        booking.setCustomer(staff);
+        booking.setReservationTime(LocalDateTime.now());
+        booking.setGuestCount(req.getGuestCount().byteValue());
+        booking.setStatus(BookingStatus.CHECKED_IN);
+        booking.setContactName(StringUtils.hasText(req.getContactName())
+                ? req.getContactName() : "Khách vãng lai");
+        booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
+                ? req.getContactPhone() : "N/A");
+        booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
+                ? req.getContactPhone() : "N/A");
+        // Booking.contactEmail dang @NotBlank o entity (bo sung sau, khong co luc
+        // viet luong nay) - khach vang lai thuong khong co email nen fallback ve
+        // email cua nhan vien dang thao tac de khong vi pham validation khi persist.
+        booking.setContactEmail(StringUtils.hasText(req.getContactEmail())
+                ? req.getContactEmail() : staff.getEmail());
+        booking.setNote(req.getNote());
+        // Khach vang lai khong dat coc, khong ap dung chinh sach huy/dat coc cua B01.
+        booking.setSnapshotDepositAmount(BigDecimal.ZERO);
+        booking.setSnapshotDepositRequired(false);
+        booking = bookingRepository.save(booking);
+
+        // 4. Gan ban + doi trang thai ban sang OCCUPIED ngay (khac createHold: ban
+        // chi doi status luc checkIn(); o day nhan-va-ngoi-luon nen phai OCCUPIED tuc thi).
+        bookingTableService.saveBookingTables(booking, tables);
+        diningTableService.updateStatusForBooking(tableIds, DiningTableStatus.OCCUPIED);
+        // Bao Tab Goi Mon realtime - cung co che voi applyTableStatus(), nhung dung
+        // thang tableIds tu request thay vi booking.getBookingTables() de tranh phu
+        // thuoc vao viec collection lazy co duoc Hibernate nap lai dung luc hay khong.
+        eventPublisher.publishEvent(new TableBoardChangedEvent(branch.getId(), tableIds));
+
         return bookingMapper.toResponse(booking);
     }
 
