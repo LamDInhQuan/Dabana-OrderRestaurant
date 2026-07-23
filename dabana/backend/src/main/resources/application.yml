@@ -10,7 +10,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/dabana_order_restaurant?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
     username: root
-    password: 
+    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -32,8 +32,8 @@ spring:
   mail:
       host: smtp.gmail.com
       port: 587
-      username: thanhnd@itss.vn
-      password: "nivo vjlc biuy dbry"
+      username: dabanaotp@gmail.com
+      password: "jliw irly vrkt zmdq"
       properties:
         mail:
           smtp:
