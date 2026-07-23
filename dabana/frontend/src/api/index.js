@@ -85,7 +85,8 @@ export const zoneApi = {
 }
 
 export const tableApi = {
-  getByBranch: (bid, zoneId) => api.get('/dining-tables', { params: { branchId: bid, zoneId } }),
+  getByBranchAndZone: (bid, zoneId) => api.get('/dining-tables', { params: { branchId: bid, zoneId } }),
+  getByBranch: (bid) => api.get(`/dining-tables/${bid}`),
   create: (data) => api.post('/dining-tables/create', data),
   update: (id, data) => api.put(`/dining-tables/update/${id}`, data),
   updateLayout: (payload) => api.put('/dining-tables/positions', payload),
@@ -113,6 +114,7 @@ export const bookingApi = {
   cancel: (id, d) => api.post(`/bookings/${id}/cancel`, d),
   checkIn: (id) => api.post(`/bookings/${id}/check-in`),
   checkOut: (id) => api.post(`/bookings/${id}/check-out`),
+  createWalkIn: (payload) => api.post('/bookings/walk-in', payload),
   guestLookup: (data) => api.post('/bookings/guest-lookup', data),
 }
 
@@ -168,10 +170,12 @@ export const notificationApi = {
 
 // ===== Restaurant brand API (B03) =====
 export const restaurantApi = {
-  getMine: () => api.get('/restaurants'),
-  register: (data) => api.post('/restaurants', data),
-  update: (data) => api.put('/restaurants', data),
-  cancelPendingUpdate: () => api.post('/restaurants/cancel-pending-update'),
+  getMine: () => api.get('/restaurants/me'),
+  register: (data) => api.post('/restaurants/me', data),
+  update: (data) => api.put('/restaurants/me', data),
+  // cancelPendingUpdate: () => api.post('/restaurants/cancel-pending-update'),
+  PerDayReports: (branchId) => api.get(`/restaurants/me/perDayReportForBranch/${branchId}`),
+  Dashboard: () => api.get('/restaurants/me/dashboard'),
 }
 
 // ===== BỔ SUNG: Operating Hour API =====

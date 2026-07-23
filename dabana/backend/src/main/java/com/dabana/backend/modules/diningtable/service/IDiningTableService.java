@@ -12,6 +12,7 @@ import java.util.List;
 public interface IDiningTableService {
 
     List<DiningTableResponse> getTablesByBranchAndZone(Long branchId, Long zoneId);
+    List<DiningTableResponse> getTablesByBranchId(Long branchId);
 
     /**
      * Doi trang thai hang loat cho danh sach ban, dung NOI BO boi BookingService
@@ -35,6 +36,7 @@ public interface IDiningTableService {
     DiningTableResponse updateDiningTable(Long tableId, UpdateDiningTableRequest request);
 
     List<DiningTableResponse> bulkUpdatePositions(BulkUpdateDiningTablePositionsRequest request);
+    
 
     void deleteDiningTable(Long tableId);
 }
