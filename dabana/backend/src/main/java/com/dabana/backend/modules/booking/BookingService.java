@@ -3,7 +3,9 @@ package com.dabana.backend.modules.booking;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
@@ -14,18 +16,18 @@ import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.service.AvailableSlotService;
 import com.dabana.backend.modules.branch2.util.BranchErrorCode;
+import com.dabana.backend.modules.diningtable.service.DiningTableService;
 import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
 //import com.dabana.backend.modules.menu.MenuItem;
 //import com.dabana.backend.modules.menu.MenuItemStatus;
 import com.dabana.backend.modules.menu.repository.MenuItemRepository;
+import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.policy.DepositPolicy;
 import com.dabana.backend.modules.policy.DepositPolicyRepository;
 import com.dabana.backend.modules.policy.DepositType;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
-import com.dabana.backend.modules.diningtable.service.IDiningTableService;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
-import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
@@ -62,10 +64,12 @@ public class BookingService {
     private final BookingItemService bookingItemService;
     private final BookingTableService bookingTableService;
     private final BookingMapper bookingMapper;
-    private final IDiningTableService diningTableService;
+    private final DiningTableService diningTableService;
+    private final UserRepository userRepository ;
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va broadcast.
     private final ApplicationEventPublisher eventPublisher;
+    private final OtpService otpService ;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
@@ -78,6 +82,22 @@ public class BookingService {
     // ============================================================
     @Transactional
     public BookingResponse createHold(User user, CreateHoldRequest req) {
+        if (user == null) {
+            // Guest bắt buộc phải nhập Email
+            if (!StringUtils.hasText(req.getContactEmail())) {
+                throw new BusinessException(AuthErrorCode.EMAIL_NOT_NULL);
+            }
+            // 2. CHECK EMAIL ĐÃ TỒN TẠI TRONG BẢNG USERS CHƯA
+            if (userRepository.existsByEmail(req.getContactEmail())) {
+                throw new BusinessException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            // Bắt buộc nhập OTP
+            if (!StringUtils.hasText(req.getOtpCode())) {
+                throw new BusinessException(AuthErrorCode.OTP_REQUIRED);
+            }
+            // Verify OTP cho luồng GUEST_BOOKING (Throw exception ngay nếu mã sai/hết hạn)
+            otpService.verify(req.getContactEmail(), req.getOtpCode(), OtpPurpose.GUEST_BOOKING);
+        }
         // 1. Validate Branch
         Branch branch = branchRepository.findById(req.getBranchId())
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
@@ -87,7 +107,7 @@ public class BookingService {
         }
         // 3. Resolve policy + tính tiền cọc
         BranchPolicy branchPolicy = branchPolicyResolverService.resolve(branch.getId(), req.getReservationTime());
-        DepositResult depositResult = branchPolicyResolverService.calculate(branchPolicy, req.getGuestCount());
+        DepositResult depositResult = branchPolicyResolverService.calculate(branchPolicy, req.getGuestCount(), req.getReservationTime());
         // 4. Validate bàn
         var requestedTableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
         if (requestedTableIds.isEmpty()) {
@@ -98,7 +118,16 @@ public class BookingService {
         bookingTableService.validateBookingConflict(req.getTableIds(), req.getReservationTime());
         // 5. Tạo Booking
         Booking booking = bookingMapper.toEntity(req, user, branch);
-        booking.setStatus(BookingStatus.HOLDING);
+        boolean isDepositRequired = depositResult.getDepositAmount() != null
+                && depositResult.getDepositAmount().compareTo(BigDecimal.ZERO) > 0;
+
+        if (isDepositRequired) {
+            booking.setStatus(BookingStatus.HOLDING);
+            booking.setHoldExpiresAt(LocalDateTime.now().plusMinutes(HOLD_MINUTES));
+        } else {
+            booking.setStatus(BookingStatus.CONFIRMED);
+            booking.setHoldExpiresAt(null); // Không giới hạn giữ bàn vì đã xác nhận đơn
+        }
         String contactName = StringUtils.hasText(req.getContactName())
                 ? req.getContactName()
                 : user.getFullName();
@@ -107,6 +136,7 @@ public class BookingService {
                 : user.getPhone();
         booking.setContactName(contactName);
         booking.setContactPhone(contactPhone);
+        booking.setContactEmail(req.getContactEmail());
         booking.setNote(req.getNote());
         // 6. Snapshot policy
         booking.setSnapshotDepositAmount(depositResult.getDepositAmount());
@@ -201,7 +231,7 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
         // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ
-        if (!booking.getCustomer().getId().equals(user.getId())) {
+        if (user != null && !booking.getCustomer().getId().equals(user.getId())) {
             throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
         }
         // 3. Map dữ liệu sang BookingResponse DTO
@@ -209,7 +239,7 @@ public class BookingService {
         // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
         if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime expiresAt = booking.getHoldExpiresAt();
+            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn giữ bàn
             if (expiresAt != null && expiresAt.isAfter(now)) {
                 // Tính số giây còn lại: holdExpiresAt - bây giờ
                 long remainSeconds = java.time.Duration.between(now, expiresAt).toSeconds();
@@ -225,6 +255,25 @@ public class BookingService {
         }
         return response;
     }
+
+    public List<BookingResponse> getBookingsByEmail(String email) {
+        // Truy vấn DB lấy các booking theo email của khách
+        var bookings = bookingRepository.findByContactEmailOrderByCreatedAtDesc(email);
+        // Map sang DTO trả về cho Client
+        return bookings.stream()
+                .map(bookingMapper::toResponse) // Dùng method reference cho gọn
+                .toList();
+    }
+
+    /**
+     * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
+     */
+    // private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
+    //     List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
+    //             .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
+    //             .filter(t -> t.getCapacity() >= guestCount)
+    //             .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
+    //             .collect(Collectors.toList());
 
     // ============================================================
     // B08: nhan vien check-in cho khach da xac nhan / nghi no-show
@@ -330,4 +379,50 @@ public class BookingService {
             bookingRepository.save(booking);
         }
     }
+
+//    // ============================================================
+//    // Helpers
+//    // ============================================================
+//    private Booking getOwnedBooking(Long bookingId, Long customerId) {
+//        Booking booking = bookingRepository.findById(bookingId)
+//                .orElseThrow(() -> new BusinessException("BOOKING_NOT_FOUND", "Khong tim thay don dat ban"));
+//        if (!booking.getCustomer().getId().equals(customerId)) {
+//            throw new BusinessException("FORBIDDEN", "Ban khong co quyen voi don dat ban nay");
+//        }
+//        return booking;
+//    }
+//
+//    private void ensureHoldingNotExpired(Booking booking) {
+//        if (booking.getStatus() != BookingStatus.HOLDING) {
+//            throw new BusinessException("INVALID_STATE", "Don khong o trang thai cho xu ly");
+//        }
+//        if (booking.getHoldExpiresAt().isBefore(LocalDateTime.now())) {
+//            throw new BusinessException("HOLD_EXPIRED", "Da het thoi gian giu ban (EF04)");
+//        }
+//    }
+//
+//    public BookingResponse toResponse(Booking booking) {
+//        BigDecimal totalPreOrder = booking.getItems().stream()
+//                .map(i -> i.getSnapshotPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+//                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//        return BookingResponse.builder()
+//                .id(booking.getId())
+//                .branchName(booking.getBranch().getName())
+//                .tableCode(booking.getTable().getTableCode())
+//                .guestCount(booking.getGuestCount())
+//                .reservationTime(booking.getReservationTime())
+//                .holdExpiresAt(booking.getHoldExpiresAt())
+//                .status(booking.getStatus().name())
+//                .depositAmount(booking.getSnapshotDepositAmount())
+//                .totalPreOrderAmount(totalPreOrder)
+//                .items(booking.getItems().stream()
+//                        .map(i -> BookingItemResponse.builder()
+//                                .name(i.getSnapshotName())
+//                                .price(i.getSnapshotPrice())
+//                                .quantity(i.getQuantity())
+//                                .build())
+//                        .collect(Collectors.toList()))
+//                .build();
+//    }
 }

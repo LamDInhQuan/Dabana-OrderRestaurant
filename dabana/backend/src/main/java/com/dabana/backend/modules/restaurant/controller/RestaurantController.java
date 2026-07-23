@@ -74,13 +74,22 @@ public class RestaurantController {
 
    }
      @PutMapping
-     public ResponseEntity<ApiResponse<RestaurantResponse>> UpdateRestaurant(@RequestBody RestaurantUpdateRequest request) {
-          User owner = getLoggedOwner();  
+     public ResponseEntity<ApiResponse<RestaurantResponse>> UpdateRestaurant(
+               @RequestBody RestaurantUpdateRequest request) {
+          User owner = getLoggedOwner();
           return ResponseEntity.ok(
-                    ResponseBuilder.
-                    success(SuccessCode.UPDATED, restaurantService.updateRestaurantById( owner.getId(),request)));
+                    ResponseBuilder.success(SuccessCode.UPDATED,
+                              restaurantService.updateRestaurantById(owner.getId(), request)));
 
      }
+     // @
+     // public ResponseEntity<ApiResponse<RestaurantResponse>> cancelUpdate() {
+     //      User owner = getLoggedOwner();  
+     //      return ResponseEntity.ok(
+     //                ResponseBuilder.
+     //                success(SuccessCode.UPDATED, restaurantService.CancelUpdate( owner.getId())));
+
+     // }
    
      private User getLoggedOwner() {
 

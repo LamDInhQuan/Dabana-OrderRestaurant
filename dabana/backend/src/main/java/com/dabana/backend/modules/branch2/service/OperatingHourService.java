@@ -3,6 +3,7 @@ package com.dabana.backend.modules.branch2.service;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.branch2.dto.OperatingHourDto;
 import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.branch2.entity.OperatingHour;
 import com.dabana.backend.modules.branch2.mapper.OperatingHourMapper;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.repository.OperatingHourRepository;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +30,11 @@ public class OperatingHourService implements IOperatingHourService {
 
     @Override
     public List<OperatingHourDto> getByBranch(Long branchId) {
-        return List.of();
+        List<OperatingHour> entityList = operatingHourRepository.findByBranchIdOrderByDayOfWeekAscOpenTimeAsc(branchId);
+
+        return entityList.stream()
+                .map(operatingHourMapper::mapToDto)
+                .collect(Collectors.toList());
     }
 
     @Override

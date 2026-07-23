@@ -23,4 +23,10 @@ public class OperatingHourController {
         operatingHourService.saveOperatingHours(branchId, request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, null));
     }
+    @GetMapping("/{branchId}")
+    public ResponseEntity<ApiResponse<List<OperatingHourDto>>> getOperatingHours(@PathVariable Long branchId) {
+        List<OperatingHourDto> response = operatingHourService.getByBranch(branchId);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, response));
+    }
+
 }

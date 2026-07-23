@@ -23,5 +23,13 @@ public class OperatingHourMapper {
                 .toList();
         return entities;
     }
-
+    public OperatingHourDto mapToDto(OperatingHour entity) {
+        if (entity == null) return null;
+        return OperatingHourDto.builder()
+                .id(entity.getId())
+                .dayOfWeek(entity.getDayOfWeek() != null ? entity.getDayOfWeek() : null)
+                .openTime(entity.getOpenTime())
+                .closeTime(entity.getCloseTime())
+                .build();
+    }
 }

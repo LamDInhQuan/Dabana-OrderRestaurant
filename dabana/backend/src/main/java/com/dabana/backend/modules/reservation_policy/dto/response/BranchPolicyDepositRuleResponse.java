@@ -20,6 +20,10 @@ public class BranchPolicyDepositRuleResponse {
 
     private Integer maxGuest;
 
+    private Integer minTables;
+
+    private Integer maxTables;
+
     private DepositType depositType;
 
     private BigDecimal depositValue;

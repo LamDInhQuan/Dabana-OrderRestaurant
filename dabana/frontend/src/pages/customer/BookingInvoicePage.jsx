@@ -60,7 +60,7 @@ export default function BookingInvoicePage() {
                         <h2 style={{ fontWeight: 800, margin: 0 }}>HOÁ ĐƠN ĐẶT BÀN</h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>Mã đơn: #{booking.id}</p>
                         <span className="badge badge-green" style={{ marginTop: '.5rem', display: 'inline-block' }}>
-                            Trạng thái: {booking.status}
+                            Trạng thái: {booking.status === 'CONFIRMED'  ? 'đã xác nhận' : ''}
                         </span>
                     </div>
 

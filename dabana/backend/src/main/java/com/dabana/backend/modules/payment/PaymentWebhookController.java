@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.payos.PayOS;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 
 
 @RestController
@@ -56,11 +57,11 @@ public class PaymentWebhookController {
             java.util.Map<String, Object> finalResponse = java.util.Map.of(
                     "orderCode", booking.getId(),
                     "amount", 2000,
-                    "checkoutUrl", paymentLink.getCheckoutUrl(),
                     "qrCode", paymentLink.getQrCode(),
                     "status", paymentLink.getStatus()
             );
-
+            booking.setQrCode(paymentLink.getQrCode());
+            bookingRepository.save(booking);
             return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, finalResponse));
 
         } catch (Exception e) {
@@ -134,15 +135,31 @@ public class PaymentWebhookController {
         }
     }
 
-//    @GetMapping("/info/{orderCode}")
-//    public ResponseEntity<?> getPaymentInfo(@PathVariable Long orderCode) {
-//        try {
-//            // Trả về Object thuần để Jackson tự động ép sang JSON gửi xuống React
-//            Object paymentLinkData = payOS.getPaymentLinkInfomation(orderCode);
-//
-//            return ResponseEntity.ok(paymentLinkData);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-//        }
-//    }
+    @GetMapping("/info/{orderCode}")
+    public ResponseEntity<?> getPaymentInfo(@PathVariable Long orderCode) {
+        try {
+            var booking = bookingRepository.findById(orderCode)
+                    .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+
+            PaymentLink paymentInfo = payOS.paymentRequests().get(orderCode);
+
+            java.util.Map<String, Object> responseData = java.util.Map.of(
+                    "orderCode", orderCode,
+                    "amount", paymentInfo.getAmount(),
+                    "amountPaid", paymentInfo.getAmountPaid(),
+                    "amountRemaining", paymentInfo.getAmountRemaining(),
+                    "status", paymentInfo.getStatus(),
+                    "qrCode", booking.getQrCode() != null ? booking.getQrCode() : "",
+                    "bookingStatus", booking.getStatus()
+            );
+
+            return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responseData));
+
+        } catch (Exception e) {
+            System.err.println("❌ Lỗi lấy thông tin phiên thanh toán: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ResponseBuilder.error(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        }
+    }
 }

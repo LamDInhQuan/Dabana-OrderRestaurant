@@ -25,12 +25,22 @@ import CategoryManagement from './pages/admin/CategoryManagement'
 import Reports from './pages/admin/Reports'
 import BookingLockPage from './pages/customer/BookingLockPage'
 import BookingInvoicePage from './pages/customer/BookingInvoicePage'
-import PaymentPage from './pages/customer/payment/PaymentPage'
 
-function ProtectedRoute({ children, role }) {
+// Bổ sung prop allowGuest: Nếu true thì Guest chưa login vẫn vào được
+function ProtectedRoute({ children, role, allowGuest = false }) {
   const { auth, isRole } = useAuth()
+
+  // 1. Nếu cho phép Guest và chưa đăng nhập -> Cho qua luôn!
+  if (allowGuest && !auth) {
+    return children
+  }
+
+  // 2. Nếu không cho phép Guest mà chưa đăng nhập -> Chuyển về login
   if (!auth) return <Navigate to="/login" replace />
+
+  // 3. Nếu đã đăng nhập nhưng không đúng role -> Chuyển về trang chủ
   if (role && !isRole(role)) return <Navigate to="/" replace />
+
   return children
 }
 
@@ -49,40 +59,55 @@ export default function App() {
           <Route path="/change-password"
             element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
 
-          {/* ===== Customer (B01 / B10 / B13 / B14) ===== */}
-          {/*
-            /branch/:id  → trang chi tiết nhà hàng
-            Bấm "Đặt bàn ngay" → step chuyển nội bộ trong BranchDetail
-            (step 0 = chi tiết | 1 = chọn bàn | 2 = thông tin | 3 = đặt món | 4 = thanh toán)
-            Không cần route /booking/:id riêng nữa
-          */}
-          <Route path="/booking/:id"
-            element={<ProtectedRoute role="CUSTOMER"><BookingFlow /></ProtectedRoute>} />
-          <Route path="/my-bookings"
-            element={<ProtectedRoute role="CUSTOMER"><MyBookings /></ProtectedRoute>} />
-          <Route path="/my-bookings/:id/lock"
-            element={<ProtectedRoute role="CUSTOMER"><BookingLockPage /></ProtectedRoute>} />
+          {/* ===== Booking & Payment (Mở cho cả Guest & Logged-in Customer) ===== */}
+          <Route
+            path="/booking/:id"
+            element={
+              <ProtectedRoute role="CUSTOMER" allowGuest={true}>
+                <BookingFlow />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/my-bookings/:id/invoice" element={<BookingInvoicePage />} />
-          <Route path="/booking/payment/:bookingId" element={<PaymentPage />} />
 
+          {/* ===== Personal Pages (Bắt buộc phải Đăng nhập) ===== */}
+          <Route
+            path="/my-bookings"
+            element={<ProtectedRoute role="CUSTOMER"><MyBookings /></ProtectedRoute>}
+          />
+          <Route path="/my-bookings/:id/lock" element={<BookingLockPage />} />
 
-          {/* ===== Restaurant Partner (B03-B08 / B12 / B15) ===== */}
-          <Route path="/partner"
-            element={<ProtectedRoute role="RESTAURANT_PARTNER"><PartnerDashboard /></ProtectedRoute>} />
+          {/* ===== Restaurant Partner ===== */}
+          <Route
+            path="/partner"
+            element={<ProtectedRoute role="RESTAURANT_PARTNER"><PartnerDashboard /></ProtectedRoute>}
+          />
 
-          {/* ===== Admin (B02 B03 B04 B15, F41, F43-F50) ===== */}
-          <Route path="/admin"
-            element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/approvals"
-            element={<ProtectedRoute role="ADMIN"><ApprovalPanel /></ProtectedRoute>} />
-          <Route path="/admin/users"
-            element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>} />
-          <Route path="/admin/reviews"
-            element={<ProtectedRoute role="ADMIN"><ReviewModeration /></ProtectedRoute>} />
-          <Route path="/admin/categories"
-            element={<ProtectedRoute role="ADMIN"><CategoryManagement /></ProtectedRoute>} />
-          <Route path="/admin/reports"
-            element={<ProtectedRoute role="ADMIN"><Reports /></ProtectedRoute>} />
+          {/* ===== Admin ===== */}
+          <Route
+            path="/admin"
+            element={<ProtectedRoute role="ADMIN"><AdminDashboard /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/approvals"
+            element={<ProtectedRoute role="ADMIN"><ApprovalPanel /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/users"
+            element={<ProtectedRoute role="ADMIN"><UserManagement /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/reviews"
+            element={<ProtectedRoute role="ADMIN"><ReviewModeration /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/categories"
+            element={<ProtectedRoute role="ADMIN"><CategoryManagement /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/reports"
+            element={<ProtectedRoute role="ADMIN"><Reports /></ProtectedRoute>}
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

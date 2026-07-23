@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, zoneApi, menuApi, bookingApi, availableSlotApi, tableApi, branchPolicyApi } from '../../api'
+import { branchApi, zoneApi, menuApi, bookingApi, availableSlotApi, tableApi, branchPolicyApi, authApi } from '../../api'
 
 const STEPS = ['Thời gian & bàn', 'Thông tin', 'Đặt món', 'Xác nhận & cọc']
 
@@ -116,6 +116,8 @@ export default function BookingFlow() {
   // Step 1 — thông tin liên hệ
   const [contactName, setContactName] = useState(auth?.fullName || '')
   const [contactPhone, setContactPhone] = useState(auth?.phone || auth?.phoneNumber || '')
+  const [contactEmail, setContactEmail] = useState(auth?.email || '')
+  const [otpCode, setOtpCode] = useState('')
   const [note, setNote] = useState('')
 
   // Step 2 — đặt món trước (tùy chọn)
@@ -200,6 +202,17 @@ export default function BookingFlow() {
 
   useEffect(() => { setTimeSlot('') }, [date])
 
+  const handleSendOtp = async (email) => {
+    try {
+      // Thay otpApi.sendOtp bằng hàm gọi API gửi mail tương ứng của bạn
+      await authApi.sendOtp({ email, purpose: 'GUEST_BOOKING' })
+      toast.success('Mã OTP đã được gửi đến email của bạn!')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Gửi mã OTP thất bại')
+      throw err
+    }
+  }
+
   const slotGroups = useMemo(() => {
     if (slotsError) return buildSlotGroups(date, FALLBACK_HOURS)
     if (!daySlots?.length) return []
@@ -248,10 +261,17 @@ export default function BookingFlow() {
   }
 
   const goToMenuStep = () => {
-    if (!contactName || !contactPhone) { toast.error('Vui lòng nhập đủ thông tin'); return }
+    if (!contactName || !contactPhone || !contactEmail) {
+      toast.error('Vui lòng nhập đầy đủ Họ tên, SĐT và Email')
+      return
+    }
+    // Nếu là Guest (chưa đăng nhập) thì bắt buộc phải nhập OTP
+    if (!auth && !otpCode) {
+      toast.error('Vui lòng nhập mã OTP xác thực email')
+      return
+    }
     setStep(2)
   }
-
   const goToConfirmStep = () => setStep(3)
 
   // Xác nhận cuối cùng — theo đúng 4 endpoint riêng biệt của BE:
@@ -273,6 +293,8 @@ export default function BookingFlow() {
         // Contact
         contactName,
         contactPhone,
+        contactEmail,
+        otpCode,
         note,
         // Preorder
         items: Object.entries(cart)
@@ -357,6 +379,12 @@ export default function BookingFlow() {
                 method={method} selectedTables={selectedTables}
                 activeZoneId={activeZoneId} setActiveZoneId={setActiveZoneId} zones={zones}
                 tableAvailability={tableAvailability} tablesLoading={tablesLoading}
+                contactEmail={contactEmail}
+                setContactEmail={setContactEmail}
+                otpCode={otpCode}
+                setOtpCode={setOtpCode}
+                onSendOtp={handleSendOtp}
+                isGuest={!auth}
               />
             )}
 
@@ -651,7 +679,10 @@ function StepTimeAndTable({
                 {g.slots.map(s => {
                   const needsDeposit = isSlotUnderDeposit(s)
                   return (
-                    <button key={s} type="button" onClick={() => setTimeSlot(s)}
+                    <button key={s} type="button" onClick={() => {
+      console.log('Slot được chọn:', s); // 👈 Log ra xem slot có đúng dạng "14:00" không
+      setTimeSlot(s);
+    }}
                       className="btn-sm"
                       style={{
                         position: 'relative', overflow: 'visible',
@@ -830,17 +861,59 @@ function StepTimeAndTable({
   );
 }
 
+const OTP_EXPIRE_KEY = 'booking_otp_expire_at'
+const RESEND_EXPIRE_KEY = 'booking_resend_expire_at'
+
 function StepContact({
-  contactName, setContactName, contactPhone, setContactPhone, note, setNote,
+  contactName, setContactName,
+  contactPhone, setContactPhone,
+  contactEmail, setContactEmail,
+  otpCode, setOtpCode,
+  note, setNote,
   onBack, onSubmit,
+  onSendOtp,
+  isGuest = true,
   date, timeSlot, guestCount, method, selectedTables,
   activeZoneId, setActiveZoneId, zones, tableAvailability, tablesLoading
 }) {
-  const [y, m, d] = date.split('-')
-  const activeZoneName = zones.find(z => z.id === activeZoneId)?.zoneName
+  const [y, m, d] = date ? date.split('-') : ['', '', '']
+  const activeZoneName = zones?.find(z => z.id === activeZoneId)?.zoneName
+  const zonesWithSelection = zones?.filter(z => selectedTables?.some(t => t.zoneId === z.id)) || []
 
-  const zonesWithSelection = zones.filter(z => selectedTables.some(t => t.zoneId === z.id))
+  // State quản lý đếm ngược
+  const [otpTtl, setOtpTtl] = useState(0)             // Đếm ngược 5 phút OTP (300s)
+  const [resendCooldown, setResendCooldown] = useState(0) // Cooldown nút Gửi lại (60s)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
 
+  // 🔄 KHI LOAD/RELOAD TRANG (F5): Lấy lại thời gian còn lại từ sessionStorage
+  useEffect(() => {
+    const savedOtpExpire = sessionStorage.getItem(OTP_EXPIRE_KEY)
+    const savedResendExpire = sessionStorage.getItem(RESEND_EXPIRE_KEY)
+
+    if (savedOtpExpire) {
+      const remainingOtp = Math.ceil((parseInt(savedOtpExpire, 10) - Date.now()) / 1000)
+      if (remainingOtp > 0) setOtpTtl(remainingOtp)
+      else sessionStorage.removeItem(OTP_EXPIRE_KEY)
+    }
+
+    if (savedResendExpire) {
+      const remainingResend = Math.ceil((parseInt(savedResendExpire, 10) - Date.now()) / 1000)
+      if (remainingResend > 0) setResendCooldown(remainingResend)
+      else sessionStorage.removeItem(RESEND_EXPIRE_KEY)
+    }
+  }, [])
+
+  // ⏱️ TIMER ĐẾM NGUỢC MỖI GIÂY
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setOtpTtl(prev => (prev > 0 ? prev - 1 : 0))
+      setResendCooldown(prev => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  // Auto switch zone nếu cần
   useEffect(() => {
     if (method !== 'manual' || zonesWithSelection.length === 0) return
     const stillValid = zonesWithSelection.some(z => z.id === activeZoneId)
@@ -848,10 +921,48 @@ function StepContact({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 🚀 XỬ LÝ GỬI OTP
+  const handleSendOtpClick = async () => {
+    if (!contactEmail) {
+      alert('Vui lòng nhập Email trước khi nhận mã OTP!')
+      return
+    }
+
+    try {
+      setIsSendingOtp(true)
+      if (onSendOtp) {
+        await onSendOtp(contactEmail)
+      }
+
+      const now = Date.now()
+      const otpExpireAt = now + 5 * 60 * 1000 // 5 phút
+      const resendExpireAt = now + 60 * 1000   // 60 giây
+
+      sessionStorage.setItem(OTP_EXPIRE_KEY, otpExpireAt.toString())
+      sessionStorage.setItem(RESEND_EXPIRE_KEY, resendExpireAt.toString())
+
+      setOtpTtl(300)
+      setResendCooldown(60)
+      if (setOtpCode) setOtpCode('')
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsSendingOtp(false)
+    }
+  }
+
+  // Format giây thành mm:ss
+  const formatTime = (seconds) => {
+    const min = Math.floor(seconds / 60).toString().padStart(2, '0')
+    const sec = (seconds % 60).toString().padStart(2, '0')
+    return `${min}:${sec}`
+  }
+
   return (
     <div className="card">
       <h2 style={{ fontWeight: 700, marginBottom: '1.25rem' }}>Thông tin đặt bàn</h2>
 
+      {/* Badge tóm tắt thông tin */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: '.5rem', marginBottom: '.9rem',
         padding: '.75rem .9rem', background: 'var(--brand-light)', borderRadius: 8, fontSize: '.85rem'
@@ -863,7 +974,7 @@ function StepContact({
         <span>👥 {guestCount} khách</span>
       </div>
 
-      {method === 'manual' && selectedTables.length > 0 && (
+      {method === 'manual' && selectedTables?.length > 0 && (
         <div style={{ marginBottom: '1.1rem' }}>
           <SelectedTablesByZone selectedTables={selectedTables} zones={zones} />
         </div>
@@ -874,21 +985,76 @@ function StepContact({
         </p>
       )}
 
+      {/* FORM NHẬP THÔNG TIN */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
         <div>
           <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Họ tên người đặt</label>
           <input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Nguyễn Văn A" required />
         </div>
+
         <div>
           <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Số điện thoại</label>
           <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="0901234567" required />
         </div>
+
+        <div>
+          <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Email nhận thông tin</label>
+          <input
+            type="email"
+            value={contactEmail}
+            onChange={e => setContactEmail(e.target.value)}
+            placeholder="example@gmail.com"
+            required
+          />
+        </div>
+
+        {/* Ô NHẬP OTP (Chỉ hiện khi là Guest) */}
+        {isGuest && (
+          <div>
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>
+              Mã xác thực OTP
+            </label>
+            <div style={{ display: 'flex', gap: '.5rem' }}>
+              <input
+                value={otpCode}
+                onChange={e => setOtpCode(e.target.value)}
+                placeholder="Nhập 6 số OTP"
+                maxLength={6}
+                style={{ flex: 1, letterSpacing: '2px', fontWeight: 'bold' }}
+                required
+              />
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={handleSendOtpClick}
+                disabled={resendCooldown > 0 || isSendingOtp || !contactEmail}
+                style={{ padding: '0 1rem', whiteSpace: 'nowrap', fontSize: '.85rem' }}
+              >
+                {isSendingOtp ? 'Đang gửi...' : resendCooldown > 0 ? `Gửi lại (${resendCooldown}s)` : 'Gửi mã OTP'}
+              </button>
+            </div>
+
+            {/* Thông báo thời gian OTP */}
+            {otpTtl > 0 && (
+              <small style={{ color: '#ff6600', display: 'block', marginTop: '4px', fontSize: '.75rem' }}>
+                ⏱️ Mã OTP có hiệu lực trong <b>{formatTime(otpTtl)}</b>
+              </small>
+            )}
+            {otpTtl === 0 && sessionStorage.getItem(OTP_EXPIRE_KEY) && (
+              <small style={{ color: 'red', display: 'block', marginTop: '4px', fontSize: '.75rem' }}>
+                ⚠️ Mã OTP đã hết hạn. Vui lòng bấm "Gửi mã OTP" để nhận mã mới.
+              </small>
+            )}
+          </div>
+        )}
+
         <div>
           <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Ghi chú (tùy chọn)</label>
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="Yêu cầu đặc biệt, dị ứng thực phẩm..." />
         </div>
       </div>
 
+      {/* Sơ đồ bàn xem lại */}
       {method === 'manual' && (
         <div style={{ marginTop: '1.25rem' }}>
           <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.5rem' }}>
@@ -926,6 +1092,7 @@ function StepContact({
         </div>
       )}
 
+      {/* Nút hành động */}
       <div className="flex gap-3" style={{ marginTop: '1.25rem' }}>
         <button className="btn-outline" onClick={onBack} style={{ flex: 1, padding: '.8rem' }}>← Quay lại</button>
         <button className="btn-primary" onClick={onSubmit} style={{ flex: 2, padding: '.8rem' }}>

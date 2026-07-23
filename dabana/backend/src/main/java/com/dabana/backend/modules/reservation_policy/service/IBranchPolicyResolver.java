@@ -16,6 +16,7 @@ public interface IBranchPolicyResolver {
 
     DepositResult calculate(
             BranchPolicy policy,
-            Integer guestCount
+            Integer guestCount ,
+            LocalDateTime reservationTime
     );
 }

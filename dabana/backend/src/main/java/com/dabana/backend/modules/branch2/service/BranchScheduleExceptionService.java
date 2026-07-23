@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +73,16 @@ public class BranchScheduleExceptionService implements IBranchScheduleExceptionS
     }
 
     @Override
+    public List<BranchScheduleExceptionResponse> findAll(Long branchId) {
+        List<BranchScheduleException> exceptions = branchScheduleExceptionRepository
+                .findByBranchIdOrderByStartDateAsc(branchId);
+
+        return exceptions.stream()
+                .map(branchScheduleExceptionMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public BranchScheduleExceptionResponse update(Long branchId, Long id, BranchScheduleExceptionRequest request) {
         return null;
     }
@@ -79,11 +90,6 @@ public class BranchScheduleExceptionService implements IBranchScheduleExceptionS
     @Override
     public void delete(Long branchId, Long id) {
 
-    }
-
-    @Override
-    public List<BranchScheduleExceptionResponse> findAll(Long branchId) {
-        return null;
     }
 
     @Override
