@@ -14,7 +14,7 @@ const SUMMARY_ITEMS = [
 export default function OrderBoardTab({ orderBoard, onSelectTable }) {
   const {
     zones = [], visibleZones = [], loading, refreshing, lastUpdatedAt,
-    activeZoneId, setActiveZoneId, summary = {}, reload, branchId,
+    activeZoneId, setActiveZoneId, summary = {}, reload, branchId, wsConnected,
   } = orderBoard || {}
 
   const [selectedTableId, setSelectedTableId] = useState(null)

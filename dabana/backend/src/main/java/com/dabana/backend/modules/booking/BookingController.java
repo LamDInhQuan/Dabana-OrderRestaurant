@@ -32,13 +32,14 @@ public class BookingController extends BaseController {
 
     private final BookingService bookingService;
     private final CurrentUserProvider currentUserProvider;
-    private final OtpService otpService ;
+    private final OtpService otpService;
 
     /** Buoc 3 (+ AF01): tao yeu cau giu ban tam thoi */
     @PostMapping("/hold")
     public ResponseEntity<ApiResponse<BookingResponse>> createHold(@Valid @RequestBody CreateHoldRequest request) {
         User user = getCurrentUser();
-        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookingService.createHold(user,request)));
+        return ResponseEntity
+                .ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookingService.createHold(user, request)));
     }
 
     // ============================================================
@@ -73,6 +74,27 @@ public class BookingController extends BaseController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/check-in")
+    public ResponseEntity<ApiResponse<BookingResponse>> checkIn(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.checkIn(id)));
+    }
+
+    @PostMapping("/{id}/check-out")
+    public ResponseEntity<ApiResponse<BookingResponse>> checkOut(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.checkOut(id)));
+    }
+
+    @PostMapping("/{id}/no-show")
+    public ResponseEntity<ApiResponse<BookingResponse>> markNoShow(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.markNoShow(id)));
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<ApiResponse<BookingResponse>> cancel(
+            @PathVariable Long id, @RequestBody(required = false) CancelRequest request) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.cancel(id, request)));
+    }
+
     @PostMapping("/guest-lookup")
     public ResponseEntity<ApiResponse<List<BookingResponse>>> getGuestBookings(
             @Valid @RequestBody GuestLookupRequest request) {
@@ -86,33 +108,38 @@ public class BookingController extends BaseController {
 
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookings));
     }
-//    /** Buoc 4: cap nhat thong tin lien he */
-//    @PatchMapping("/{id}/contact-info")
-//    public ResponseEntity<BookingResponse> updateContactInfo(
-//            @PathVariable Long id, @Valid @RequestBody ContactInfoRequest request) {
-//        Long customerId = currentUserProvider.getCurrentUserId();
-//        return ResponseEntity.ok(bookingService.updateContactInfo(id, customerId, request));
-//    }
-//
-//    /** Buoc 5 (+ AF02 neu bo qua): dat mon truoc */
-//    @PostMapping("/{id}/pre-order")
-//    public ResponseEntity<BookingResponse> addPreOrder(
-//            @PathVariable Long id, @RequestBody PreOrderRequest request) {
-//        Long customerId = currentUserProvider.getCurrentUserId();
-//        return ResponseEntity.ok(bookingService.addPreOrderItems(id, customerId, request));
-//    }
-//
-//    /** Buoc 8: ket qua thanh toan tu cong thanh toan (webhook noi bo goi sau khi nhan callback) */
-//    @PostMapping("/{id}/payment-result")
-//    public ResponseEntity<BookingResponse> paymentResult(
-//            @PathVariable Long id, @Valid @RequestBody PaymentResultRequest request) {
-//        return ResponseEntity.ok(bookingService.processPaymentResult(id, request));
-//    }
-//
-//    /** AF03: xac nhan ngay khong can dat coc */
-//    @PostMapping("/{id}/confirm-without-deposit")
-//    public ResponseEntity<BookingResponse> confirmWithoutDeposit(@PathVariable Long id) {
-//        Long customerId = currentUserProvider.getCurrentUserId();
-//        return ResponseEntity.ok(bookingService.confirmWithoutDeposit(id, customerId));
-//    }
+    // /** Buoc 4: cap nhat thong tin lien he */
+    // @PatchMapping("/{id}/contact-info")
+    // public ResponseEntity<BookingResponse> updateContactInfo(
+    // @PathVariable Long id, @Valid @RequestBody ContactInfoRequest request) {
+    // Long customerId = currentUserProvider.getCurrentUserId();
+    // return ResponseEntity.ok(bookingService.updateContactInfo(id, customerId,
+    // request));
+    // }
+    //
+    // /** Buoc 5 (+ AF02 neu bo qua): dat mon truoc */
+    // @PostMapping("/{id}/pre-order")
+    // public ResponseEntity<BookingResponse> addPreOrder(
+    // @PathVariable Long id, @RequestBody PreOrderRequest request) {
+    // Long customerId = currentUserProvider.getCurrentUserId();
+    // return ResponseEntity.ok(bookingService.addPreOrderItems(id, customerId,
+    // request));
+    // }
+    //
+    // /** Buoc 8: ket qua thanh toan tu cong thanh toan (webhook noi bo goi sau khi
+    // nhan callback) */
+    // @PostMapping("/{id}/payment-result")
+    // public ResponseEntity<BookingResponse> paymentResult(
+    // @PathVariable Long id, @Valid @RequestBody PaymentResultRequest request) {
+    // return ResponseEntity.ok(bookingService.processPaymentResult(id, request));
+    // }
+    //
+    // /** AF03: xac nhan ngay khong can dat coc */
+    // @PostMapping("/{id}/confirm-without-deposit")
+    // public ResponseEntity<BookingResponse> confirmWithoutDeposit(@PathVariable
+    // Long id) {
+    // Long customerId = currentUserProvider.getCurrentUserId();
+    // return ResponseEntity.ok(bookingService.confirmWithoutDeposit(id,
+    // customerId));
+    // }
 }
