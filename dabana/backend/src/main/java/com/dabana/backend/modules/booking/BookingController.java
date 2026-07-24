@@ -10,6 +10,7 @@ import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
 import com.dabana.backend.modules.booking.service.BookingService;
 import com.dabana.backend.security.CurrentUserProvider;
@@ -74,6 +75,15 @@ public class BookingController extends BaseController {
     public ResponseEntity<ApiResponse<BookingResponse>> cancel(
             @PathVariable Long id, @RequestBody(required = false) CancelRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.cancel(id, request)));
+    }
+
+    /** Nhan khach vang lai: tao booking CHECKED_IN ngay cho ban dang Trong */
+    @PostMapping("/walk-in")
+    public ResponseEntity<ApiResponse<BookingResponse>> createWalkIn(
+            @Valid @RequestBody CreateWalkInBookingRequest request) {
+        User staff = getCurrentUser();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED,
+                bookingService.createWalkIn(staff, request)));
     }
 
     @PostMapping("/guest-lookup")

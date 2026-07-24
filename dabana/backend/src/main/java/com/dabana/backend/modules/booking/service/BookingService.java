@@ -12,6 +12,7 @@ import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
+import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.entity.BranchCancellationPolicy;
@@ -32,6 +33,7 @@ import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
+import com.dabana.backend.modules.reservation_policy.util.DepositType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -67,15 +69,15 @@ public class BookingService implements IBookingService {
     private final BranchCancellationPolicyService branchCancellationPolicyService;
 
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
-    // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va broadcast.
+    // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va
+    // broadcast.
     private final ApplicationEventPublisher eventPublisher;
     private final OtpService otpService;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
             BookingStatus.HOLDING,
-            BookingStatus.CONFIRMED
-    );
+            BookingStatus.CONFIRMED);
 
     // ============================================================
     // B01 Buoc 3 + AF01: chon ban hoac de he thong goi y
@@ -116,8 +118,7 @@ public class BookingService implements IBookingService {
                 depositResult = branchPolicyResolverService.calculate(
                         branchPolicy,
                         req.getGuestCount(),
-                        req.getReservationTime()
-                );
+                        req.getReservationTime());
             } else {
                 depositResult.setDepositAmount(BigDecimal.ZERO);
             }
@@ -160,7 +161,8 @@ public class BookingService implements IBookingService {
         booking.setNote(req.getNote());
         // 6. Snapshot policy
         BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
-        booking.setPolicySnapshot(branchPolicy != null ? toPolicySnapShotDto(branchPolicy, cancellationPolicy) : new PolicySnapshotDto());
+        booking.setPolicySnapshot(
+                branchPolicy != null ? toPolicySnapShotDto(branchPolicy, cancellationPolicy) : new PolicySnapshotDto());
         booking = bookingRepository.save(booking);
         // 7. Lưu bàn
         bookingTableService.saveBookingTables(booking, tables);
@@ -173,6 +175,73 @@ public class BookingService implements IBookingService {
         return bookingMapper.toResponse(booking);
     }
 
+    // ============================================================
+    // Nhan khach vang lai (walk-in): tao thang booking CHECKED_IN cho ban
+    // dang Trong, khong qua giu ban/dat coc/xac nhan nhu B01.
+    // ============================================================
+    @Transactional
+    public BookingResponse createWalkIn(User staff, CreateWalkInBookingRequest req) {
+        // 1. Validate Branch
+        Branch branch = branchRepository.findById(req.getBranchId())
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
+
+        // 2. Validate ban - phai dang EMPTY (khac createHold: khong check trung gio
+        // hen)
+        var tableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
+        if (tableIds.isEmpty()) {
+            throw new BusinessException(BookingErrorCode.TABLE_IDS_REQUIRED);
+        }
+        List<DiningTable> tables = bookingTableService.loadTables(tableIds);
+        bookingTableService.validateTablesGuestCount(tables, req.getGuestCount());
+        for (DiningTable table : tables) {
+            if (table.getStatus() != DiningTableStatus.EMPTY) {
+                throw new BusinessException(BookingErrorCode.WALK_IN_TABLE_NOT_EMPTY);
+            }
+        }
+
+        // 3. Tao Booking - CHECKED_IN ngay, khong qua HOLDING/CONFIRMED, khong dat coc.
+        Booking booking = new Booking();
+        booking.setBranch(branch);
+        booking.setCustomer(staff);
+        booking.setReservationTime(LocalDateTime.now());
+        booking.setGuestCount(req.getGuestCount().byteValue());
+        booking.setStatus(BookingStatus.CHECKED_IN);
+        booking.setContactName(StringUtils.hasText(req.getContactName())
+                ? req.getContactName()
+                : "Khách vãng lai");
+        booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
+                ? req.getContactPhone()
+                : "N/A");
+        booking.setContactEmail(StringUtils.hasText(req.getContactEmail())
+                ? req.getContactEmail()
+                : staff.getEmail());
+        booking.setNote(req.getNote());
+        booking.setEstimatedTotal(BigDecimal.ZERO);
+        // Khach vang lai khong dat coc/khong ap dung chinh sach huy nao -> snapshot
+        // "khong co chinh sach"
+        // (policy_snapshot dang NOT NULL o DB, khong the de trong).
+        booking.setPolicySnapshot(buildNoPolicySnapshot());
+        booking = bookingRepository.save(booking);
+
+        // 4. Gan ban + doi trang thai ban sang OCCUPIED ngay
+        bookingTableService.saveBookingTables(booking, tables);
+        diningTableService.updateStatusForBooking(tableIds, DiningTableStatus.OCCUPIED);
+        eventPublisher.publishEvent(new TableBoardChangedEvent(branch.getId(), tableIds));
+
+        return bookingMapper.toResponse(booking);
+    }
+
+    private PolicySnapshotDto buildNoPolicySnapshot() {
+        return PolicySnapshotDto.builder()
+                .policyDepositCode("NONE")
+                .policyDepositName("Khách vãng lai - không áp dụng chính sách đặt cọc/huỷ")
+                .depositType(DepositType.FIXED)
+                .depositValue(BigDecimal.ZERO)
+                .minGuest(0)
+                .maxGuest(999)
+                .build();
+    }
+
     private PolicySnapshotDto toPolicySnapShotDto(
             BranchPolicy branchPolicy,
             BranchCancellationPolicy cancellationPolicy) {
@@ -181,45 +250,19 @@ public class BookingService implements IBookingService {
             return null;
         }
 
-        // 3. Tao Booking - CHECKED_IN ngay, khong qua HOLDING/AWAITING_PAYMENT/CONFIRMED.
-        // customer: gan tam vao tai khoan nhan vien dang thao tac (khach vang lai
-        // khong co tai khoan/dang nhap) - id_users.customer_id dang NOT NULL nen
-        // chua the de trong; ten/sdt khach thuc su (neu co) luu o contactName/contactPhone.
-        // TODO: neu ve sau can phan biet ro "booking cua nhan vien" voi "booking ho
-        // cho khach vang lai"
-        Booking booking = new Booking();
-        booking.setBranch(branch);
-        booking.setCustomer(staff);
-        booking.setReservationTime(LocalDateTime.now());
-        booking.setGuestCount(req.getGuestCount().byteValue());
-        booking.setStatus(BookingStatus.CHECKED_IN);
-        booking.setContactName(StringUtils.hasText(req.getContactName())
-                ? req.getContactName() : "Khách vãng lai");
-        booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
-                ? req.getContactPhone() : "N/A");
-        booking.setContactPhone(StringUtils.hasText(req.getContactPhone())
-                ? req.getContactPhone() : "N/A");
-        // Booking.contactEmail dang @NotBlank o entity (bo sung sau, khong co luc
-        // viet luong nay) - khach vang lai thuong khong co email nen fallback ve
-        // email cua nhan vien dang thao tac de khong vi pham validation khi persist.
-        booking.setContactEmail(StringUtils.hasText(req.getContactEmail())
-                ? req.getContactEmail() : staff.getEmail());
-        booking.setNote(req.getNote());
-        // Khach vang lai khong dat coc, khong ap dung chinh sach huy/dat coc cua B01.
-        booking.setSnapshotDepositAmount(BigDecimal.ZERO);
-        booking.setSnapshotDepositRequired(false);
-        booking = bookingRepository.save(booking);
         var policy = (branchPolicy != null) ? branchPolicy.getPolicy() : null;
 
         // 💡 Lấy phần tử đầu tiên của Deposit Rules (nếu có)
-        var firstRule = (branchPolicy != null && branchPolicy.getDepositRules() != null && !branchPolicy.getDepositRules().isEmpty())
-                ? branchPolicy.getDepositRules().iterator().next()
-                : null;
+        var firstRule = (branchPolicy != null && branchPolicy.getDepositRules() != null
+                && !branchPolicy.getDepositRules().isEmpty())
+                        ? branchPolicy.getDepositRules().iterator().next()
+                        : null;
 
         // 💡 Lấy phần tử đầu tiên của Schedules (nếu có)
-        var firstSchedule = (branchPolicy != null && branchPolicy.getSchedules() != null && !branchPolicy.getSchedules().isEmpty())
-                ? branchPolicy.getSchedules().iterator().next()
-                : null;
+        var firstSchedule = (branchPolicy != null && branchPolicy.getSchedules() != null
+                && !branchPolicy.getSchedules().isEmpty())
+                        ? branchPolicy.getSchedules().iterator().next()
+                        : null;
 
         return PolicySnapshotDto.builder()
                 // --- 1. Thông tin chung từ ReservationPolicy ---
@@ -228,13 +271,17 @@ public class BookingService implements IBookingService {
                 .description(policy != null ? policy.getDescription() : null)
                 .termsAndConditions(policy != null ? policy.getTermsAndConditions() : null)
 
-                // --- 2. Thông tin chính sách hủy từ BranchCancellationPolicy (hoặc fallback về policy) ---
-                .freeCancellationHours(cancellationPolicy != null ? cancellationPolicy.getFreeCancellationHours() : null)
-                .freeRefundPercent(cancellationPolicy != null ? cancellationPolicy.getFreeCancellationRefundPercent() : null)
-                .lateRefundPercent(cancellationPolicy != null ? cancellationPolicy.getLateCancellationRefundPercent() : null)
+                // --- 2. Thông tin chính sách hủy từ BranchCancellationPolicy (hoặc fallback về
+                // policy) ---
+                .freeCancellationHours(
+                        cancellationPolicy != null ? cancellationPolicy.getFreeCancellationHours() : null)
+                .freeRefundPercent(
+                        cancellationPolicy != null ? cancellationPolicy.getFreeCancellationRefundPercent() : null)
+                .lateRefundPercent(
+                        cancellationPolicy != null ? cancellationPolicy.getLateCancellationRefundPercent() : null)
                 .noShowRefundPercent(cancellationPolicy != null ? cancellationPolicy.getNoShowRefundPercent() : null)
 
-        // --- 3. Thông tin khung giờ áp dụng từ BranchPolicySchedule ---
+                // --- 3. Thông tin khung giờ áp dụng từ BranchPolicySchedule ---
                 .scheduleType(firstSchedule != null ? policy.getScheduleType() : null)
                 .dayOfWeek(firstSchedule != null ? firstSchedule.getDayOfWeek() : null)
                 .dateFrom(firstSchedule != null ? firstSchedule.getDateFrom() : null)
@@ -264,7 +311,8 @@ public class BookingService implements IBookingService {
 
     @Override
     public BookingResponse getBookingDetail(Long bookingId, User user) {
-        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ ResourceNotFoundException
+        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ
+        // ResourceNotFoundException
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
         // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ
@@ -273,10 +321,12 @@ public class BookingService implements IBookingService {
         }
         // 3. Map dữ liệu sang BookingResponse DTO
         BookingResponse response = bookingMapper.toResponse(booking);
-        // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
+        // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt,
+        // remainSeconds, paymentAvailable)
         if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn giữ bàn
+            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn
+                                                                  // giữ bàn
             if (expiresAt != null && expiresAt.isAfter(now)) {
                 // Tính số giây còn lại: holdExpiresAt - bây giờ
                 long remainSeconds = java.time.Duration.between(now, expiresAt).toSeconds();
@@ -305,12 +355,15 @@ public class BookingService implements IBookingService {
     /**
      * AF01: he thong de xuat ban dua tren so khach va tinh trang hien co.
      */
-    // private RestaurantTable suggestTable(Long branchId, Integer guestCount, LocalDateTime reservationTime) {
-    //     List<RestaurantTable> candidates = tableRepository.findByZoneBranchId(branchId).stream()
-    //             .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
-    //             .filter(t -> t.getCapacity() >= guestCount)
-    //             .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban vua du, tranh lang phi
-    //             .collect(Collectors.toList());
+    // private RestaurantTable suggestTable(Long branchId, Integer guestCount,
+    // LocalDateTime reservationTime) {
+    // List<RestaurantTable> candidates =
+    // tableRepository.findByZoneBranchId(branchId).stream()
+    // .filter(t -> t.getStatus() == TableStatus.AVAILABLE)
+    // .filter(t -> t.getCapacity() >= guestCount)
+    // .sorted(Comparator.comparingInt(RestaurantTable::getCapacity)) // uu tien ban
+    // vua du, tranh lang phi
+    // .collect(Collectors.toList());
 
     // ============================================================
     // B08: nhan vien check-in cho khach da xac nhan / nghi no-show
@@ -333,7 +386,8 @@ public class BookingService implements IBookingService {
     // ============================================================
     // B12: nhan vien check-out sau khi khach dung bua xong
     // LUU Y: phan thanh toan/xuat hoa don (rs_invoices) CHUA lam o day - TODO,
-    // se bo sung khi module thanh toan hoan thien. O day chi doi trang thai don + ban.
+    // se bo sung khi module thanh toan hoan thien. O day chi doi trang thai don +
+    // ban.
     // ============================================================
     @Override
     @Transactional
@@ -343,8 +397,10 @@ public class BookingService implements IBookingService {
         if (booking.getStatus() != BookingStatus.CHECKED_IN) {
             throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_OUT);
         }
-        // TODO: tinh rs_invoices (preorder_subtotal + extra_order_subtotal + surcharge - deposit_paid)
-        // khi module thanh toan duoc thiet ke xong. Hien tai chi dong don, chua tao hoa don.
+        // TODO: tinh rs_invoices (preorder_subtotal + extra_order_subtotal + surcharge
+        // - deposit_paid)
+        // khi module thanh toan duoc thiet ke xong. Hien tai chi dong don, chua tao hoa
+        // don.
         booking.setStatus(BookingStatus.COMPLETED);
         booking = bookingRepository.save(booking);
         applyTableStatus(booking, DiningTableStatus.CLEANING);
@@ -370,8 +426,10 @@ public class BookingService implements IBookingService {
     }
 
     // ============================================================
-    // B11: huy don - tu khach (cancelledByRestaurant=false) hoac tu nha hang (=true)
-    // Chi cho huy khi don CHUA check-in. Da CHECKED_IN/COMPLETED/CANCELLED*/NO_SHOW/EXPIRED
+    // B11: huy don - tu khach (cancelledByRestaurant=false) hoac tu nha hang
+    // (=true)
+    // Chi cho huy khi don CHUA check-in. Da
+    // CHECKED_IN/COMPLETED/CANCELLED*/NO_SHOW/EXPIRED
     // deu khong the huy nua.
     // ============================================================
     @Override
@@ -386,8 +444,10 @@ public class BookingService implements IBookingService {
         }
         boolean byRestaurant = request != null && Boolean.TRUE.equals(request.getCancelledByRestaurant());
         booking.setStatus(byRestaurant ? BookingStatus.CANCELLED_BY_RESTAURANT : BookingStatus.CANCELLED_BY_CUSTOMER);
-        // TODO: neu request.getReason() can luu lai, hien Booking entity chua co cot rieng
-        // cho ly do huy - can bo sung cot (vd cancel_reason) neu nghiep vu yeu cau hien thi lai.
+        // TODO: neu request.getReason() can luu lai, hien Booking entity chua co cot
+        // rieng
+        // cho ly do huy - can bo sung cot (vd cancel_reason) neu nghiep vu yeu cau hien
+        // thi lai.
         booking = bookingRepository.save(booking);
         applyTableStatus(booking, DiningTableStatus.CLEANING);
         return bookingMapper.toResponse(booking);
@@ -396,7 +456,8 @@ public class BookingService implements IBookingService {
     /**
      * Doi trang thai tat ca ban gan voi 1 booking (1 booking co the co nhieu ban
      * qua rs_reservation_tables) theo dung bang transition da chot voi doi tac:
-     * CONFIRMED -> RESERVED (chua lam, thuoc luong xac nhan/thanh toan - TODO rieng),
+     * CONFIRMED -> RESERVED (chua lam, thuoc luong xac nhan/thanh toan - TODO
+     * rieng),
      * CHECKED_IN -> OCCUPIED, COMPLETED/NO_SHOW/CANCELLED_* / EXPIRED -> CLEANING.
      */
     private void applyTableStatus(Booking booking, DiningTableStatus status) {
@@ -422,49 +483,53 @@ public class BookingService implements IBookingService {
         }
     }
 
-//    // ============================================================
-//    // Helpers
-//    // ============================================================
-//    private Booking getOwnedBooking(Long bookingId, Long customerId) {
-//        Booking booking = bookingRepository.findById(bookingId)
-//                .orElseThrow(() -> new BusinessException("BOOKING_NOT_FOUND", "Khong tim thay don dat ban"));
-//        if (!booking.getCustomer().getId().equals(customerId)) {
-//            throw new BusinessException("FORBIDDEN", "Ban khong co quyen voi don dat ban nay");
-//        }
-//        return booking;
-//    }
-//
-//    private void ensureHoldingNotExpired(Booking booking) {
-//        if (booking.getStatus() != BookingStatus.HOLDING) {
-//            throw new BusinessException("INVALID_STATE", "Don khong o trang thai cho xu ly");
-//        }
-//        if (booking.getHoldExpiresAt().isBefore(LocalDateTime.now())) {
-//            throw new BusinessException("HOLD_EXPIRED", "Da het thoi gian giu ban (EF04)");
-//        }
-//    }
-//
-//    public BookingResponse toResponse(Booking booking) {
-//        BigDecimal totalPreOrder = booking.getItems().stream()
-//                .map(i -> i.getSnapshotPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
-//                .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-//        return BookingResponse.builder()
-//                .id(booking.getId())
-//                .branchName(booking.getBranch().getName())
-//                .tableCode(booking.getTable().getTableCode())
-//                .guestCount(booking.getGuestCount())
-//                .reservationTime(booking.getReservationTime())
-//                .holdExpiresAt(booking.getHoldExpiresAt())
-//                .status(booking.getStatus().name())
-//                .depositAmount(booking.getSnapshotDepositAmount())
-//                .totalPreOrderAmount(totalPreOrder)
-//                .items(booking.getItems().stream()
-//                        .map(i -> BookingItemResponse.builder()
-//                                .name(i.getSnapshotName())
-//                                .price(i.getSnapshotPrice())
-//                                .quantity(i.getQuantity())
-//                                .build())
-//                        .collect(Collectors.toList()))
-//                .build();
-//    }
+    // // ============================================================
+    // // Helpers
+    // // ============================================================
+    // private Booking getOwnedBooking(Long bookingId, Long customerId) {
+    // Booking booking = bookingRepository.findById(bookingId)
+    // .orElseThrow(() -> new BusinessException("BOOKING_NOT_FOUND", "Khong tim thay
+    // don dat ban"));
+    // if (!booking.getCustomer().getId().equals(customerId)) {
+    // throw new BusinessException("FORBIDDEN", "Ban khong co quyen voi don dat ban
+    // nay");
+    // }
+    // return booking;
+    // }
+    //
+    // private void ensureHoldingNotExpired(Booking booking) {
+    // if (booking.getStatus() != BookingStatus.HOLDING) {
+    // throw new BusinessException("INVALID_STATE", "Don khong o trang thai cho xu
+    // ly");
+    // }
+    // if (booking.getHoldExpiresAt().isBefore(LocalDateTime.now())) {
+    // throw new BusinessException("HOLD_EXPIRED", "Da het thoi gian giu ban
+    // (EF04)");
+    // }
+    // }
+    //
+    // public BookingResponse toResponse(Booking booking) {
+    // BigDecimal totalPreOrder = booking.getItems().stream()
+    // .map(i -> i.getSnapshotPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+    // .reduce(BigDecimal.ZERO, BigDecimal::add);
+    //
+    // return BookingResponse.builder()
+    // .id(booking.getId())
+    // .branchName(booking.getBranch().getName())
+    // .tableCode(booking.getTable().getTableCode())
+    // .guestCount(booking.getGuestCount())
+    // .reservationTime(booking.getReservationTime())
+    // .holdExpiresAt(booking.getHoldExpiresAt())
+    // .status(booking.getStatus().name())
+    // .depositAmount(booking.getSnapshotDepositAmount())
+    // .totalPreOrderAmount(totalPreOrder)
+    // .items(booking.getItems().stream()
+    // .map(i -> BookingItemResponse.builder()
+    // .name(i.getSnapshotName())
+    // .price(i.getSnapshotPrice())
+    // .quantity(i.getQuantity())
+    // .build())
+    // .collect(Collectors.toList()))
+    // .build();
+    // }
 }
