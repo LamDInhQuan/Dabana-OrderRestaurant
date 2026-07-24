@@ -64,7 +64,7 @@ public class OrderBoardService implements IOrderBoardService {
     // khong (FE tu quyet dinh dua tren trang thai vat ly cua ban).
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES =
             List.of(BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN);
-    private static final long ACTIVE_BOOKING_LEAD_MINUTES = 60;
+    private static final long ACTIVE_BOOKING_LEAD_MINUTES = 180;
 
     private final BranchRepository branchRepository;
     private final ZoneRepository zoneRepository;
