@@ -4,9 +4,14 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.BaseController;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.auth.service.OtpService;
+import com.dabana.backend.modules.auth.util.AuthErrorCode;
+import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
-import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
+import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
+import com.dabana.backend.modules.booking.service.BookingService;
 import com.dabana.backend.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,25 +40,6 @@ public class BookingController extends BaseController {
         User user = getCurrentUser();
         return ResponseEntity
                 .ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookingService.createHold(user, request)));
-    }
-
-    // ============================================================
-    // Nhan khach vang lai (walk-in): tao thang booking CHECKED_IN cho ban
-    // dang Trong, khong qua giu ban/dat coc/xac nhan nhu B01. Dung khi nhan
-    // vien bam "Nhan khach vang lai" tren 1 ban dang Trong (TableDetailDrawer
-    // phia FE) - sau khi goi API nay, ban chuyen OCCUPIED va FE se tu cho
-    // phep "Them mon" ngay vi da co activeBooking.status === CHECKED_IN.
-    // TODO: nen gioi han @PreAuthorize cho vai tro nhan vien (RESTAURANT_PARTNER/
-    // ADMIN) khi co co che phan quyen theo role ro rang hon o tang controller;
-    // hien tai repo chua dung @PreAuthorize o bat ky endpoint nao nen tam de
-    // trong giong cac endpoint khac, tranh gay lech quy uoc.
-    // ============================================================
-    @PostMapping("/walk-in")
-    public ResponseEntity<ApiResponse<BookingResponse>> createWalkIn(
-            @Valid @RequestBody CreateWalkInBookingRequest request) {
-        User staff = getCurrentUser();
-        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED,
-                bookingService.createWalkIn(staff, request)));
     }
 
     @GetMapping("/my-bookings")

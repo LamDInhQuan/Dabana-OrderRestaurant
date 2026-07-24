@@ -1,14 +1,6 @@
 import React from "react";
 import { C, S } from "../../../../theme";
 
-/**
- * Props:
- *  - policies: ReservationPolicy[]
- *  - selectedPolicyId: number | null
- *  - onSelect(policy)
- *  - onCreate()
- *  - onDelete(id)
- */
 export default function PolicyList({
   policies,
   selectedPolicyId,
@@ -17,60 +9,61 @@ export default function PolicyList({
   onDelete,
 }) {
   return (
-    <div style={{ ...S.card, padding: "1rem 1.25rem", background: "transparent", boxShadow: "none", border: "none" }}>
-      
-      {/* Tiêu đề & Nút Tạo mới chính sách */}
+    <div style={{ padding: 0, background: "transparent" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "1rem",
+          marginBottom: "1.1rem",
         }}
       >
-        <div style={{ ...S.eyebrow, fontSize: ".8rem", color: "#8A8272" }}>
-          Chính sách khung đang áp dụng ({policies.length})
+        <div>
+          <div style={{ fontSize: ".85rem", fontWeight: 700, color: "#2E2A25" }}>
+            Chính sách áp dụng riêng cho chi nhánh
+          </div>
+          <div style={{ fontSize: ".78rem", color: "#8A8272", marginTop: ".2rem" }}>
+            {policies.length} chính sách đang thiết lập
+          </div>
         </div>
 
         <button
           type="button"
           onClick={onCreate}
-          style={{ 
-            ...S.btnGold, 
-            padding: ".5rem 1.25rem", 
-            fontSize: ".8rem", 
-            borderRadius: 6,
-            fontWeight: 600
+          style={{
+            ...S.btnGold,
+            padding: ".6rem 1.3rem",
+            fontSize: ".8rem",
+            borderRadius: 8,
+            fontWeight: 700,
           }}
         >
           ＋ Tạo chính sách mới
         </button>
       </div>
 
-      {/* Thông báo trống */}
       {policies.length === 0 && (
         <div
           style={{
-            padding: "2rem 1rem",
+            padding: "2.5rem 1rem",
             textAlign: "center",
-            color: C.muted,
+            color: "#8A8272",
             fontSize: ".85rem",
-            background: "#fff",
-            borderRadius: 8,
-            border: `1px dashed ${C.border}`
+            background: "#FBF7EE",
+            borderRadius: 10,
+            border: "1px dashed #E7E1D3",
           }}
         >
           Chưa có chính sách nào. Bấm "Tạo chính sách mới" để bắt đầu cấu hình.
         </div>
       )}
 
-      {/* DANH SÁCH CARD CHÍNH SÁCH */}
-      <div 
-        style={{ 
-          display: "flex", 
-          flexWrap: "wrap", 
-          gap: "1rem", 
-          width: "100%" 
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          gap: "1rem",
+          width: "100%",
         }}
       >
         {policies.map((policy) => {
@@ -80,19 +73,18 @@ export default function PolicyList({
               key={policy.id}
               onClick={() => onSelect(policy)}
               style={{
-                flex: "1 1 240px",
-                maxWidth: "calc(33.33% - 0.7rem)",
-                border: isSelected ? `2px solid ${C.gold}` : `1px solid ${C.border}`,
-                borderRadius: 8,
-                padding: "1rem 1.25rem",
+                border: isSelected ? "1.5px solid #C9A24B" : "1px solid #ECE4D3",
+                borderRadius: 10,
+                padding: "1.1rem 1.25rem",
                 cursor: "pointer",
-                background: isSelected ? C.cream : "#fff",
-                boxShadow: isSelected ? "0 4px 12px rgba(201, 162, 75, 0.1)" : "0 1px 3px rgba(0,0,0,0.02)",
-                position: "relative",
-                transition: "all .2s ease-in-out",
+                background: isSelected ? "#FBF7EE" : "#fff",
+                boxShadow: isSelected
+                  ? "0 4px 12px rgba(201,162,75,0.15)"
+                  : "0 1px 2px rgba(46,42,37,0.03)",
+                transition: "all .15s ease",
                 display: "flex",
                 flexDirection: "column",
-                justifyContent: "space-between"
+                justifyContent: "space-between",
               }}
             >
               <div>
@@ -102,21 +94,21 @@ export default function PolicyList({
                     justifyContent: "space-between",
                     alignItems: "flex-start",
                     gap: "0.5rem",
-                    marginBottom: ".35rem",
+                    marginBottom: ".4rem",
                   }}
                 >
-                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 600, color: C.text }}>
+                  <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#2E2A25" }}>
                     {policy.policyCode}
                   </h4>
                   <span
                     style={{
-                      fontSize: ".7rem",
-                      background: isSelected ? C.gold : "#F3F4F6",
+                      fontSize: ".68rem",
+                      background: isSelected ? "#C9A24B" : "#F1ECDF",
                       color: isSelected ? "#fff" : "#6B7280",
-                      padding: ".15rem .4rem",
+                      padding: ".18rem .45rem",
                       borderRadius: 4,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap"
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {policy.branchCount || 0} CN
@@ -126,34 +118,32 @@ export default function PolicyList({
                 <p
                   style={{
                     fontSize: ".8rem",
-                    color: C.muted,
-                    margin: "0 0 0.5rem 0",
+                    color: "#8A8272",
+                    margin: "0 0 0.75rem 0",
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    lineHeight: "1.3"
+                    lineHeight: "1.4",
                   }}
                 >
                   {policy.policyName || "Không có mô tả cho chính sách này."}
                 </p>
               </div>
 
-              <div 
-                style={{ 
-                  display: "flex", 
-                  justifyContent: "flex-end", 
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  borderTop: "1px dashed #F3F4F6",
-                  paddingTop: "0.5rem",
-                  marginTop: "0.25rem"
+                  borderTop: "1px dashed #EFE9DB",
+                  paddingTop: "0.6rem",
                 }}
               >
-                <span style={{ fontSize: "0.75rem", color: isSelected ? C.gold : "#9CA3AF", fontWeight: 500 }}>
+                <span style={{ fontSize: "0.75rem", color: isSelected ? "#B8903D" : "#9CA3AF", fontWeight: 600 }}>
                   {isSelected ? "● Đang xem" : "Xem chi tiết"}
                 </span>
-                
+
                 <button
                   type="button"
                   onClick={(e) => {
@@ -161,19 +151,17 @@ export default function PolicyList({
                     onDelete(policy.id);
                   }}
                   style={{
-                    marginLeft: "auto",
                     background: "none",
                     border: "none",
-                    color: C.red,
+                    color: "#DC2626",
                     fontSize: "0.75rem",
                     cursor: "pointer",
-                    padding: "0.2rem 0.5rem",
-                    fontWeight: 500,
-                    opacity: 0.7,
-                    transition: "opacity 0.2s"
+                    padding: "0.2rem 0.4rem",
+                    fontWeight: 600,
+                    opacity: 0.75,
                   }}
-                  onMouseEnter={(e) => e.target.style.opacity = 1}
-                  onMouseLeave={(e) => e.target.style.opacity = 0.7}
+                  onMouseEnter={(e) => (e.target.style.opacity = 1)}
+                  onMouseLeave={(e) => (e.target.style.opacity = 0.75)}
                 >
                   Xóa khung
                 </button>
@@ -182,7 +170,6 @@ export default function PolicyList({
           );
         })}
       </div>
-      
-    </div> // 🟢 Chỉ đóng thẻ div của component cha tại đây là xong!
+    </div>
   );
 }

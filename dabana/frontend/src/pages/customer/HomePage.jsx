@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
-import { branchApi } from '../../api'
+import { branchApi, authApi, bookingApi } from '../../api' // Đảm bảo đã import bookingApi & authApi
+import GuestBookingLookup from './GuestBookingLookup'
 
 // ─── Cuisine filters ───────────────────────────────────────────
 const CUISINES = [
@@ -12,16 +13,6 @@ const CUISINES = [
   { label: 'Hải sản', value: 'Hải sản', emoji: '🦞' },
   { label: 'Lẩu nướng', value: 'Lẩu & Nướng', emoji: '🫕' },
   { label: 'Âu', value: 'Âu', emoji: '🍝' },
-]
-
-// ─── Demo branch data shown when API returns empty ─────────────
-const DEMO_BRANCHES = [
-  { id: 1, name: 'Nhà Hàng Sen Vàng', address: '12 Hồ Hoàn Kiếm, Hoàn Kiếm, Hà Nội', restaurant: { cuisineType: 'Việt Nam' }, emoji: '🪷', rating: 4.8, badge: 'Được yêu thích', tags: ['Lẩu', 'Hải sản', 'Gia đình'] },
-  { id: 2, name: 'Sakura Garden', address: '88 Nguyễn Huệ, Q.1, TP. Hồ Chí Minh', restaurant: { cuisineType: 'Nhật Bản' }, emoji: '🌸', rating: 4.7, badge: 'Mới mở', tags: ['Sushi', 'Sashimi', 'Set menu'] },
-  { id: 3, name: 'Seoul BBQ House', address: '56 Tô Ngọc Vân, Tây Hồ, Hà Nội', restaurant: { cuisineType: 'Hàn Quốc' }, emoji: '🥩', rating: 4.6, badge: 'Nổi bật', tags: ['Nướng than', 'Kim chi'] },
-  { id: 4, name: 'Hải Cảng Tươi Sống', address: 'Bãi biển Mỹ Khê, Sơn Trà, Đà Nẵng', restaurant: { cuisineType: 'Hải sản' }, emoji: '🦞', rating: 4.9, badge: 'Top 1 Đà Nẵng', tags: ['Hải sản', 'View biển'] },
-  { id: 5, name: 'Maison de Huế', address: '24 Lê Lợi, TP. Huế', restaurant: { cuisineType: 'Âu' }, emoji: '🏯', rating: 4.5, badge: 'Heritage', tags: ['Cung đình', 'Fine dining'] },
-  { id: 6, name: 'Phố Lẩu Việt', address: '45 Trần Hưng Đạo, Q.5, TP. Hồ Chí Minh', restaurant: { cuisineType: 'Lẩu & Nướng' }, emoji: '🫕', rating: 4.4, badge: 'Giá tốt', tags: ['Lẩu thái', 'Nướng than hoa'] },
 ]
 
 const CARD_GRADIENTS = [
@@ -41,12 +32,6 @@ const EXPERIENCE = [
   { icon: '🍜', title: 'Đặt món trước khi đến', desc: 'Tiết kiệm thời gian chờ, nhà hàng chuẩn bị sẵn phần ăn theo ý bạn.' },
   { icon: '🔔', title: 'Nhắc lịch tự động', desc: 'SMS và thông báo nhắc trước 30 phút — không bỏ lỡ buổi hẹn nào.' },
   { icon: '🛡️', title: 'Đặt cọc an toàn', desc: 'Hoàn tiền minh bạch theo chính sách từng nhà hàng. Mọi giao dịch đều được mã hóa.' },
-]
-
-const TESTIMONIALS = [
-  { stars: 5, text: 'Từ lúc đặt bàn đến khi rời đi, mọi thứ đều hoàn hảo. Hệ thống nhắc lịch tự động rất tiện lợi!', author: 'Nguyễn Minh Châu, Hà Nội' },
-  { stars: 5, text: 'Sơ đồ bàn trực quan giúp tôi chọn được đúng bàn view đẹp nhất cho buổi hẹn sinh nhật.', author: 'Lê Trung Kiên, TP.HCM' },
-  { stars: 5, text: 'Đặt món trước rất hay, đến nơi là có ngay phần ăn đã chuẩn bị sẵn. Không phải chờ 30 phút.', author: 'Trần Thu Hà, Đà Nẵng' },
 ]
 
 // ─── Counter hook ──────────────────────────────────────────────
@@ -111,7 +96,7 @@ function BranchCard({ branch, index, onClick }) {
   const tags = branch.tags || []
 
   return (
-    <div ref={ref} className="reveal" style={{ ...(visible ? { opacity: 1, transform: 'none' } : {}) }}
+    <div ref={ref} className="reveal"
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -221,7 +206,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [heroLoaded, setHeroLoaded] = useState(false)
 
-  // booking form state
+  // Booking form state
   const [bName, setBName] = useState('')
   const [bPhone, setBPhone] = useState('')
   const [bEmail, setBEmail] = useState('')
@@ -233,21 +218,33 @@ export default function HomePage() {
   const [bRestaurant, setBRestaurant] = useState('')
   const [bookSuccess, setBookSuccess] = useState(false)
 
+  // ── Lookup / Tra cứu đặt bàn State ──
+  const [lookupEmail, setLookupEmail] = useState('')
+  const [otpCode, setOtpCode] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [lookupLoading, setLookupLoading] = useState(false)
+  const [countdown, setCountdown] = useState(0)
+  const [bookingList, setBookingList] = useState(null)
+  const [lookupError, setLookupError] = useState('')
+
   useEffect(() => {
-    // small delay so hero animation triggers
     setTimeout(() => setHeroLoaded(true), 80)
     loadBranches()
   }, [])
 
+  // Timer đếm ngược OTP
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [countdown])
+
   const loadBranches = async (params = {}) => {
     setLoading(true)
-
     try {
       const res = await branchApi.getAll(params)
-
-      // API của backend
       const list = res.data?.data ?? []
-
       setBranches(list)
     } catch (error) {
       console.error(error)
@@ -266,8 +263,62 @@ export default function HomePage() {
 
   const handleBookSubmit = (e) => {
     e.preventDefault()
-    // In real: bookingApi.createHold(...)
     setTimeout(() => setBookSuccess(true), 800)
+  }
+
+
+
+  // ── Xử lý Tra cứu danh sách đơn bàn ──
+  // Gửi OTP
+  const handleSendLookupOtp = async (e) => {
+    e.preventDefault()
+    if (!lookupEmail) return
+    setLookupError('')
+    setLookupLoading(true)
+    try {
+      await authApi.sendOtp({ email: lookupEmail, purpose: 'GUEST_LOOKUP' })
+      setOtpSent(true)
+      setCountdown(60) // Đếm ngược 60 giây
+    } catch (err) {
+      setLookupError(err.response?.data?.message || 'Không thể gửi mã OTP. Vui lòng kiểm tra lại Email!')
+    } finally {
+      setLookupLoading(false)
+    }
+  }
+
+  // Gọi API lấy thông tin đặt bàn bằng Email + OTP
+  const handleVerifyAndLookup = async (e) => {
+    e.preventDefault()
+    if (!otpCode) return
+    setLookupError('')
+    setLookupLoading(true)
+    try {
+      const res = await bookingApi.guestLookup({ email: lookupEmail, otp: otpCode })
+      setBookingList(res.data?.data || [])
+    } catch (err) {
+      setLookupError(err.response?.data?.message || 'Mã OTP không chính xác hoặc đã hết hạn!')
+    } finally {
+      setLookupLoading(false)
+    }
+  }
+
+  // Helper render status badge
+  const renderStatusBadge = (status) => {
+    const statusMap = {
+      CONFIRMED: { text: 'Đã xác nhận', bg: '#e6f4ea', color: '#137333' },
+      PENDING: { text: 'Chờ xác nhận', bg: '#fef7e0', color: '#b06000' },
+      COMPLETED: { text: 'Hoàn thành', bg: '#e8f0fe', color: '#1a73e8' },
+      CANCELLED: { text: 'Đã hủy', bg: '#fce8e6', color: '#c5221f' },
+    }
+    const target = statusMap[status] || { text: status, bg: '#f1f3f4', color: '#5f6368' }
+    return (
+      <span style={{
+        padding: '.25rem .65rem', borderRadius: 4, fontSize: '.72rem', fontWeight: 700,
+        background: target.bg, color: target.color, textTransform: 'uppercase'
+      }}>
+        {target.text}
+      </span>
+    )
   }
 
   // ── STYLES ──────────────────────────────────────────────────
@@ -284,11 +335,9 @@ export default function HomePage() {
     lead: { color: 'var(--muted)', lineHeight: 1.8, fontSize: '.95rem' },
   }
 
-  // ── RENDER ──────────────────────────────────────────────────
   return (
     <div style={{ fontFamily: "'Be Vietnam Pro',system-ui,sans-serif" }}>
 
-      {/* Google Font */}
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
       <Navbar />
@@ -298,19 +347,16 @@ export default function HomePage() {
         height: '100vh', minHeight: 640, position: 'relative',
         display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
       }}>
-        {/* Background */}
         <div style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(160deg,#1a0e06 0%,#3d2b1f 55%,#6b4226 100%)'
         }} />
-        {/* Lotus pattern overlay */}
         <div style={{
           position: 'absolute', inset: 0, opacity: .06,
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L35 20L50 20L38 29L43 44L30 35L17 44L22 29L10 20L25 20Z' fill='%23C9A84C'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'repeat'
         }} />
 
-        {/* Content */}
         <div style={{
           position: 'relative', zIndex: 2, textAlign: 'center',
           padding: '0 1.5rem', maxWidth: 800,
@@ -346,9 +392,7 @@ export default function HomePage() {
                 padding: '.9rem 2.5rem', fontSize: '.88rem', fontWeight: 700,
                 letterSpacing: '.1em', textTransform: 'uppercase', cursor: 'pointer',
                 borderRadius: 2, transition: 'all .2s', fontFamily: 'inherit'
-              }}
-              onMouseEnter={e => { e.target.style.background = 'var(--gold-light)'; e.target.style.transform = 'translateY(-2px)' }}
-              onMouseLeave={e => { e.target.style.background = 'var(--gold)'; e.target.style.transform = 'none' }}>
+              }}>
               Khám Phá Nhà Hàng
             </button>
             <button onClick={() => document.getElementById('booking').scrollIntoView({ behavior: 'smooth' })}
@@ -358,24 +402,18 @@ export default function HomePage() {
                 padding: '.88rem 2.5rem', fontSize: '.88rem', fontWeight: 500,
                 letterSpacing: '.08em', textTransform: 'uppercase', cursor: 'pointer',
                 borderRadius: 2, transition: 'all .2s', fontFamily: 'inherit'
-              }}
-              onMouseEnter={e => { e.target.style.borderColor = 'var(--gold-light)'; e.target.style.color = 'var(--gold-light)' }}
-              onMouseLeave={e => { e.target.style.borderColor = 'rgba(255,255,255,.5)'; e.target.style.color = '#fff' }}>
-              Đặt Bàn Ngay
+              }}>
+              Đặt Bàn / Tra Cứu
             </button>
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div onClick={() => document.getElementById('stats').scrollIntoView({ behavior: 'smooth' })}
           style={{
             position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.4rem', cursor: 'pointer', zIndex: 2
           }}>
-          <span style={{
-            fontSize: '.68rem', letterSpacing: '.15em', textTransform: 'uppercase',
-            color: 'rgba(255,255,255,.35)'
-          }}>Cuộn xuống</span>
+          <span style={{ fontSize: '.68rem', letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)' }}>Cuộn xuống</span>
           <div style={{
             width: 1, height: 40,
             background: 'linear-gradient(to bottom,rgba(255,255,255,.35),transparent)',
@@ -388,7 +426,7 @@ export default function HomePage() {
       {/* ══════════════ STATS ══════════════ */}
       <div id="stats" style={{
         background: 'var(--brown)', padding: '3.5rem 5%',
-        display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '2rem'
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem'
       }}>
         {STATS.map((s, i) => <StatItem key={i} {...s} />)}
       </div>
@@ -413,16 +451,15 @@ export default function HomePage() {
           <input value={keyword} onChange={e => setKeyword(e.target.value)}
             placeholder="Tìm tên nhà hàng, địa chỉ..."
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            style={{ flex: 1, minWidth: 220 }} />
+            style={{ flex: 1, minWidth: 220, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
           <select value={cuisine} onChange={e => setCuisine(e.target.value)}
-            style={{ width: 'auto', minWidth: 180 }}>
+            style={{ width: 'auto', minWidth: 180, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
             {CUISINES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
           </select>
           <button onClick={handleSearch} style={{
             background: 'var(--brown)', color: '#fff', border: 'none',
             padding: '.65rem 1.75rem', fontSize: '.88rem', fontWeight: 600,
-            letterSpacing: '.06em', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit',
-            whiteSpace: 'nowrap'
+            letterSpacing: '.06em', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
           }}>🔍 Tìm kiếm</button>
         </div>
 
@@ -458,32 +495,22 @@ export default function HomePage() {
 
       {/* ══════════════ EXPERIENCE ══════════════ */}
       <div id="experience" style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         minHeight: 520, background: 'var(--brown)'
       }}>
-        {/* Visual */}
         <div style={{
           background: 'linear-gradient(135deg,#5c3a1e 0%,#8B6914 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '8rem', minHeight: 320
         }}>🏮</div>
 
-        {/* Content */}
-        <div style={{ padding: '5rem 4rem' }}>
+        <div style={{ padding: '4rem 8%' }}>
           <div style={{ ...S.eyebrow, color: 'var(--gold-light)' }}>Tại sao chọn Dabana</div>
           <h2 style={{ ...S.title, color: 'var(--cream)', marginBottom: '.75rem' }}>
             Trải Nghiệm<br />
             <em style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>Khác Biệt</em>
           </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right,transparent,rgba(201,168,76,.4))' }} />
-            <span style={{ color: 'var(--gold)' }}>✦</span>
-            <div style={{ flex: 1, height: 1, background: 'linear-gradient(to left,transparent,rgba(201,168,76,.4))' }} />
-          </div>
-          <p style={{ ...S.lead, color: 'rgba(251,247,239,.65)', marginBottom: '2rem' }}>
-            Mỗi chi tiết đều được chăm chút — từ sơ đồ bàn trực quan đến nhắc lịch tự động.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '2rem' }}>
             {EXPERIENCE.map(item => (
               <div key={item.title} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                 <div style={{
@@ -506,129 +533,89 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ══════════════ BOOKING FORM ══════════════ */}
+      {/* ══════════════ BOOKING & LOOKUP SECTION ══════════════ */}
       <section id="booking" style={{ ...S.section, background: 'var(--cream-dark)' }}>
-        <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          {/* Header */}
+        <div style={{ maxWidth: 880, margin: '0 auto' }}>
+
+          {/* Section Header */}
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <div style={S.eyebrow}>Giữ chỗ ngay</div>
-            <h2 style={S.title}>Đặt Bàn Trực Tuyến</h2>
+            <div style={S.eyebrow}>Dịch vụ trực tuyến</div>
+            <h2 style={S.title}>Đặt Bàn & Tra Cứu Lịch Sử</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem auto', maxWidth: 300 }}>
               <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right,transparent,var(--gold-light),transparent)' }} />
               <span style={{ color: 'var(--gold)' }}>✦</span>
               <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right,transparent,var(--gold-light),transparent)' }} />
             </div>
-            <p style={{ ...S.lead, textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
-              Điền thông tin bên dưới — chúng tôi xác nhận trong vòng 2 phút.
-            </p>
           </div>
+          {/* Form Box */}
+          <GuestBookingLookup />
+          <div>
 
-          {/* Form card */}
-          <div style={{ background: 'var(--white)', padding: '3rem', boxShadow: 'var(--shadow)', borderRadius: 4 }}>
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '2.5rem 0' }} />
+
+            {/* ─── FORM ĐẶT BÀN TRỰC TUYẾN ─── */}
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.6rem', fontWeight: 700, color: 'var(--brown)' }}>
+                Tạo Yêu Cầu Đặt Bàn Mới
+              </h3>
+            </div>
+
             {!bookSuccess ? (
               <form onSubmit={handleBookSubmit}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  {/* Name */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Họ và tên</label>
-                    <input value={bName} onChange={e => setBName(e.target.value)}
-                      placeholder="Nguyễn Văn A" required />
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Họ và tên</label>
+                    <input value={bName} onChange={e => setBName(e.target.value)} placeholder="Nguyễn Văn A" required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
                   </div>
-                  {/* Phone */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Số điện thoại</label>
-                    <input value={bPhone} onChange={e => setBPhone(e.target.value)}
-                      placeholder="0901 234 567" required />
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Số điện thoại</label>
+                    <input value={bPhone} onChange={e => setBPhone(e.target.value)} placeholder="0901 234 567" required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
                   </div>
-                  {/* Email */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Email</label>
-                    <input type="email" value={bEmail} onChange={e => setBEmail(e.target.value)}
-                      placeholder="email@gmail.com" />
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Email</label>
+                    <input type="email" value={bEmail} onChange={e => setBEmail(e.target.value)} placeholder="email@gmail.com" required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
                   </div>
-                  {/* Restaurant */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Nhà hàng</label>
-                    <select value={bRestaurant} onChange={e => setBRestaurant(e.target.value)} required>
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Nhà hàng</label>
+                    <select value={bRestaurant} onChange={e => setBRestaurant(e.target.value)} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
                       <option value="">— Chọn nhà hàng —</option>
                       {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
                     </select>
                   </div>
-                  {/* Date */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Ngày đến</label>
-                    <input type="date" value={bDate} onChange={e => setBDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]} required />
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Ngày đến</label>
+                    <input type="date" value={bDate} onChange={e => setBDate(e.target.value)} min={new Date().toISOString().split('T')[0]} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
                   </div>
-                  {/* Time */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Giờ đến</label>
-                    <select value={bTime} onChange={e => setBTime(e.target.value)} required>
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Giờ đến</label>
+                    <select value={bTime} onChange={e => setBTime(e.target.value)} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
                       <option value="">— Chọn giờ —</option>
-                      {['10:00', '11:00', '11:30', '12:00', '12:30', '13:00',
-                        '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'].map(t =>
-                          <option key={t}>{t}</option>)}
+                      {['10:00', '11:00', '11:30', '12:00', '12:30', '13:00', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'].map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
-                  {/* Guests */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Số khách</label>
-                    <select value={bGuests} onChange={e => setBGuests(e.target.value)}>
-                      {['1 người', '2 người', '3 người', '4 người', '5 người', '6 người',
-                        '7–10 người', 'Trên 10 người'].map(g => <option key={g}>{g}</option>)}
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Số khách</label>
+                    <select value={bGuests} onChange={e => setBGuests(e.target.value)} style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
+                      {['1 người', '2 người', '3 người', '4 người', '5 người', '6 người', '7–10 người', 'Trên 10 người'].map(g => <option key={g}>{g}</option>)}
                     </select>
                   </div>
-                  {/* Zone */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Khu vực ngồi</label>
-                    <select value={bZone} onChange={e => setBZone(e.target.value)}>
-                      {['Trong nhà (máy lạnh)', 'Ngoài trời (sân vườn)',
-                        'Phòng VIP riêng', 'Không yêu cầu'].map(z => <option key={z}>{z}</option>)}
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Khu vực ngồi</label>
+                    <select value={bZone} onChange={e => setBZone(e.target.value)} style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
+                      {['Trong nhà (máy lạnh)', 'Ngoài trời (sân vườn)', 'Phòng VIP riêng', 'Không yêu cầu'].map(z => <option key={z}>{z}</option>)}
                     </select>
                   </div>
-                  {/* Note */}
                   <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{
-                      fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em',
-                      textTransform: 'uppercase', color: 'var(--brown-mid)'
-                    }}>Yêu cầu đặc biệt</label>
-                    <textarea value={bNote} onChange={e => setBNote(e.target.value)} rows={3}
-                      placeholder="Dị ứng thực phẩm, tiệc sinh nhật, trang trí đặc biệt..." />
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Yêu cầu đặc biệt</label>
+                    <textarea value={bNote} onChange={e => setBNote(e.target.value)} rows={3} placeholder="Dị ứng thực phẩm, tiệc sinh nhật, trang trí đặc biệt..." style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
                   </div>
-                  {/* Submit */}
                   <div style={{ gridColumn: '1/-1', textAlign: 'center', marginTop: '.5rem' }}>
                     <button type="submit" style={{
                       background: 'var(--gold)', color: 'var(--brown)', border: 'none',
                       padding: '1rem 3.5rem', fontSize: '.9rem', fontWeight: 700,
                       letterSpacing: '.12em', textTransform: 'uppercase', cursor: 'pointer',
                       borderRadius: 2, fontFamily: 'inherit', transition: 'all .2s'
-                    }}
-                      onMouseEnter={e => { e.target.style.background = 'var(--brown)'; e.target.style.color = 'var(--gold-light)'; e.target.style.transform = 'translateY(-2px)' }}
-                      onMouseLeave={e => { e.target.style.background = 'var(--gold)'; e.target.style.color = 'var(--brown)'; e.target.style.transform = 'none' }}>
+                    }}>
                       ✦ Xác Nhận Đặt Bàn ✦
                     </button>
                   </div>
@@ -641,114 +628,18 @@ export default function HomePage() {
                 textAlign: 'center', borderRadius: 4
               }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎊</div>
-                <h3 style={{
-                  fontFamily: "'Cormorant Garamond',Georgia,serif",
-                  fontSize: '1.8rem', fontWeight: 700, marginBottom: '.75rem'
-                }}>
+                <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.8rem', fontWeight: 700, marginBottom: '.75rem' }}>
                   Đặt bàn thành công!
                 </h3>
                 <p style={{ color: 'rgba(232,201,122,.75)', fontSize: '.95rem', lineHeight: 1.7 }}>
-                  Chúng tôi sẽ liên hệ xác nhận qua điện thoại trong vài phút.<br />
+                  Chúng tôi sẽ liên hệ xác nhận qua điện thoại/email trong vài phút.<br />
                   Hẹn gặp bạn tại nhà hàng!
                 </p>
-                <button onClick={() => navigate('/my-bookings')}
-                  style={{
-                    marginTop: '1.5rem', background: 'var(--gold)', color: 'var(--brown)',
-                    border: 'none', padding: '.75rem 2rem', fontWeight: 700, fontSize: '.85rem',
-                    letterSpacing: '.08em', textTransform: 'uppercase', borderRadius: 2,
-                    cursor: 'pointer', fontFamily: 'inherit'
-                  }}>
-                  Xem đặt bàn của tôi →
-                </button>
               </div>
             )}
           </div>
         </div>
-      </section>
-
-      {/* ══════════════ TESTIMONIALS ══════════════ */}
-      <section style={{ ...S.section, background: 'linear-gradient(135deg,var(--brown) 0%,#1a0e06 100%)' }}>
-        <div style={{ textAlign: 'center', maxWidth: 480, margin: '0 auto 3rem' }}>
-          <div style={{ ...S.eyebrow, color: 'var(--gold-light)' }}>Cảm nhận</div>
-          <h2 style={{ ...S.title, color: 'var(--cream)' }}>Khách Hàng Nói Gì</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem auto', maxWidth: 260 }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,.3)' }} />
-            <span style={{ color: 'var(--gold)' }}>✦</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(201,168,76,.3)' }} />
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '1.75rem' }}>
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} style={{
-              background: 'rgba(255,255,255,.04)', border: '1px solid rgba(201,168,76,.18)',
-              padding: '2rem', borderRadius: 4, transition: 'border-color .2s'
-            }}>
-              <div style={{ color: 'var(--gold-light)', fontSize: '.9rem', letterSpacing: '.12em', marginBottom: '.875rem' }}>
-                {'★'.repeat(t.stars)}{'☆'.repeat(5 - t.stars)}
-              </div>
-              <p style={{
-                fontStyle: 'italic', color: 'rgba(251,247,239,.78)',
-                lineHeight: 1.75, fontSize: '.9rem', marginBottom: '1.25rem'
-              }}>"{t.text}"</p>
-              <div style={{
-                fontSize: '.75rem', fontWeight: 600, letterSpacing: '.1em',
-                textTransform: 'uppercase', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '.5rem'
-              }}>
-                <div style={{ width: 24, height: 1, background: 'var(--gold)' }} />
-                {t.author}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ══════════════ FOOTER ══════════════ */}
-      <footer style={{ background: '#110800', padding: '4rem 5% 2rem', borderTop: '1px solid rgba(201,168,76,.12)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '3rem', marginBottom: '3rem', flexWrap: 'wrap' }}>
-          <div>
-            <div style={{
-              fontFamily: "'Cormorant Garamond',Georgia,serif",
-              fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold)',
-              letterSpacing: '.04em', marginBottom: '.875rem'
-            }}>
-              DA<span style={{ fontStyle: 'italic', color: 'rgba(255,255,255,.45)' }}>bana</span>
-            </div>
-            <p style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.38)', lineHeight: 1.75, maxWidth: 300 }}>
-              Nền tảng đặt bàn nhà hàng hàng đầu Việt Nam — kết nối thực khách với
-              những trải nghiệm ẩm thực đáng nhớ.
-            </p>
-          </div>
-          {[
-            { title: 'Khám phá', links: [['#restaurants', 'Nhà hàng nổi bật'], ['#experience', 'Trải nghiệm'], ['#booking', 'Đặt bàn ngay'], ['/register?role=partner', 'Đối tác nhà hàng']] },
-            { title: 'Liên hệ', links: [['#', '📞 1900 2088'], ['#', '✉️ hello@dabana.vn'], ['#', '📍 Hà Nội · HCM · Đà Nẵng'], ['#', 'Hỗ trợ 24/7']] },
-          ].map(col => (
-            <div key={col.title}>
-              <h4 style={{
-                fontSize: '.7rem', fontWeight: 600, letterSpacing: '.2em',
-                textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '1.1rem'
-              }}>{col.title}</h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '.625rem' }}>
-                {col.links.map(([href, label]) => (
-                  <li key={label}><a href={href} style={{
-                    fontSize: '.85rem', color: 'rgba(255,255,255,.38)',
-                    transition: 'color .2s'
-                  }}
-                    onMouseEnter={e => e.target.style.color = 'var(--gold-light)'}
-                    onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,.38)'}>{label}</a></li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-        <div style={{
-          borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: '1.5rem',
-          display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.75rem'
-        }}>
-          <p style={{ fontSize: '.78rem', color: 'rgba(255,255,255,.22)' }}>© 2026 Dabana. Bảo lưu mọi quyền.</p>
-          <p style={{ fontSize: '.78rem', color: 'rgba(255,255,255,.22)' }}>Dự án tốt nghiệp KLHK3252601</p>
-        </div>
-      </footer>
-
-    </div>
+      </section >
+    </div >
   )
 }

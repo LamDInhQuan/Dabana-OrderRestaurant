@@ -99,6 +99,7 @@ export default function MyBookings() {
       await reviewApi.create(data)
       toast.success('Cảm ơn đánh giá của bạn!')
       setReviewing(null)
+      load()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi gửi đánh giá')
     }
@@ -160,7 +161,7 @@ export default function MyBookings() {
             // ✅ Chỉ hiển thị giao diện viền vàng cảnh báo cho đơn thực sự đang lock
             const isLockingState = ['HOLDING', 'AWAITING_PAYMENT'].includes(b.status)
             const canCancel = ['HOLDING', 'CONFIRMED'].includes(b.status)
-            const canReview = b.status === 'COMPLETED'
+            const canReview = b.status === 'COMPLETED' && !b.reviewed
 
             const tableDisplay = b.tables && b.tables.length > 0
               ? b.tables.map(t => t.tableName || t.name).join(', ')

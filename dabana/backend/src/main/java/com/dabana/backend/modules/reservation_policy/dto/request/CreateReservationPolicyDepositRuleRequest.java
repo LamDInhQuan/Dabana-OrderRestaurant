@@ -20,6 +20,14 @@ public class CreateReservationPolicyDepositRuleRequest {
     @Min(1)
     private Integer maxGuests;
 
+    @NotNull()
+    @Min(value = 1)
+    private Integer minTables;
+
+    // maxTables có thể null (nghĩa là không giới hạn số bàn tối đa cho rule này)
+    @Min(value = 1)
+    private Integer maxTables;
+
     @NotNull
     private DepositType depositType;
 

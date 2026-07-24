@@ -19,18 +19,18 @@ export default function BranchDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { auth } = useAuth()
-  const [branch, setBranch]     = useState(null)
+  const [branch, setBranch] = useState(null)
   const [categories, setCategories] = useState([])
-  const [hours, setHours]       = useState([])
-  const [reviews, setReviews]   = useState([])
-  const [tab, setTab]           = useState('info') // info | menu | reviews
+  const [hours, setHours] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [tab, setTab] = useState('info') // info | menu | reviews
 
   useEffect(() => {
     branchApi.getById(id).then(r => setBranch(unwrap(r)))
     menuApi.getByBranch(id).then(r => setCategories(
       (unwrap(r) || []).map(c => ({ ...c, items: (c.items || []).filter(i => i.status === 'SELLING') }))
     )).catch(() => setCategories([]))
-//    operatingHourApi.getByBranch(id).then(r => setHours(unwrap(r) || [])).catch(() => setHours([]))
+    //    operatingHourApi.getByBranch(id).then(r => setHours(unwrap(r) || [])).catch(() => setHours([]))
     reviewApi.getByBranch(id, { page: 0, size: 10 }).then(r => {
       const d = unwrap(r)
       setReviews(d?.content || d || [])
@@ -67,7 +67,7 @@ export default function BranchDetail() {
       <div className="page-container" style={{ padding: '1.5rem 1rem' }}>
         {/* Tabs */}
         <div className="flex gap-3" style={{ borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' }}>
-          {[['info','Thông tin'],['menu','Thực đơn'],['reviews','Đánh giá']].map(([k,label]) => (
+          {[['info', 'Thông tin'], ['menu', 'Thực đơn'], ['reviews', 'Đánh giá']].map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)}
               style={{
                 padding: '.6rem 1rem', background: 'none', borderRadius: 0, fontWeight: 600,
@@ -175,7 +175,7 @@ export default function BranchDetail() {
         }}>
           <button className="btn-primary"
             style={{ width: '100%', padding: '1rem', fontSize: '1rem', fontWeight: 700, borderRadius: 12 }}
-            onClick={() => auth ? navigate(`/booking/${id}`) : navigate('/login')}>
+            onClick={() => navigate(`/booking/${id}`)}>
             🗓️ Đặt bàn tại chi nhánh này
           </button>
         </div>

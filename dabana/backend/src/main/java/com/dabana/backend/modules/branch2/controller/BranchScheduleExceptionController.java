@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/branches/{branchId}/schedule-exceptions")
+@RequestMapping("/api/branchs/{branchId}/schedule-exceptions")
 @RequiredArgsConstructor
 public class BranchScheduleExceptionController {
     private final BranchScheduleExceptionService service;

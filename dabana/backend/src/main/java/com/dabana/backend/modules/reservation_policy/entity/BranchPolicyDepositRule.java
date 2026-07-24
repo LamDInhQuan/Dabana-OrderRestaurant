@@ -36,4 +36,11 @@ public class BranchPolicyDepositRule extends BaseEntity {
 
     @Column(name = "deposit_value", nullable = false, precision = 12, scale = 2)
     private BigDecimal depositValue;
+
+
+    @Column(name = "min_tables")
+    private Integer minTables = 1;
+
+    @Column(name = "max_tables")
+    private Integer maxTables;
 }

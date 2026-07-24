@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { bookingApi } from '../../api';
+import { bookingApi, reviewApi } from '../../api';
 import Navbar from '../../components/Navbar';
 import toast from 'react-hot-toast';
+
+const RATING_CATEGORIES = [
+    { key: 'spaceRating', label: '🏠 Không gian' },
+    { key: 'serviceRating', label: '👨‍🍳 Phục vụ' },
+    { key: 'foodRating', label: '🍴 Đồ ăn' },
+];
 
 export default function BookingInvoicePage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [reviewForm, setReviewForm] = useState({ spaceRating: 5, serviceRating: 5, foodRating: 5, comment: '' });
+    const [submittingReview, setSubmittingReview] = useState(false);
 
-    useEffect(() => {
+    const loadBooking = () => {
         bookingApi.getById(id)
             .then(res => {
                 setBooking(res.data?.data || res.data);
@@ -20,7 +28,22 @@ export default function BookingInvoicePage() {
                 toast.error("Không thể tải chi tiết hóa đơn");
                 navigate('/my-bookings');
             });
-    }, [id]);
+    };
+
+    useEffect(() => { loadBooking(); }, [id]);
+
+    const handleSubmitReview = async () => {
+        setSubmittingReview(true);
+        try {
+            await reviewApi.create({ ...reviewForm, bookingId: booking.id });
+            toast.success('Cảm ơn đánh giá của bạn!');
+            loadBooking();
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Lỗi gửi đánh giá');
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
 
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Đang tải hóa đơn...</div>;
     if (!booking) return <div style={{ padding: '2rem', textAlign: 'center' }}>Không tìm thấy dữ liệu đơn hàng.</div>;
@@ -89,9 +112,52 @@ export default function BookingInvoicePage() {
                     <div className="flex justify-between items-center" style={{ marginTop: '1rem' }}>
                         <span style={{ fontWeight: 700 }}>Tiền cọc đã trả:</span>
                         <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--brand)' }}>
-                            {booking.depositAmount ? `${Number(booking.depositAmount).toLocaleString('vi-VN')}₫` : '0₫'}
+                            {booking.estimatedTotal ? `${Number(booking.estimatedTotal).toLocaleString('vi-VN')}₫` : '0₫'}
                         </span>
                     </div>
+
+                    {/* B13: Đánh giá - chỉ hiển thị khi hóa đơn (đơn đặt bàn) đã hoàn tất */}
+                    {booking.status === 'COMPLETED' && (
+                        <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px dashed var(--border)' }}>
+                            {booking.reviewed ? (
+                                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '.9rem' }}>
+                                    ⭐ Bạn đã đánh giá đơn này. Cảm ơn bạn!
+                                </p>
+                            ) : (
+                                <>
+                                    <h3 style={{ fontWeight: 700, marginBottom: '1rem' }}>⭐ Đánh giá trải nghiệm của bạn</h3>
+                                    {RATING_CATEGORIES.map(({ key, label }) => (
+                                        <div key={key} style={{ marginBottom: '.875rem' }}>
+                                            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.4rem' }}>{label}</label>
+                                            <div className="flex gap-2">
+                                                {[1, 2, 3, 4, 5].map(v => (
+                                                    <button key={v} type="button"
+                                                        onClick={() => setReviewForm(p => ({ ...p, [key]: v }))}
+                                                        style={{
+                                                            width: 36, height: 36, borderRadius: '50%', fontWeight: 700, fontSize: '.9rem',
+                                                            background: reviewForm[key] >= v ? '#FBBF24' : 'var(--border)',
+                                                            color: reviewForm[key] >= v ? '#fff' : 'var(--text-muted)'
+                                                        }}>
+                                                        ★
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Nhận xét</label>
+                                        <textarea rows={3} value={reviewForm.comment}
+                                            onChange={e => setReviewForm(p => ({ ...p, comment: e.target.value }))}
+                                            placeholder="Chia sẻ trải nghiệm của bạn..." />
+                                    </div>
+                                    <button className="btn-primary" style={{ width: '100%', padding: '.875rem' }}
+                                        disabled={submittingReview} onClick={handleSubmitReview}>
+                                        {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </>
