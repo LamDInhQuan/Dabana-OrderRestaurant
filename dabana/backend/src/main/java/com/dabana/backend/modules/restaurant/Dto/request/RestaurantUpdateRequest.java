@@ -34,7 +34,7 @@ public class RestaurantUpdateRequest {
     @Size(max = 150,message = "Email không được vượt quá 150 ký tự") // Mới bổ sung theo DB
     private String email;
 
-    @Size(max = 255,message = "Website không được vượt quá 255 ký tự")
+    @Size(max = 512,message = "Website không được vượt quá 512 ký tự")
 
     private String website;
 

@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class RestaurantService  {
+public class RestaurantService {
     private final RestaurantRepository restaurantRepos;
     private final BranchRepository branchRepository;
     private final BookingRepository bookingRepository;
@@ -50,13 +50,13 @@ public class RestaurantService  {
     private final BookingMapper bookingMapper;
 
     public RestaurantResponse findByOwnerId(Long ownerId) {
-        return restaurantMapper.toResponse( restaurantRepos.findByOwnerUserId(ownerId).
-        orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId)));
+        return restaurantMapper.toResponse(restaurantRepos.findByOwnerUserId(ownerId).
+                orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId)));
     }
 
     public Restaurant findByRestaurantName(String name) {
         return restaurantRepos.findByRestaurantName(name).
-        orElseThrow(() -> new RuntimeException("Restaurant not found for name: " + name));
+                orElseThrow(() -> new RuntimeException("Restaurant not found for name: " + name));
     }
 
     public void deleteById(Long id) {
@@ -65,7 +65,7 @@ public class RestaurantService  {
 
     public Restaurant findById(Long id) {
         return restaurantRepos.findById(id).
-        orElseThrow(() -> new RuntimeException("Restaurant not found for id: " + id));
+                orElseThrow(() -> new RuntimeException("Restaurant not found for id: " + id));
     }
 
     public RestaurantResponse updateRestaurantById(Long id, RestaurantUpdateRequest request) {
@@ -78,6 +78,7 @@ public class RestaurantService  {
 
         return restaurantMapper.toResponse(restaurantRepos.save(restaurant));
     }
+
     public RestaurantResponse CancelUpdate(Long id) {
         Restaurant restaurant = restaurantRepos.findByOwnerUserId(id)
 
@@ -139,7 +140,7 @@ public class RestaurantService  {
                 ? 0.0
                 : noShow30day * 100.0 / finished30day;
 
-        
+
         double reviewScore = 0;
 
         // reviewScore = reviewRepository.calculateAverageRating(branchId);
@@ -157,20 +158,21 @@ public class RestaurantService  {
                 .totalReviewScore(reviewScore)
                 .build();
     }
-    
+
 
     /**
      * lấy tất cả booking của từng ngày cho 1 chi nhánh
-     * @param branchId 
+     *
+     * @param branchId
      * @return PerDayReport
-    */
+     */
     public List<PerDayReport> getPerDayReports(Long branchId, Long ownerId) {
 
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("cannot find branch : " + branchId));
-        
-        if (! branchRepository.findByRestaurant_Owner_Id(ownerId)
-            .contains( branch ) ) {
+
+        if (!branchRepository.findByRestaurant_Owner_Id(ownerId)
+                .contains(branch)) {
             throw new RuntimeException("branch do not belong to owner: " + ownerId);
         }
 
@@ -232,23 +234,22 @@ public class RestaurantService  {
     private boolean isFinishedStatus(BookingStatus status) {
         return status == BookingStatus.COMPLETED || status == BookingStatus.CHECKED_IN;
     }
-    
-   
-    
-    public RestaurantResponse Register(RestaurantRegisterRequest request,Long ownerId) {
-            Restaurant restaurant = new Restaurant();
-            User user = userRepository.findById(ownerId)
-                    .orElseThrow(() -> new RuntimeException("cannot found owner for id: " + ownerId));
-            if (!restaurantRepos.findByOwnerUserId(ownerId).isEmpty() ) {
-                throw new RuntimeException("owner already registered");
-            }
-            restaurant = restaurantMapper.toEntity(request);
-            restaurant.setOwner(user);
-            
-            restaurant.setApprovalStatus(ApprovalStatus.PENDING);
 
-            return restaurantMapper.toResponse( restaurantRepos.save(restaurant));
+
+    public RestaurantResponse Register(RestaurantRegisterRequest request, Long ownerId) {
+        Restaurant restaurant = new Restaurant();
+        User user = userRepository.findById(ownerId)
+                .orElseThrow(() -> new RuntimeException("cannot found owner for id: " + ownerId));
+        if (!restaurantRepos.findByOwnerUserId(ownerId).isEmpty()) {
+            throw new RuntimeException("owner already registered");
         }
+        restaurant = restaurantMapper.toEntity(request);
+        restaurant.setOwner(user);
 
-    
+        restaurant.setApprovalStatus(ApprovalStatus.PENDING);
+
+        return restaurantMapper.toResponse(restaurantRepos.save(restaurant));
+    }
+
+
 }

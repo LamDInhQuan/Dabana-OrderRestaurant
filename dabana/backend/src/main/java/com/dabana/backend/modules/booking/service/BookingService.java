@@ -26,7 +26,6 @@ import com.dabana.backend.modules.diningtable.service.DiningTableService;
 //import com.dabana.backend.modules.menu.MenuItemStatus;
 import com.dabana.backend.modules.menu.repository.MenuItemRepository;
 import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
-import com.dabana.backend.modules.policy.DepositPolicyRepository;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
@@ -57,7 +56,6 @@ public class BookingService implements IBookingService {
     private final BookingRepository bookingRepository;
     private final BranchRepository branchRepository;
     private final DiningTableRepository tableRepository;
-    private final DepositPolicyRepository policyRepository;
     private final MenuItemRepository menuItemRepository;
     private final AvailableSlotService availableSlotService;
     private final BranchPolicyResolverService branchPolicyResolverService;
