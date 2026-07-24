@@ -54,6 +54,8 @@ public class BookingMapper {
                 .totalPreOrderAmount(booking.getEstimatedTotal())
                 .holdExpiresAt(booking.getHoldExpiresAt())
                 .estimatedTotal(booking.getEstimatedTotal())
+                .policySnapshotDto(booking.getPolicySnapshot())
+                .createdAt(booking.getCreatedAt())
                 .build();
     }
 }

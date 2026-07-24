@@ -164,8 +164,6 @@ public class BookingService implements IBookingService {
         booking = bookingRepository.save(booking);
         // 7. Lưu bàn
         bookingTableService.saveBookingTables(booking, tables);
-        booking.setHoldExpiresAt(
-                LocalDateTime.now().plusMinutes(HOLD_MINUTES));
         // 8. Lưu món đặt trước (nếu có)
         if (req.getItems() != null && !req.getItems().isEmpty()) {
             bookingItemService.saveItems(booking, req.getItems());
