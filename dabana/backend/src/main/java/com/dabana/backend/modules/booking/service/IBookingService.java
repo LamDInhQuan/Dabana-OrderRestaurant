@@ -29,4 +29,7 @@ public interface IBookingService {
 
     // EF04
     void expireOverdueHoldings();
+
+    // B11 buoc 5-7 (tu dong): CONFIRMED qua gio hen + khoang dem -> NO_SHOW
+    void expireOverdueConfirmedBookings();
 }

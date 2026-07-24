@@ -481,6 +481,29 @@ public class BookingService implements IBookingService {
         }
     }
 
+    // ============================================================
+    // B11 buoc 5-7 (rut gon, tu dong): CONFIRMED da qua gio hen + 1 khoang dem
+    // se tu chuyen sang NO_SHOW - chay dinh ky cung nhip voi expireOverdueHoldings().
+    // Truoc day CHI co markNoShow() cho nhan vien bam tay, khong co tien trinh
+    // tu dong nao ca -> booking qua gio hen "treo" o CONFIRMED mai mai, khien
+    // OrderBoardService van hien no la active booking cua ban du gio da qua rat lau.
+    // NO_SHOW_GRACE_MINUTES: cho khach mot khoang tre nho truoc khi chot no-show,
+    // tranh vua qua gio hen 1 phut da bi huy oan - dieu chinh so nay neu can.
+    // ============================================================
+    private static final long NO_SHOW_GRACE_MINUTES = 30;
+
+    @Override
+    @Transactional
+    public void expireOverdueConfirmedBookings() {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(NO_SHOW_GRACE_MINUTES);
+        List<Booking> overdue = bookingRepository.findOverdueUncheckedIn(threshold);
+        for (Booking booking : overdue) {
+            booking.setStatus(BookingStatus.NO_SHOW);
+            booking = bookingRepository.save(booking);
+            applyTableStatus(booking, DiningTableStatus.CLEANING);
+        }
+    }
+
     // // ============================================================
     // // Helpers
     // // ============================================================

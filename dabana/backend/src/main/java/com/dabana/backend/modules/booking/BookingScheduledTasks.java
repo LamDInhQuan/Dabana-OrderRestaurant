@@ -23,4 +23,12 @@ public class BookingScheduledTasks {
     public void expireOverdueHoldings() {
         bookingService.expireOverdueHoldings();
     }
+
+    // B11 buoc 5-7 (tu dong): CONFIRMED qua gio hen + khoang dem -> NO_SHOW.
+    // Cung nhip 60s voi expireOverdueHoldings() cho don gian; tach rieng
+    // method de dieu chinh tan suat sau nay neu can ma khong dung toi cai kia.
+    @Scheduled(fixedRate = 60_000)
+    public void expireOverdueConfirmedBookings() {
+        bookingService.expireOverdueConfirmedBookings();
+    }
 }

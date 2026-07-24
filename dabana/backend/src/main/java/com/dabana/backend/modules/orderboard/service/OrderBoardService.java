@@ -173,8 +173,16 @@ public class OrderBoardService implements IOrderBoardService {
 
     /**
      * Voi moi tableId, tim booking dang active gan voi no qua rs_reservation_tables:
-     * CHECKED_IN (luon active) hoac CONFIRMED da trong vong ACTIVE_BOOKING_LEAD_MINUTES
-     * phut truoc gio hen. CONFIRMED con xa hon bi bo qua hoan toan (khong hien gi).
+     * CHECKED_IN (luon active) hoac CONFIRMED van CON HAN (chua qua gio hen) VA
+     * da trong vong ACTIVE_BOOKING_LEAD_MINUTES phut truoc gio hen. CONFIRMED con
+     * xa hon bi bo qua hoan toan (khong hien gi).
+     *
+     * Chan ca can duoi (reservationTime.isAfter(now)) o day la lop phong thu THU
+     * 2, doc lap voi BookingService#expireOverdueConfirmedBookings() (job chay
+     * dinh ky 60s tu chuyen CONFIRMED qua han sang NO_SHOW): du job chua kip chay
+     * (toi da ~60s + NO_SHOW_GRACE_MINUTES tre), Tab Goi Mon van khong hien nham
+     * 1 booking da qua gio hen la dang active nua.
+     *
      * Neu 1 ban lo co nhieu ung vien active cung luc (du ve nguyen tac khong nen
      * xay ra - vd vua nhan walk-in tren ban da co booking CONFIRMED sap toi), uu
      * tien CHECKED_IN (khach dang ngoi thuc te) truoc, sau do moi den booking co
@@ -187,7 +195,8 @@ public class OrderBoardService implements IOrderBoardService {
         List<BookingTable> bookingTables =
                 bookingTableRepository.findByDiningTable_IdInAndBooking_StatusIn(tableIds, ACTIVE_BOOKING_STATUSES);
 
-        LocalDateTime activeThreshold = LocalDateTime.now().plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime activeThreshold = now.plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES);
 
         Map<Long, Booking> result = new HashMap<>();
         for (BookingTable bt : bookingTables) {
@@ -195,7 +204,8 @@ public class OrderBoardService implements IOrderBoardService {
             Booking candidate = bt.getBooking();
 
             boolean isActive = candidate.getStatus() == BookingStatus.CHECKED_IN
-                    || !candidate.getReservationTime().isAfter(activeThreshold);
+                    || (candidate.getReservationTime().isAfter(now)
+                        && !candidate.getReservationTime().isAfter(activeThreshold));
             if (!isActive) continue;
 
             result.merge(tableId, candidate, this::pickPreferredBooking);
