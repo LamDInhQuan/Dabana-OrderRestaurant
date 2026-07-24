@@ -123,7 +123,7 @@ public class BranchService implements IBranchService {
             mockRestaurant.setId(request.getRestaurantId().longValue());
             branch.setRestaurant(mockRestaurant);
         }
-        branch.setStatus(BranchStatus.PENDING.getStatus());
+        branch.setStatus(BranchStatus.ACTIVE.getStatus());
         if (request.getBranchImages() != null) {
             branch.setImages(request.getBranchImages().stream().map(dto ->
                     BranchImage.builder()
