@@ -8,13 +8,13 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
-import com.dabana.backend.modules.auth.repository.UserRepository;
+import com.dabana.backend.modules.booking.dto.BookingDtos.BookingResponse;
+import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
 import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
 import com.dabana.backend.modules.restaurant.Dto.report.PerDayReport;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
-import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.security.CustomUserDetail;
 
@@ -24,11 +24,9 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 //TODO: phan quyen cho chu nha hang
 @RestController
+@RestControllerAdvice
 @RequestMapping("/api/restaurants/me")
 @RequiredArgsConstructor
 public class RestaurantController {
@@ -62,7 +61,24 @@ public class RestaurantController {
      public ResponseEntity<ApiResponse<List<PerDayReport>>> perDayReportForBranch(@PathVariable Long branchId) {
           User owner = getLoggedOwner();
           return ResponseEntity.ok(
-                    ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.getPerDayReports( branchId, owner.getId() )));
+                    ResponseBuilder.success(SuccessCode.SUCCESS,
+                              restaurantService.getPerDayReports(branchId, owner.getId())));
+
+     }
+
+     @GetMapping("/tables/{branchId}")
+     public ResponseEntity<ApiResponse<List<DiningTableResponse>>> getUpcomingBookingByBranch(@PathVariable Long branchId) {
+
+          return ResponseEntity.ok(
+                    ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.getAllTableByBranch(branchId)));
+
+     }
+
+     @GetMapping("/bookings/{branchId}")
+     public ResponseEntity<ApiResponse<List<BookingResponse>>> getAlltableByBranch(@PathVariable Long branchId) {
+
+          return ResponseEntity.ok(
+                    ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.getBranchBookings( branchId )));
 
      }
      @PostMapping

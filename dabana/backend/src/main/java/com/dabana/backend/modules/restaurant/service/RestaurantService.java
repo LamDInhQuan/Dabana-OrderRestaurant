@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.restaurant.service;
 
+import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,9 +16,12 @@ import com.dabana.backend.modules.booking.Booking;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.BookingDtos;
+import com.dabana.backend.modules.booking.dto.BookingDtos.BookingResponse;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
+import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
+import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
@@ -37,7 +41,8 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class RestaurantService {
+public class RestaurantService  {
+    private final DiningTableMapper diningTableMapper;
     private final RestaurantRepository restaurantRepos;
     private final BranchRepository branchRepository;
     private final BookingRepository bookingRepository;
@@ -48,6 +53,7 @@ public class RestaurantService {
 
     private final RestaurantMapper restaurantMapper;
     private final BookingMapper bookingMapper;
+
 
     public RestaurantResponse findByOwnerId(Long ownerId) {
         return restaurantMapper.toResponse(restaurantRepos.findByOwnerUserId(ownerId).
@@ -92,13 +98,22 @@ public class RestaurantService {
     }
 
     public List<BranchReportDto> dashboard(Long ownerId) {
-        List<Branch> branches = branchRepository.findByRestaurant_Owner_Id(ownerId);
+            List<Branch> branches = branchRepository.findByRestaurant_Owner_Id(ownerId);
 
-        LocalDate now = LocalDate.now();
+            LocalDate now = LocalDate.now();
 
-        return branches.stream()
-                .map(branch -> buildBranchReport(branch, now))
-                .toList();
+            return branches.stream()
+                            .map(branch -> buildBranchReport(branch, now))
+                            .toList();
+    }
+
+    public List<DiningTableResponse> getAllTableByBranch(Long branchid) {
+            branchRepository.findById(branchid).orElseThrow(() -> new RuntimeException("branch not found for :" + branchid));
+            List<DiningTable> tables = diningTableRepository.findByZoneBranchId(branchid);
+
+            return tables.stream()
+                            .map(diningTableMapper::toResponse)
+                            .toList();
     }
 
     private BranchReportDto buildBranchReport(Branch branch, LocalDate now) {
@@ -158,7 +173,17 @@ public class RestaurantService {
                 .totalReviewScore(reviewScore)
                 .build();
     }
+    
 
+    public List<BookingResponse> getBranchBookings(Long BranchId) {
+        List<BookingResponse> respones =    bookingRepository
+                            .findByBranchId
+                             (BranchId).stream()
+                             .map(b -> bookingMapper.toResponse(b)).toList();
+    
+
+        return respones;
+        }
 
     /**
      * lấy tất cả booking của từng ngày cho 1 chi nhánh

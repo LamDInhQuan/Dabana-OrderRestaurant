@@ -86,7 +86,6 @@ export const zoneApi = {
 
 export const tableApi = {
   getByBranchAndZone: (bid, zoneId) => api.get('/dining-tables', { params: { branchId: bid, zoneId } }),
-  getByBranch: (bid) => api.get(`/dining-tables/${bid}`),
   create: (data) => api.post('/dining-tables/create', data),
   update: (id, data) => api.put(`/dining-tables/update/${id}`, data),
   updateLayout: (payload) => api.put('/dining-tables/positions', payload),
@@ -176,6 +175,8 @@ export const restaurantApi = {
   // cancelPendingUpdate: () => api.post('/restaurants/cancel-pending-update'),
   PerDayReports: (branchId) => api.get(`/restaurants/me/perDayReportForBranch/${branchId}`),
   Dashboard: () => api.get('/restaurants/me/dashboard'),
+  GetTablesByBranch: (branchid) => api.get(`/restaurants/me/tables/${branchid}`),
+  UpcomingBooking: (branchid) => api.get(`/restaurants/me/bookings/${branchid}`)
 }
 
 // ===== BỔ SUNG: Operating Hour API =====
