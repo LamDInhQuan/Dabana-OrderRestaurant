@@ -31,10 +31,11 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
   // BookingItemService#assertBookingEditable o backend.
   const canEditPreorderItem = booking?.status === 'CONFIRMED' || booking?.status === 'CHECKED_IN'
   const canEditExtraOrder = booking?.status === 'CHECKED_IN'
-  // Khach vang lai: chi nhan duoc khi ban dang THUC SU Trong (status 1) va
-  // chua gan booking nao - khop dung BookingService#createWalkIn o backend
-  // (chan neu table.status != EMPTY -> WALK_IN_TABLE_NOT_EMPTY).
-  const canReceiveWalkIn = !booking && table?.status === 1
+  // Khach vang lai: chi can ban dang THUC SU Trong (status 1) - khop dung
+  // BookingService#createWalkIn o backend (chan neu table.status != EMPTY).
+  // KHONG con phu thuoc vao co booking (CONFIRMED sap toi) hay khong nua - neu
+  // co, van chi canh bao ben duoi (activeBooking), khong khoa hanh dong.
+  const canReceiveWalkIn = table?.status === 1
 
   // Nap thuc don gio nam trong MenuPickerModal (tu-quan-ly, chi mo khi can) -
   // thay cho useEffect nap truoc + <select> phang o day.
@@ -216,6 +217,15 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
               <h3 style={{ fontSize: '.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#8A6E57', marginBottom: '.5rem' }}>
                 Nhận khách vãng lai
               </h3>
+              {booking && (
+                <div style={{
+                  fontSize: '.8rem', color: '#B45309', background: 'rgba(180,83,9,.08)',
+                  borderRadius: 8, padding: '.6rem .75rem', marginBottom: '.6rem', fontWeight: 600,
+                }}>
+                  ⏰ Bàn này có khách đặt trước lúc {formatTime(booking.reservationTime)}
+                  ({booking.guestCount} khách) - cân nhắc xếp bàn khác nếu gần giờ.
+                </div>
+              )}
               <form onSubmit={handleCreateWalkIn} className="card flex items-center gap-2" style={{ padding: '.9rem', flexWrap: 'wrap' }}>
                 <label style={{ fontSize: '.82rem', color: '#8A6E57' }}>Số khách</label>
                 <input
