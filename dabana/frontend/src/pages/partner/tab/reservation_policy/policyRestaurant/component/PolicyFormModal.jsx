@@ -2,10 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { S } from "../../../../theme";
 
-// Import các sub-components
 import PolicySchedule from "../../components/PolicySchedule";
 import PolicyDepositRules from "../../components/PolicyDepositRules";
 import PolicyDateSchedules from "../../components/PolicyDateSchedules";
+
+// 💡 import file API của bạn (ví dụ: policyApi)
+// import { policyApi } from "../../../../api/policyApi"; 
+import axios from "axios"; 
 
 const SCHEDULE_TYPES = [
   { value: "ALWAYS", label: "Áp dụng hàng ngày (Continuous)", desc: "Áp dụng cố định theo các khung giờ mỗi ngày" },
@@ -15,6 +18,9 @@ const SCHEDULE_TYPES = [
 
 function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh }) {
   console.log("initialData", initialData);
+
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const [formData, setFormData] = useState({
     id: null,
@@ -28,7 +34,6 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
     depositRules: [],
   });
 
-  // Đồng bộ state khi initialData thay đổi
   useEffect(() => {
     const rawData = initialData?.data ? initialData.data : initialData;
 
@@ -59,28 +64,24 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
     }
   }, [initialData]);
 
-  // --- CÁC HÀM CONVERT DỮ LIỆU ĐỂ TRUYỀN VÀO POLICY SCHEDULE ---
-  // Extract mảng dayOfWeek từ schedules: VD [6, 7]
+  // Extract handlers cho schedules
   const daysOfWeek = (formData.schedules || [])
     .map((s) => s.dayOfWeek)
     .filter((d) => d !== null && d !== undefined);
 
-  // Extract dateFrom, dateTo từ schedule đầu tiên (nếu có)
   const firstSchedule = formData.schedules?.[0] || {};
   const dateFrom = firstSchedule.dateFrom || "";
   const dateTo = firstSchedule.dateTo || "";
 
-  // Handlers cho PolicySchedule
   const handleApplyTypeChange = (newType) => {
     setFormData((prev) => ({
       ...prev,
       scheduleType: newType,
-      schedules: [], // Reset lại danh sách khi đổi type
+      schedules: [],
     }));
   };
 
   const handleDaysOfWeekChange = (newDays) => {
-    // Map mảng các thứ thành danh sách object schedules
     const updatedSchedules = newDays.map((day) => ({
       policyId: formData.id,
       dayOfWeek: day,
@@ -122,18 +123,50 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
     setFormData((prev) => ({ ...prev, schedules: currentSchedules }));
   };
 
-  const handleSubmit = (e) => {
+  // 💡 HÀM XỬ LÝ SUBMIT CHÍNH (ĐÃ THÊM API CALL)
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave(formData);
+    setLoading(true);
+    setErrorMsg("");
+
+    // Chuẩn bị payload đúng DTO backend
+    const payload = {
+      ...formData,
+      restaurantId: restaurantId,
+    };
+
+    try {
+      if (onSave) {
+        // Nếu component cha truyền hàm onSave vào, ủy quyền cho component cha
+        await onSave(payload);
+      } else {
+        // Nếu chưa khai báo onSave ở ngoài, tự gọi API trực tiếp tại đây:
+        if (formData.id) {
+          // Cập nhật
+          await axios.put(`/api/v1/restaurants/${restaurantId}/policies/${formData.id}`, payload);
+        } else {
+          // Tạo mới
+          await axios.post(`/api/v1/restaurants/${restaurantId}/policies`, payload);
+        }
+      }
+
+      if (onRefresh) onRefresh();
+      if (onClose) onClose();
+
+    } catch (err) {
+      console.error("Lỗi khi lưu chính sách:", err);
+      setErrorMsg(err.response?.data?.message || "Không thể lưu chính sách. Vui lòng thử lại!");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={{ width: "100%", boxSizing: "border-box" }}>
-      {/* Header Modal / Form */}
       <div
         style={{
           display: "flex",
-          justify: "space-between",
+          justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "1.2rem",
           borderBottom: "1px solid #ECE4D3",
@@ -153,6 +186,13 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
           </button>
         )}
       </div>
+
+      {/* Hiển thị lỗi nếu bấm lưu bị crash API */}
+      {errorMsg && (
+        <div style={{ padding: "10px", background: "#FFEBE9", color: "#C00", borderRadius: "6px", marginBottom: "1rem" }}>
+          {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
         {/* 1. Mã Code & Tên Chính Sách */}
@@ -203,7 +243,7 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
           </div>
         </div>
 
-        {/* 2. CẤU HÌNH KIỂU ÁP DỤNG THỜI GIAN (MAP ĐÚNG PROPS CỦA PolicySchedule) */}
+        {/* 2. CẤU HÌNH KIỂU ÁP DỤNG THỜI GIAN */}
         <div style={{ borderTop: "1px solid #ECE4D3", paddingTop: "1rem" }}>
           <PolicySchedule
             applyType={formData.scheduleType}
@@ -217,7 +257,7 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
           />
         </div>
 
-        {/* 3. HIỂN THỊ KHUNG GIỜ CHI TIẾT (Nếu đã có policyId) */}
+        {/* 3. HIỂN THỊ KHUNG GIỜ CHI TIẾT (Chỉ hiển thị khi đã tạo policyId xong) */}
         {formData.id && (
           <div style={{ borderTop: "1px solid #ECE4D3", paddingTop: "1rem" }}>
             <PolicyDateSchedules
@@ -229,7 +269,7 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
           </div>
         )}
 
-        {/* 4. QUY TẮC ĐẶT CỌC (MAP ĐÚNG PROPS rules CHO PolicyDepositRules) */}
+        {/* 4. QUY TẮC ĐẶT CỌC (Chỉ hiển thị khi đã tạo policyId xong) */}
         {formData.id && (
           <div style={{ borderTop: "1px solid #ECE4D3", paddingTop: "1rem" }}>
             <PolicyDepositRules
@@ -244,12 +284,12 @@ function PolicyFormModal({ restaurantId, initialData, onSave, onClose, onRefresh
         {/* Action Buttons */}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: ".8rem", marginTop: "1rem" }}>
           {onClose && (
-            <button type="button" onClick={onClose} style={S.btnSecondary}>
+            <button type="button" onClick={onClose} disabled={loading} style={S.btnSecondary}>
               Hủy
             </button>
           )}
-          <button type="submit" style={S.btnGold}>
-            {formData.id ? "Cập nhật chính sách" : "Lưu chính sách"}
+          <button type="submit" disabled={loading} style={S.btnGold}>
+            {loading ? "Đang xử lý..." : formData.id ? "Cập nhật chính sách" : "Lưu chính sách"}
           </button>
         </div>
       </form>

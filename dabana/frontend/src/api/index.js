@@ -68,7 +68,7 @@ export const branchApi = {
   search: (params) => api.get('/branchs', { params }),
   getById: (id) => api.get(`/branchs/${id}`),
   getMyList: () => api.get('/branchs/me'),
-  create: (data) => api.post('/branchs/me', data),
+  create: (data) => api.post('/branchs', data),
   update: (id, d) => api.put(`/branchs/me/${id}`, d),
 }
 

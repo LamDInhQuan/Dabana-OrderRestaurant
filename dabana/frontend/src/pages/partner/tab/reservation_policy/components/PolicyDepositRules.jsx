@@ -7,6 +7,9 @@ const EMPTY_RULE = {
   maxGuest: "",
   depositType: "PER_PERSON",
   depositValue: "",
+  limitTables: false, // bật/tắt giới hạn số bàn cho rule này
+  minTables: 1,
+  maxTables: "",
 };
 
 const fmtValue = (r) => {
@@ -15,9 +18,10 @@ const fmtValue = (r) => {
   return `${Number(r.depositValue).toLocaleString("vi-VN")} ${suffix}`;
 };
 
+// Rule có giới hạn bàn khi maxTables được set và > 0 (khác mặc định 1/1 do DB default)
+const hasTableLimit = (r) => r.minTables != null && r.maxTables != null && Number(r.maxTables) > 0 && !(Number(r.minTables) === 1 && Number(r.maxTables) === 1 && r._noLimitFlag);
+
 function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
-  console.log("rules",rules);
-  
   const [form, setForm] = useState(EMPTY_RULE);
   const [saving, setSaving] = useState(false);
 
@@ -31,6 +35,16 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
       toast.error("Số khách tối thiểu phải nhỏ hơn hoặc bằng tối đa");
       return;
     }
+    if (form.limitTables) {
+      if (!form.minTables || !form.maxTables) {
+        toast.error("Nhập đủ khoảng số bàn dự kiến (từ / đến)");
+        return;
+      }
+      if (Number(form.minTables) > Number(form.maxTables)) {
+        toast.error("Số bàn tối thiểu phải nhỏ hơn hoặc bằng tối đa");
+        return;
+      }
+    }
     try {
       setSaving(true);
       await reservationPolicyApi.create(restaurantId, policyId, {
@@ -38,6 +52,9 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
         maxGuest: Number(form.maxGuest),
         depositType: form.depositType,
         depositValue: Number(form.depositValue),
+        // Nếu không bật giới hạn bàn, gửi 1/1 (mặc định hiện có của DB) coi như "không giới hạn"
+        minTables: form.limitTables ? Number(form.minTables) : 1,
+        maxTables: form.limitTables ? Number(form.maxTables) : null,
       });
       toast.success("Đã thêm quy tắc đặt cọc");
       setForm(EMPTY_RULE);
@@ -70,7 +87,7 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
           <div>
             <div style={ui.panelTitle}>Đặt cọc theo số khách</div>
             <div style={ui.panelSubtitle}>
-              Ghi đè mức cọc mặc định theo từng khoảng số khách
+              Ghi đè mức cọc mặc định theo từng khoảng số khách, có thể giới hạn thêm theo số bàn
             </div>
           </div>
         </div>
@@ -93,6 +110,11 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
                 <span style={ui.guestPill}>
                   {r.minGuest}–{r.maxGuest} khách
                 </span>
+                {hasTableLimit(r) && (
+                  <span style={ui.tablePill} title="Áp dụng khi số bàn thực tế nằm trong khoảng này">
+                    {r.minTables}–{r.maxTables} bàn
+                  </span>
+                )}
                 <span style={ui.arrow}>→</span>
                 <span style={ui.valueText}>{fmtValue(r)}</span>
               </div>
@@ -129,7 +151,7 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
               value={form.maxGuest}
               onChange={(e) => setForm((f) => ({ ...f, maxGuest: e.target.value }))}
               style={ui.input}
-              placeholder="VD: 20"
+              placeholder="Tối đa"
             />
           </div>
           <div style={{ ...ui.field, flex: "1.6 1 170px" }}>
@@ -158,6 +180,59 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
           <button type="submit" disabled={saving} style={ui.addBtn}>
             {saving ? "Đang lưu..." : "+ Thêm"}
           </button>
+        </div>
+
+        {/* Khối giới hạn theo số bàn - tuỳ nhà hàng bật/tắt, không bắt buộc */}
+        <div style={ui.tableLimitBox}>
+          <label style={ui.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={form.limitTables}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  limitTables: e.target.checked,
+                  minTables: e.target.checked ? f.minTables || 1 : 1,
+                  maxTables: e.target.checked ? f.maxTables : "",
+                }))
+              }
+              style={ui.checkbox}
+            />
+            <span style={ui.checkboxLabel}>Giới hạn thêm theo số bàn</span>
+            <span style={ui.checkboxHint}>
+              Chỉ áp dụng mức cọc này nếu số bàn thực tế cũng nằm trong khoảng bên dưới
+            </span>
+          </label>
+
+          {form.limitTables && (
+            <div style={ui.tableLimitFields}>
+              <div style={{ ...ui.field, flex: "1 1 90px" }}>
+                <label style={ui.label}>Từ (bàn)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.minTables}
+                  onChange={(e) => setForm((f) => ({ ...f, minTables: e.target.value }))}
+                  style={ui.input}
+                />
+              </div>
+              <div style={{ ...ui.field, flex: "1 1 90px" }}>
+                <label style={ui.label}>Đến (bàn)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.maxTables}
+                  onChange={(e) => setForm((f) => ({ ...f, maxTables: e.target.value }))}
+                  style={ui.input}
+                  placeholder="Tối đa"
+                />
+              </div>
+              <div style={ui.tableLimitNote}>
+                Ví dụ: 6 khách nhưng đặt 2 bàn → nếu rule "6 khách, tối đa 1 bàn" không khớp số
+                bàn thực tế, hệ thống sẽ tìm rule khác phù hợp hoặc dùng mức mặc định.
+              </div>
+            </div>
+          )}
         </div>
       </form>
     </section>
@@ -238,6 +313,15 @@ const ui = {
     borderRadius: 6,
     padding: ".25rem .55rem",
   },
+  tablePill: {
+    fontSize: ".78rem",
+    fontWeight: 600,
+    color: "#7A5A1E",
+    background: "#FBF0D9",
+    border: "1px solid #EFDDAE",
+    borderRadius: 6,
+    padding: ".25rem .55rem",
+  },
   arrow: { color: "#C9BBA0", fontSize: ".85rem" },
   valueText: { fontSize: ".88rem", fontWeight: 700, color: "#B8903D" },
   deleteBtn: {
@@ -283,6 +367,49 @@ const ui = {
     fontWeight: 700,
     fontSize: ".85rem",
     cursor: "pointer",
+  },
+  tableLimitBox: {
+    marginTop: "1rem",
+    paddingTop: "1rem",
+    borderTop: "1px dashed #E7E1D3",
+  },
+  checkboxRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: ".5rem",
+    cursor: "pointer",
+    flexWrap: "wrap",
+  },
+  checkbox: {
+    width: 16,
+    height: 16,
+    accentColor: "#C9A24B",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  checkboxLabel: {
+    fontSize: ".85rem",
+    fontWeight: 600,
+    color: "#2E2A25",
+  },
+  checkboxHint: {
+    fontSize: ".74rem",
+    color: "#8A8272",
+  },
+  tableLimitFields: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: ".85rem",
+    alignItems: "flex-start",
+    marginTop: ".85rem",
+  },
+  tableLimitNote: {
+    flex: "1 1 220px",
+    fontSize: ".72rem",
+    color: "#8A8272",
+    fontStyle: "italic",
+    lineHeight: 1.5,
+    alignSelf: "center",
   },
 };
 

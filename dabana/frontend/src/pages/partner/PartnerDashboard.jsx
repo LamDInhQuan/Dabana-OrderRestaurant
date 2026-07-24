@@ -18,6 +18,7 @@ import { useOrderBoardState } from './tab/order_board/hooks/useOrderBoardState'
 import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
 import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
+import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -53,7 +54,7 @@ const BOOKING_STATUS = {
 // ── Shared UI helpers ────────────────────────────────────────────
 const BRANCH_STATUS = {
   1: { label: 'Ngừng hoạt động', color: C.muted },
-  2: { label: 'Đã duyệt - Hoạt động', color: C.green },
+  2: { label: 'Hoạt động', color: C.green },
   3: { label: 'Chờ duyệt', color: C.gold },
   4: { label: 'Bị từ chối', color: C.red },
   5: { label: 'Tạm ngưng', color: C.red },
@@ -166,8 +167,16 @@ export default function PartnerDashboard() {
   const [operatingHours, setOperatingHours] = useState([])
   const [savingHours, setSavingHours] = useState(false)
   const [newBranchModal, setNewBranchModal] = useState(false)
-  const [newBranchForm, setNewBranchForm] = useState({ name: '', address: '', province: '', phone: '', latitude: '', longitude: '' })
-  const [creatingBranch, setCreatingBranch] = useState(false)
+  const [newBranchForm, setNewBranchForm] = useState({
+    restaurantId: 1, // 👈 Thêm ID nhà hàng tương ứng vào đây
+    name: '',
+    address: '',
+    province: '',
+    phone: '',
+    latitude: '',
+    longitude: '',
+    branchImages: [] // 👈 Nên khởi tạo mảng rỗng cho đúng DTO
+  }); const [creatingBranch, setCreatingBranch] = useState(false)
 
   const CATEGORIES = ['Khai vị', 'Món chính', 'Lẩu', 'Hải sản', 'Đồ uống', 'Tráng miệng', 'Khác']
 
@@ -186,7 +195,9 @@ export default function PartnerDashboard() {
       .catch(() => { setBranches([]); setActiveBranch(null) })
     // B03: hồ sơ thương hiệu chung của nhà hàng
     restaurantApi.getMine()
-      .then(r => { const d = r.data || null; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...(d || {}) })) })
+      .then(r => { const d = r.data.data || null; setRestaurant(d); setRestaurantForm(f => ({ ...f, ...(d || {}) })) }
+
+      )
       .catch(() => { setRestaurant(null); setRestaurantForm(f => ({ ...f, restaurantName: '', logoUrl: '', description: '', cuisineType: '', phone: '', email: '', website: '' })) })
   }, [])
   console.log("activeBranch", activeBranch);
@@ -512,9 +523,15 @@ export default function PartnerDashboard() {
     setCreatingBranch(true)
     try {
       const payload = {
-        ...newBranchForm, latitude: newBranchForm.latitude === '' ? null : Number(newBranchForm.latitude),
-        longitude: newBranchForm.longitude === '' ? null : Number(newBranchForm.longitude)
-      }
+        ...newBranchForm,
+        restaurantId: Number(newBranchForm.restaurantId),
+        latitude: newBranchForm.latitude === '' || newBranchForm.latitude === null
+          ? null
+          : Number(newBranchForm.latitude),
+        longitude: newBranchForm.longitude === '' || newBranchForm.longitude === null
+          ? null
+          : Number(newBranchForm.longitude),
+      };
       const { data: res } = await branchApi.create(payload)
       const created = res.data || { id: Date.now(), ...newBranchForm, status: 3 }
       setBranches(prev => [...prev, created])
@@ -1371,7 +1388,7 @@ export default function PartnerDashboard() {
                   </div> */}
 
                   {/* Trạng thái hoạt động / Tạm ngưng */}
-                  <div style={S.card}>
+                  {/* <div style={S.card}>
                     <div style={{ ...S.eyebrow, marginBottom: '1.25rem' }}>Trạng thái hoạt động</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                       <div>
@@ -1391,7 +1408,7 @@ export default function PartnerDashboard() {
                         {changingStatus ? '...' : activeBranch.status === 5 ? '▶ Mở lại chi nhánh' : '⏸ Tạm ngưng chi nhánh'}
                       </button>
                     </div>
-                  </div>
+                  </div> */}
                   {/* policy restaurant  */}
                   <PolicyResTab restaurantId={activeBranch.restaurantId} />
                 </>
@@ -1410,21 +1427,35 @@ export default function PartnerDashboard() {
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 200,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
         }}>
-          <div style={{ background: C.white, borderRadius: 4, width: '100%', maxWidth: 480, overflow: 'hidden' }}>
-            <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: '1.25rem 1.5rem' }}>
-              <h2 style={{ ...serif, fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>Thêm chi nhánh mới</h2>
+          <div style={{
+            background: C.white, borderRadius: 8, width: '100%', maxWidth: 520,
+            // ✅ FIX 1: giới hạn chiều cao + flex column để body cuộn được
+            maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden'
+          }}>
+            {/* Header — cố định */}
+            <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: '1rem 1.25rem', flexShrink: 0 }}>
+              <h2 style={{ ...serif, fontWeight: 700, color: '#fff', fontSize: '1.1rem', margin: 0 }}>Thêm chi nhánh mới</h2>
             </div>
-            <form onSubmit={createBranch} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+            {/* Body — cuộn được */}
+            <form onSubmit={createBranch} style={{
+              padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem',
+              // ✅ FIX 2: body cuộn, header + footer không cuộn
+              overflowY: 'auto', flex: 1
+            }}>
               <div>
                 <label style={S.label}>Tên chi nhánh *</label>
                 <input style={S.input} value={newBranchForm.name} required
                   onChange={e => setNewBranchForm(p => ({ ...p, name: e.target.value }))} />
               </div>
+
               <div>
                 <label style={S.label}>Địa chỉ *</label>
                 <input style={S.input} value={newBranchForm.address} required
                   onChange={e => setNewBranchForm(p => ({ ...p, address: e.target.value }))} />
               </div>
+
+              {/* ✅ FIX 3: grid chỉ bọc province + phone, không bọc BranchLocationPicker */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label style={S.label}>Tỉnh/Thành phố</label>
@@ -1436,21 +1467,24 @@ export default function PartnerDashboard() {
                   <input style={S.input} value={newBranchForm.phone}
                     onChange={e => setNewBranchForm(p => ({ ...p, phone: e.target.value }))} />
                 </div>
-                <div>
-                  <label style={S.label}>Vĩ độ</label>
-                  <input style={S.input} type="number" step="0.000001" value={newBranchForm.latitude}
-                    onChange={e => setNewBranchForm(p => ({ ...p, latitude: e.target.value }))} />
-                </div>
-                <div>
-                  <label style={S.label}>Kinh độ</label>
-                  <input style={S.input} type="number" step="0.000001" value={newBranchForm.longitude}
-                    onChange={e => setNewBranchForm(p => ({ ...p, longitude: e.target.value }))} />
-                </div>
               </div>
-              <p style={{ fontSize: '.76rem', color: C.muted }}>
-                Chi nhánh mới sẽ ở trạng thái "Chờ duyệt" cho đến khi quản trị viên xác thực hình ảnh và mô tả.
-                Sau khi tạo, hãy thiết lập khung giờ hoạt động và chính sách đặt cọc riêng cho chi nhánh này.
+
+              {/* ✅ FIX 3: BranchLocationPicker ra ngoài grid, full width */}
+              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '1rem' }}>
+                <BranchLocationPicker
+                  value={{ latitude: newBranchForm.latitude, longitude: newBranchForm.longitude }}
+                  onChange={({ latitude, longitude }) =>
+                    setNewBranchForm(p => ({ ...p, latitude, longitude }))
+                  }
+                />
+              </div>
+
+              <p style={{ fontSize: '.76rem', color: C.muted, margin: 0 }}>
+                Chi nhánh mới sẽ ở trạng thái "Chờ duyệt" cho đến khi quản trị viên xác thực.
+                Sau khi tạo, hãy thiết lập khung giờ hoạt động và chính sách đặt cọc riêng.
               </p>
+
+              {/* Footer — không cuộn cùng body */}
               <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setNewBranchModal(false)} style={S.btnOut}>Huỷ</button>
                 <button type="submit" disabled={creatingBranch} style={S.btnGold}>
