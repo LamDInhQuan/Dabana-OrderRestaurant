@@ -84,6 +84,8 @@ public class BookingDtos {
         private Long remainSeconds;
         private Boolean paymentAvailable;
         private Boolean editable;
+        private PolicySnapshotDto policySnapshotDto ;
+        private LocalDateTime createdAt ;
     }
 
     @Data

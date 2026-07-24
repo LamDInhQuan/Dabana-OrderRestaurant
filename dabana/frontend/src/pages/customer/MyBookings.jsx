@@ -17,6 +17,9 @@ const STATUS_META = {
   PENDING_NO_SHOW: { label: 'Chờ xác nhận đến', badge: 'badge-yellow' },
 }
 
+// ----------------------------------------------------------------------
+// 1. MODAL ĐÁNH GIÁ (ReviewModal)
+// ----------------------------------------------------------------------
 function ReviewModal({ booking, onClose, onSubmit }) {
   const [form, setForm] = useState({ spaceRating: 5, serviceRating: 5, foodRating: 5, comment: '' })
 
@@ -65,13 +68,144 @@ function ReviewModal({ booking, onClose, onSubmit }) {
   )
 }
 
-// ... (Các phần import và ReviewModal giữ nguyên không đổi)
+// ----------------------------------------------------------------------
+// 2. MODAL HỦY ĐẶT BÀN & TÍNH HOÀN TIỀN (CancelBookingModal)
+// ----------------------------------------------------------------------
+function CancelBookingModal({ booking, onClose, onConfirm }) {
+  const [submitting, setSubmitting] = useState(false)
+  const [cancelReason, setCancelReason] = useState('Thay đổi kế hoạch cá nhân')
 
+  // --- LOGIC CHECK NOW VỚI RESERVATION_TIME ---
+  const now = new Date()
+  const reservationTime = new Date(booking.reservationTime)
+  const createdAt = booking.createdAt ? new Date(booking.createdAt) : null
+  const policy = booking.policySnapshotDto || {}
+
+  // Số giờ còn lại từ bây giờ đến giờ hẹn
+  const hoursDiff = (reservationTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+
+  // Tiền cọc (Lấy từ depositAmount hoặc totalPreOrderAmount)
+  const depositAmount = Number(booking.depositAmount || booking.totalPreOrderAmount || 0)
+
+  // Xác định tỷ lệ hoàn tiền (% refund)
+  let refundPercent = 0
+  let conditionText = ''
+  let badgeColor = '#EF4444' // Đỏ
+
+  if (hoursDiff <= 0) {
+    refundPercent = policy.noShowRefundPercent ?? 0
+    conditionText = 'Đã qua giờ hẹn đặt bàn'
+  } else if (hoursDiff >= (policy.freeCancellationHours ?? 24)) {
+    refundPercent = policy.freeRefundPercent ?? 100
+    conditionText = `Hủy sớm (Trước ${policy.freeCancellationHours}h đến giờ hẹn)`
+    badgeColor = '#10B981' // Xanh lá
+  } else {
+    refundPercent = policy.lateRefundPercent ?? 50
+    const roundedHours = Math.max(0, Math.floor(hoursDiff))
+    conditionText = `Hủy muộn (Chỉ còn ~${roundedHours}h nữa đến giờ hẹn)`
+    badgeColor = '#F59E0B' // Cam
+  }
+
+  const refundAmount = (depositAmount * refundPercent) / 100
+  const penaltyAmount = depositAmount - refundAmount
+
+  const handleConfirm = async () => {
+    setSubmitting(true)
+    await onConfirm(booking.id, cancelReason)
+    setSubmitting(false)
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 200,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+    }}>
+      <div className="card" style={{ width: '100%', maxWidth: 460, padding: '1.5rem', background: '#fff', borderRadius: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 style={{ fontWeight: 700, fontSize: '1.2rem', color: '#111827', margin: 0 }}>Xác nhận hủy đặt bàn</h2>
+          <span style={{ fontSize: '.75rem', padding: '4px 10px', borderRadius: 12, background: badgeColor, color: '#fff', fontWeight: 600 }}>
+            {conditionText}
+          </span>
+        </div>
+
+        {/* Thông tin đơn đặt (Bổ sung Ngày tạo đơn createdAt) */}
+        <div style={{ background: '#F9FAFB', padding: '.75rem 1rem', borderRadius: 8, marginBottom: '1rem', fontSize: '.875rem', lineHeight: '1.6' }}>
+          <div><strong>Nhà hàng:</strong> {booking.branchName}</div>
+          {createdAt && (
+            <div><strong>Thời gian tạo đơn:</strong> {createdAt.toLocaleString('vi-VN')}</div>
+          )}
+          <div><strong>Giờ hẹn đến:</strong> {reservationTime.toLocaleString('vi-VN')}</div>
+        </div>
+
+        {/* Thông tin Chính sách Hủy từ Snapshot Policy */}
+        <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '.75rem 1rem', marginBottom: '1rem', fontSize: '.83rem' }}>
+          <div style={{ fontWeight: 700, marginBottom: '.4rem', color: '#374151' }}>
+            📜 Chính sách áp dụng: {policy.policyDepositName || 'Chuẩn'}
+          </div>
+          <ul style={{ paddingLeft: '1.2rem', margin: 0, color: 'var(--text-muted)' }}>
+            <li>Hủy trước {policy.freeCancellationHours ?? 24}h: Hoàn {policy.freeRefundPercent ?? 100}% cọc.</li>
+            <li>Hủy trong vòng {policy.freeCancellationHours ?? 24}h: Hoàn {policy.lateRefundPercent ?? 50}% cọc.</li>
+            <li>Sau giờ hẹn: Hoàn {policy.noShowRefundPercent ?? 0}% cọc.</li>
+          </ul>
+        </div>
+
+        {/* Tính toán tiền cọc & Hoàn tiền */}
+        <div style={{ background: '#FFFDF5', border: '1px solid #FCD34D', padding: '.875rem 1rem', borderRadius: 8, marginBottom: '1rem', fontSize: '.9rem' }}>
+          <div className="flex justify-between" style={{ marginBottom: '.3rem' }}>
+            <span>Số tiền cọc đã trả:</span>
+            <span style={{ fontWeight: 600 }}>{depositAmount.toLocaleString('vi-VN')}₫</span>
+          </div>
+          <div className="flex justify-between" style={{ marginBottom: '.3rem', color: '#DC2626' }}>
+            <span>Phí hủy giữ lại ({100 - refundPercent}%):</span>
+            <span>-{penaltyAmount.toLocaleString('vi-VN')}₫</span>
+          </div>
+          <div className="flex justify-between" style={{ borderTop: '1px solid #FDE68A', paddingTop: '.4rem', fontWeight: 700, color: '#059669', fontSize: '1rem' }}>
+            <span>Dự kiến hoàn lại ({refundPercent}%):</span>
+            <span>{refundAmount.toLocaleString('vi-VN')}₫</span>
+          </div>
+        </div>
+
+        {/* Lý do hủy */}
+        <div style={{ marginBottom: '1.25rem' }}>
+          <label style={{ fontSize: '.85rem', fontWeight: 600, display: 'block', marginBottom: '.3rem' }}>Lý do hủy đơn:</label>
+          <input
+            type="text"
+            className="input"
+            value={cancelReason}
+            onChange={e => setCancelReason(e.target.value)}
+            placeholder="Nhập lý do hủy..."
+            style={{ width: '100%', padding: '.5rem .75rem', borderRadius: 6, border: '1px solid var(--border)' }}
+          />
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <button className="btn-outline" style={{ flex: 1 }} onClick={onClose} disabled={submitting}>
+            Đóng
+          </button>
+          <button
+            className="btn-danger"
+            style={{ flex: 1.5, background: '#DC2626', color: '#fff', fontWeight: 600 }}
+            onClick={handleConfirm}
+            disabled={submitting}
+          >
+            {submitting ? 'Đang xử lý...' : 'Xác nhận hủy'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ----------------------------------------------------------------------
+// 3. MAIN COMPONENT (MyBookings)
+// ----------------------------------------------------------------------
 export default function MyBookings() {
   const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState(null)
+  const [cancelingBooking, setCancelingBooking] = useState(null) // State quản lý đơn chuẩn bị hủy
   const [filter, setFilter] = useState('ALL')
 
   const load = () => {
@@ -82,15 +216,21 @@ export default function MyBookings() {
   }
   useEffect(() => { load() }, [])
 
-  const handleCancel = async (id, e) => {
+  // Mở Modal Hủy
+  const handleOpenCancelModal = (booking, e) => {
     e.stopPropagation()
-    if (!window.confirm('Bạn có chắc muốn huỷ đặt bàn này?')) return
+    setCancelingBooking(booking)
+  }
+
+  // Thực thi Hủy khi bấm Xác nhận trong Modal
+  const handleConfirmCancel = async (id, reason) => {
     try {
-      await bookingApi.cancel(id, { reason: 'Khách hàng tự huỷ' })
-      toast.success('Đã huỷ đặt bàn')
+      await bookingApi.cancel(id, { reason })
+      toast.success('Đã huỷ đặt bàn thành công')
+      setCancelingBooking(null)
       load()
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể huỷ')
+      toast.error(err.response?.data?.message || 'Không thể huỷ đặt bàn')
     }
   }
 
@@ -105,15 +245,11 @@ export default function MyBookings() {
     }
   }
 
-  // ✅ CHUẨN HOÁ LOGIC ĐIỀU HƯỚNG TẠI ĐÂY
   const handleCardClick = (booking) => {
-    // Chỉ có HOLDING và AWAITING_PAYMENT mới được vào trang đếm ngược lock
     const isLockingActive = ['HOLDING', 'AWAITING_PAYMENT'].includes(booking.status)
-
     if (isLockingActive) {
       navigate(`/my-bookings/${booking.id}/lock`)
     } else {
-      // Đơn hết hạn (EXPIRED), Đã cọc, Đã ăn... đều vào trang hoá đơn chi tiết
       navigate(`/my-bookings/${booking.id}/invoice`)
     }
   }
@@ -157,8 +293,6 @@ export default function MyBookings() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {filtered.map(b => {
             const meta = STATUS_META[b.status] || { label: b.status, badge: 'badge-gray' }
-
-            // ✅ Chỉ hiển thị giao diện viền vàng cảnh báo cho đơn thực sự đang lock
             const isLockingState = ['HOLDING', 'AWAITING_PAYMENT'].includes(b.status)
             const canCancel = ['HOLDING', 'CONFIRMED'].includes(b.status)
             const canReview = b.status === 'COMPLETED' && !b.reviewed
@@ -191,8 +325,9 @@ export default function MyBookings() {
                   {[
                     ['🪑 Vị trí bàn', tableDisplay],
                     ['👥 Số khách', `${b.guestCount} người`],
-                    ['🕐 Thời gian', new Date(b.reservationTime).toLocaleString('vi-VN')],
-                    ['💰 Tiền đặt cọc', b.depositAmount ? `${Number(b.depositAmount).toLocaleString('vi-VN')}₫` : 'Không cọc'],
+                    ['🕒 Ngày đặt', b.createdAt ? new Date(b.createdAt).toLocaleString('vi-VN') : '---'], // 👈 Thêm dòng này
+                    ['🕐 Giờ hẹn đến', new Date(b.reservationTime).toLocaleString('vi-VN')],
+                    ['💰 Tiền đặt cọc', b.depositAmount || b.totalPreOrderAmount ? `${Number(b.depositAmount || b.totalPreOrderAmount).toLocaleString('vi-VN')}₫` : 'Không cọc'],
                   ].map(([k, v]) => (
                     <div key={k} style={{ fontSize: '.87rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>{k}: </span>
@@ -242,7 +377,7 @@ export default function MyBookings() {
                   )}
 
                   {canCancel && (
-                    <button className="btn-danger btn-sm" onClick={(e) => handleCancel(b.id, e)}>
+                    <button className="btn-danger btn-sm" onClick={(e) => handleOpenCancelModal(b, e)}>
                       Huỷ đặt bàn
                     </button>
                   )}
@@ -263,8 +398,18 @@ export default function MyBookings() {
         </div>
       </div>
 
+      {/* Modal Review */}
       {reviewing && (
         <ReviewModal booking={reviewing} onClose={() => setReviewing(null)} onSubmit={handleReview} />
+      )}
+
+      {/* Modal Hủy Đặt Bàn */}
+      {cancelingBooking && (
+        <CancelBookingModal
+          booking={cancelingBooking}
+          onClose={() => setCancelingBooking(null)}
+          onConfirm={handleConfirmCancel}
+        />
       )}
     </>
   )

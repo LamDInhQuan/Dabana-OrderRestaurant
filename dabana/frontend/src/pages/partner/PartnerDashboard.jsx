@@ -174,7 +174,7 @@ export default function PartnerDashboard() {
   // ── Load data ──────────────────────────────────────
 
   //dining table status
- 
+
 
 
   useEffect(() => {
@@ -225,14 +225,14 @@ export default function PartnerDashboard() {
     // waitlist
     setWaitlist([])
     // reviews (B13)
-reviewApi.getByBranch(bid).then(r => {
-  const raw = r.data?.data?.content || r.data?.content || r.data || []
-  const list = raw.map(rv => ({
-    ...rv,
-    rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
-  }))
-  setReviews(list.length ? list : DEMO_REVIEWS)
-}).catch(() => setReviews(DEMO_REVIEWS))
+    reviewApi.getByBranch(bid).then(r => {
+      const raw = r.data?.data?.content || r.data?.content || r.data || []
+      const list = raw.map(rv => ({
+        ...rv,
+        rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
+      }))
+      setReviews(list.length ? list : DEMO_REVIEWS)
+    }).catch(() => setReviews(DEMO_REVIEWS))
     // B05: chính sách đặt cọc/hủy của chi nhánh
     // depositPolicyApi.getByBranch(bid).then(r => {
     //   if (r.data) setPolicy(p => ({ ...p, ...r.data }))
@@ -275,45 +275,45 @@ reviewApi.getByBranch(bid).then(r => {
   }, [activeBranch?.id])
 
   // fetch tables
-   useEffect(() => {
-  if (!activeBranch?.id) {
-    setTables([])
-    return
-  }
+  useEffect(() => {
+    if (!activeBranch?.id) {
+      setTables([])
+      return
+    }
 
-  tableApi.getByBranch(activeBranch.id)
-    .then(res => {
-      const payload =
-        Array.isArray(res?.data?.data) ? res.data.data :
-        Array.isArray(res?.data?.content) ? res.data.content :
-        Array.isArray(res?.data) ? res.data :
-        []
+    tableApi.getByBranch(activeBranch.id)
+      .then(res => {
+        const payload =
+          Array.isArray(res?.data?.data) ? res.data.data :
+            Array.isArray(res?.data?.content) ? res.data.content :
+              Array.isArray(res?.data) ? res.data :
+                []
 
-      setTables(payload)
-    })
-    .catch(() => setTables([]))
+        setTables(payload)
+      })
+      .catch(() => setTables([]))
   }, [activeBranch?.id])
-  
-const allTables = TABLE_STATUS
-const tablesByStatus = {
-  1: [],
-  2: [],
-  3: [],
-  4: [],
-  5: [],
+
+  const allTables = TABLE_STATUS
+  const tablesByStatus = {
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: [],
   }
-  
+
   allTables.forEach((table) => {
-  const rawStatus = table?.status ?? table?.statusCode ?? table?.statusValue
-  const statusCode = Number(rawStatus)
+    const rawStatus = table?.status ?? table?.statusCode ?? table?.statusValue
+    const statusCode = Number(rawStatus)
 
-  if (Number.isNaN(statusCode) || !tablesByStatus[statusCode]) {
-    tablesByStatus[1].push(table)
-    return
-  }
+    if (Number.isNaN(statusCode) || !tablesByStatus[statusCode]) {
+      tablesByStatus[1].push(table)
+      return
+    }
 
-  tablesByStatus[statusCode].push(table)
-})
+    tablesByStatus[statusCode].push(table)
+  })
 
   // ── Computed stats ─────────────────────────────────
   // const allTables = floorPlan.zones.flatMap(z => z.tables || [])
@@ -330,7 +330,7 @@ const tablesByStatus = {
     noShowRate30Day: activeBranchStats.no_showRate30Day ?? 0,
     totalReviewScore: activeBranchStats.totalReviewScore ?? 0,
   } : null
-  
+
   const stats = {
     totalTables: allTables.length,
     available: tablesByStatus[1].length,
@@ -343,7 +343,7 @@ const tablesByStatus = {
     totalRevenue: bookings.filter(b => b.status === 'COMPLETED').reduce((s, b) => s + (b.depositAmount || 0), 0),
     noShowRate: branchSummary?.noShowRate30Day != null ? Number(branchSummary.noShowRate30Day) : (bookings.length ? Math.round((bookings.filter(b => b.status === 'NO_SHOW').length / bookings.length) * 100) : 0),
   }
-  
+
   // B13: điểm đánh giá trung bình
   const visibleReviews = reviews.filter(r => !r.hidden)
   const avgRating = visibleReviews.length
@@ -467,23 +467,23 @@ const tablesByStatus = {
   }
 
   // ── B04: khung giờ hoạt động ──────────────────────────
-  const updateHourField = (day, field, value) => {
-    setOperatingHours(prev => prev.map(h => h.dayOfWeek === day ? { ...h, [field]: value } : h))
-  }
-  const saveOperatingHours = async () => {
-    if (!activeBranch) return
-    const invalid = operatingHours.find(h => h.closeTime <= h.openTime)
-    if (invalid) { toast.error(`Giờ đóng cửa phải sau giờ mở cửa (${WEEKDAYS.find(w => w[0] === invalid.dayOfWeek)?.[1]})`); return }
-    setSavingHours(true)
-    try {
-      await operatingHourApi.save(activeBranch.id, operatingHours.map(h => ({
-        dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime, shiftName: h.shiftName || 'Cả ngày',
-      })))
-      toast.success('Đã lưu khung giờ hoạt động!')
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Khung giờ không hợp lệ, vui lòng kiểm tra lại')
-    } finally { setSavingHours(false) }
-  }
+  // const updateHourField = (day, field, value) => {
+  //   setOperatingHours(prev => prev.map(h => h.dayOfWeek === day ? { ...h, [field]: value } : h))
+  // }
+  // const saveOperatingHours = async () => {
+  //   if (!activeBranch) return
+  //   const invalid = operatingHours.find(h => h.closeTime <= h.openTime)
+  //   if (invalid) { toast.error(`Giờ đóng cửa phải sau giờ mở cửa (${WEEKDAYS.find(w => w[0] === invalid.dayOfWeek)?.[1]})`); return }
+  //   setSavingHours(true)
+  //   try {
+  //     await operatingHourApi.save(activeBranch.id, operatingHours.map(h => ({
+  //       dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime, shiftName: h.shiftName || 'Cả ngày',
+  //     })))
+  //     toast.success('Đã lưu khung giờ hoạt động!')
+  //   } catch (err) {
+  //     toast.error(err.response?.data?.message || 'Khung giờ không hợp lệ, vui lòng kiểm tra lại')
+  //   } finally { setSavingHours(false) }
+  // }
 
   // ── B04 AF03: tạm ngưng / mở lại chi nhánh ────────────
   const toggleBranchStatus = async () => {
@@ -739,7 +739,7 @@ const tablesByStatus = {
                       Xem chi tiết →
                     </button>
                   </div>
-  
+
                   <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
                     {[
                       { code: 1, label: 'Trống', count: tablesByStatus[1].length, color: C.green, bg: C.greenBg },
@@ -757,7 +757,7 @@ const tablesByStatus = {
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* Bar chart */}
 
                   {/* {allTables.length > 0 && (
@@ -1346,7 +1346,7 @@ const tablesByStatus = {
                   </div>
 
                   {/* Khung giờ hoạt động */}
-                  <div style={S.card}>
+                  {/* <div style={S.card}>
                     <div style={{ ...S.eyebrow, marginBottom: '1.25rem' }}>Khung giờ hoạt động</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
                       {WEEKDAYS.map(([day, label]) => {
@@ -1368,7 +1368,7 @@ const tablesByStatus = {
                     <button onClick={saveOperatingHours} disabled={savingHours} style={S.btnGold}>
                       {savingHours ? 'Đang lưu...' : 'Lưu khung giờ hoạt động'}
                     </button>
-                  </div>
+                  </div> */}
 
                   {/* Trạng thái hoạt động / Tạm ngưng */}
                   <div style={S.card}>
