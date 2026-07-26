@@ -30,6 +30,7 @@ import com.dabana.backend.modules.branch2.util.BranchErrorCode;
 import com.dabana.backend.modules.branch2.util.BranchStatus;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
+import com.dabana.backend.modules.subscription.service.ISubscriptionService;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;
@@ -59,6 +60,7 @@ public class BranchService implements IBranchService {
     private final BranchImageRepository branchImageRepository;
     private final BranchMapper branchMapper;
     private final RestaurantRepository restaurantRepository ;
+    private final ISubscriptionService subscriptionService;
 
     @Override
     public List<BranchResponse> findByRestaurant(Long restaurantId) {
@@ -85,8 +87,12 @@ public class BranchService implements IBranchService {
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
     }
 
-    @Override
+@Override
     public BranchResponse create(BranchRequest request) {
+        // Kiem tra han muc chi nhanh theo goi subscription dang active cua nha hang
+        // (request.getRestaurantId() la Integer - ep sang Long vi Restaurant.id la Long)
+        subscriptionService.assertCanAddBranch(request.getRestaurantId().longValue());
+
         if (branchRepository.existsByPhone(request.getPhone())) {
             throw new BusinessException(BranchErrorCode.DUPLICATE_PHONE);
         }

@@ -93,6 +93,25 @@ public class NotificationService {
         doSend(notif); // gui ngay
     }
 
+    /**
+     * Overload danh cho cac module KHONG thuoc danh sach NotificationType co san
+     * (hien tai: modules.subscription) - tranh phai sua NotificationType/Notification/
+     * NotificationRepository dang la package-private trong file nay.
+     *
+     * QUAN TRONG: ham nay KHONG ghi vao bang nt_notifications, vi cot `type` trong DB
+     * dang la ENUM cung danh sach gia tri co san - insert mot chuoi ngoai danh sach do
+     * se loi rang buoc DB. Hien tai CHI log ra console (dung y nhu doSend() ben tren
+     * dang lam - TODO tich hop Email/SMS that van con nguyen, chua bi anh huong).
+     *
+     * Khi nao san sang, can:
+     *   ALTER TABLE nt_notifications MODIFY type VARCHAR(50) NOT NULL;
+     * (hoac them cac gia tri ENUM moi) roi moi doi ham nay sang ghi that vao DB.
+     */
+    public void sendImmediate(User recipient, String eventType, String content, String channel) {
+        log.info("[SUBSCRIPTION] Gui [{}] den user #{} qua {} | noi dung: {}",
+                eventType, recipient != null ? recipient.getId() : null, channel, content);
+    }
+
     private void doSend(Notification notif) {
         try {
             // TODO: tich hop dich vu Email (SendGrid), SMS (Twilio), hoac push in-app

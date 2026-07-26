@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi } from '../../api'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 
@@ -19,6 +19,7 @@ import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
 import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
 import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
+import BillingTab from './tab/subscription/BillingTab'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -536,6 +537,24 @@ reviewApi.getByBranch(bid).then(r => {
   }
 
   // ── B04 bước 1: tạo chi nhánh mới ─────────────────────
+  // ── B17: kiểm tra hạn mức chi nhánh theo gói trước khi mở form tạo mới ──
+  // Đây CHỈ là UX cảnh báo sớm - backend (BranchService) vẫn tự kiểm tra lại
+  // khi thực sự submit, nên không bỏ qua bước gọi API tạo chi nhánh thật.
+  const openNewBranchModal = async () => {
+    try {
+      const { data: res } = await subscriptionApi.checkBranchLimit()
+      const check = res?.data
+      if (check && !check.allowed) {
+        toast.error(check.message || 'Đã đạt giới hạn chi nhánh của gói hiện tại')
+        setActiveTab('billing')
+        return
+      }
+    } catch {
+      // Nếu API kiểm tra lỗi (vd. chưa có gói) vẫn cho mở form - backend sẽ chặn đúng lúc submit
+    }
+    setNewBranchModal(true)
+  }
+
   const createBranch = async (e) => {
     e.preventDefault()
     if (!newBranchForm.name.trim() || !newBranchForm.address.trim()) {
@@ -614,6 +633,7 @@ reviewApi.getByBranch(bid).then(r => {
     { id: 'reports', icon: '📈', label: 'Thống kê' },
     { id: 'policy', icon: '💰', label: 'Chính sách' },
     { id: 'operating-hours', icon: '⏰', label: 'Khung giờ hoạt động' },
+    { id: 'billing', icon: '💳', label: 'Gói dịch vụ' },
     { id: 'notifications', icon: '🔔', label: 'Thông báo', badge: unreadCount },
     { id: 'settings', icon: '⚙️', label: 'Cài đặt' },
   ]
@@ -1234,6 +1254,11 @@ reviewApi.getByBranch(bid).then(r => {
             <BranchScheduleTab branch={activeBranch} />
           )}
 
+          {/* ══════ BILLING: thu phi nen tang (module subscription) ══════ */}
+          {activeTab === 'billing' && (
+            <BillingTab />
+          )}
+
           {/* ══════ SETTINGS: B03 + B04 ══════ */}
           {activeTab === 'settings' && (
             <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1321,7 +1346,7 @@ reviewApi.getByBranch(bid).then(r => {
               <div style={S.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                   <div style={S.eyebrow}>Chi nhánh ({branches.length})</div>
-                  <button onClick={() => setNewBranchModal(true)} style={{ ...S.btnOut, fontSize: '.78rem', padding: '.4rem .9rem' }}>+ Thêm chi nhánh</button>
+                  <button onClick={openNewBranchModal} style={{ ...S.btnOut, fontSize: '.78rem', padding: '.4rem .9rem' }}>+ Thêm chi nhánh</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
                   {branches.map(b => {
