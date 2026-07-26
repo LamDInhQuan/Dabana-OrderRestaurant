@@ -130,6 +130,17 @@ export default function FloorTexture({ texture, decorationId, width, height }) {
 
 // Ban rieng cho nuoc vi can vi tri ca theo px thuc (khong dung % string transform de
 // tranh loi cu phap SVG - SVG transform khong nhan don vi %).
+// Ho nuoc gio la 1 MARKER (dat cuc bo, khong con thuoc nhom san phu toan bo khu vuc) -
+// export rieng theo dung chuan cac marker vector khac (BarCounter/StagePlatform o
+// markerFurniture.jsx: nhan (width,height,id), tu ve <svg> rieng phu kin khoi.
+export function WaterPond({ width, height, id }) {
+  return (
+    <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, display: 'block' }} preserveAspectRatio="none">
+      <WaterKoiFixed id={`marker-${id}`} width={width} height={height} />
+    </svg>
+  )
+}
+
 function WaterKoiFixed({ id, width, height }) {
   const gradId = `${id}-grad`
   const waveId = `${id}-wave`

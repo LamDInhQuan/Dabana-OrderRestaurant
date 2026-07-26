@@ -78,7 +78,7 @@ export default function TableItem({ table, editable, saving, selected, livePosit
         transform: `translate(-50%, -50%) rotate(${displayRotation}deg)`,
         width: displayWidth, height: displayHeight, borderRadius: 10,
         zIndex: 3,
-        background: meta.color + '22',
+        background: meta.color + '3D',
         border: `2.5px solid ${selected ? '#1D4ED8' : meta.color}`,
         boxShadow: selected ? '0 0 0 3px rgba(29,78,216,.25)' : 'var(--shadow-sm)',
         cursor: editable ? 'grab' : 'not-allowed',
@@ -88,9 +88,14 @@ export default function TableItem({ table, editable, saving, selected, livePosit
         justifyContent: 'center',
         transition: (isTransforming || livePosition) ? 'none' : 'box-shadow .15s, opacity .15s',
       }}>
-      <span style={{ fontWeight: 800, fontSize: '.85rem' }}>{table.tableName}</span>
-      <span style={{ fontSize: '.7rem', fontWeight: 600, color: meta.color }}>{meta.label}</span>
-      <span style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>{table.capacity} khách</span>
+      <div style={{
+        background: 'rgba(255,255,255,.88)', borderRadius: 6, padding: '2px 8px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}>
+        <span style={{ fontWeight: 800, fontSize: '.85rem' }}>{table.tableName}</span>
+        <span style={{ fontSize: '.7rem', fontWeight: 600, color: meta.color }}>{meta.label}</span>
+        <span style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>{table.capacity} khách</span>
+      </div>
       {selected && editable && (
         <>
           <div

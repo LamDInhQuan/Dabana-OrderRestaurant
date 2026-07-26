@@ -517,16 +517,21 @@ function TableAvailabilityGrid({ tables, decorations = [], selectedTables, onTog
               transform: 'translate(-50%, -50%)',
               width: 85, height: 70, borderRadius: 8, zIndex: 3,
               border: isSelected ? '2.5px solid var(--brand)' : `1.5px solid ${meta.color}`,
-              background: isSelected ? 'var(--brand-light)' : `${meta.color}22`,
+              background: isSelected ? 'var(--brand-light)' : `${meta.color}3D`,
               cursor: clickable ? 'pointer' : 'not-allowed',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               opacity: isAvail ? 1 : 0.7, userSelect: 'none'
             }}>
-            <span style={{ fontSize: '.75rem', fontWeight: 700, textAlign: 'center', padding: '0 4px', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>
-              {t.tableName}
-            </span>
-            <span style={{ fontSize: '.6rem', color: meta.color, fontWeight: 600 }}>{meta.label}</span>
-            <span style={{ fontSize: '.6rem', color: 'var(--text-muted)' }}>{t.capacity} chỗ</span>
+            <div style={{
+              background: 'rgba(255,255,255,.88)', borderRadius: 6, padding: '2px 6px',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '92%',
+            }}>
+              <span style={{ fontSize: '.75rem', fontWeight: 700, textAlign: 'center', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%' }}>
+                {t.tableName}
+              </span>
+              <span style={{ fontSize: '.6rem', color: meta.color, fontWeight: 600 }}>{meta.label}</span>
+              <span style={{ fontSize: '.6rem', color: 'var(--text-muted)' }}>{t.capacity} chỗ</span>
+            </div>
           </div>
         )
       })}

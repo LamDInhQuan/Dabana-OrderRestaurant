@@ -1,30 +1,41 @@
 import { useRef, useState } from 'react'
 import { dbPositionToPercent, clampSize, angleFromCenter } from '../../utils/layoutTransform'
 import { getTextureBackground, getPreset } from './decorationPresets'
-import FloorTexture from './floorPatterns'
+import FloorTexture, { WaterPond } from './floorPatterns'
+import { BarCounter, StagePlatform } from './markerFurniture'
 
 const DEFAULT_SIZE = 70
+// Cac preset marker co hinh mau vector rieng (xem markerFurniture.jsx) thay vi chi
+// icon emoji + khung net dut don gian.
+// Cay canh la NGOAI LE: khong dung vector top-down (tan la nhin tu tren xuong chi la
+// 1 vong tron xanh, khong ai doan duoc la "cay") - giu icon emoji 🌳 de nhan biet
+// ngay, du kem "chuan kien truc" hon. Chi quay/san khau dung vector vi 2 cai do van
+// doc duoc du trau tuong hoa (mat quay+ghe don, san+truss/den).
+const FURNITURE_SHAPES = { bar: BarCounter, stage: StagePlatform, water: WaterPond }
 
 // Render 1 tiểu cảnh dạng "khối" (marker/floor/wall). Đường đi (path) dùng
 // DecorationPath riêng vì là polyline nhiều điểm chứ không phải 1 khối chữ nhật/tròn.
 //
 // Ưu tiên nhận diện bằng MẮT trước, chữ chỉ là nhãn phụ:
 //  - floor: pattern SVG chất liệu thật (herringbone gỗ, terrazzo, sỏi bước chân, cỏ,
-//    hồ Koi - xem floorPatterns.jsx), tự thể hiện rõ loại sàn, không cần icon/chữ đè lên.
-//    Mặc định PHỦ TOÀN BỘ khu vực canvas (decoration.fullCover !== false) - không cần
-//    người dùng tự chỉnh kích thước/vị trí; có thể tắt để đặt 1 mảng sàn nhỏ cục bộ.
+//    hồ Koi - xem floorPatterns.jsx). Mặc định PHỦ TOÀN BỘ khu vực canvas
+//    (decoration.fullCover !== false) - không cần người dùng tự chỉnh kích thước/vị trí.
 //  - wall: khối kiến trúc đặc màu trầm + đổ bóng nhẹ tạo chiều sâu.
-//  - marker có icon riêng (cây cảnh, quầy bar, sân khấu...): hiển thị icon to + tên nhỏ
-//    bên dưới dạng chip, thay vì khoanh vùng nét đứt trơ trọi như trước.
-//  - marker không có icon (nhãn tròn/vuông tự do): giữ kiểu khoanh vùng nét đứt + tên
-//    như cũ, vì đây là loại "tự đặt tên tuỳ ý", không có hình mẫu cố định để vẽ icon.
+//  - marker có hình mẫu vector (quầy bar/sân khấu/cây cảnh - xem markerFurniture.jsx):
+//    vẽ minh hoạ top-down thật thay vì icon emoji, kèm bóng đổ để "nổi" trên sàn.
+//  - marker không có hình mẫu (nhãn tròn/vuông tự do): giữ kiểu khoanh vùng nét đứt +
+//    tên như cũ, vì đây là loại "tự đặt tên tuỳ ý".
 //
 // editable=false (dùng ở trang khách đặt bàn): chỉ hiển thị, không kéo/xoay/đổi cỡ,
 // không có viền nét đứt của trình chỉnh sửa - trông giống "thật" hơn.
 //
 // livePosition: {left, top} % - khi đang được kéo (xem LayoutCanvas.startMove), ghi đè
-// vị trí tính từ decoration.x/y để hiển thị theo đúng vị trí chuột tức thời, mượt hơn và
-// không còn lệ thuộc "ảnh ghost" của native HTML5 drag (vốn bỏ qua CSS rotate).
+// vị trí tính từ decoration.x/y để hiển thị theo đúng vị trí chuột tức thời.
+//
+// QUAN TRỌNG về nhãn tên: mọi <span> tên đều tự áp `rotate(-displayRotation)` để LUÔN
+// hiển thị NGANG, không bị xoay nghiêng theo khối cha (khối cha đã bị `rotate()` ở
+// ngoài) - đây là lỗi trước đó khiến tên vật thể (vd "Cửa") xoay dọc rất khó đọc khi
+// khối được xoay 90°.
 export default function DecorationShape({ decoration, editable = false, selected = false, livePosition, onStartMove, onClick, onResize, onRotate }) {
   const { left, top } = livePosition || dbPositionToPercent(decoration.x, decoration.y)
   const elRef = useRef(null)
@@ -35,6 +46,7 @@ export default function DecorationShape({ decoration, editable = false, selected
   const isCircle = decoration.shape === 'circle' || decoration.round
   const preset = getPreset(decoration.shape)
   const icon = preset?.icon || null
+  const Furniture = isMarker ? FURNITURE_SHAPES[decoration.shape] : null
 
   const width = decoration.width ?? DEFAULT_SIZE
   const height = decoration.height ?? DEFAULT_SIZE
@@ -91,15 +103,18 @@ export default function DecorationShape({ decoration, editable = false, selected
     window.addEventListener('mouseup', onUp)
   }
 
-  // Marker co icon rieng (cay canh, quay bar, san khau...): nen mem theo mau icon,
-  // khong dung khung net dut xanh chung chung nua - de icon la thu duoc chu y truoc.
-  const isIconicMarker = isMarker && icon
+  // Marker co hinh mau vector (cay canh/quay bar/san khau): khong con dung khung net
+  // dut xanh + icon emoji nua - de vector la thu duoc chu y truoc.
+  const isFurnitureMarker = isMarker && !!Furniture
+  const isIconicMarker = isMarker && icon && !isFurnitureMarker
   const isFloor = kind === 'floor'
   // Mac dinh TRUE (phu het canvas) tru khi nguoi dung tat rieng trong ObjectPanel -
   // du lieu cu chua co field nay cung tu dong duoc coi la fullCover luon.
   const isFullCoverFloor = isFloor && decoration.fullCover !== false
 
-  const materialStyle = isIconicMarker
+  const materialStyle = isFurnitureMarker
+    ? { background: 'transparent', border: `1.5px ${selected && editable ? 'solid #1D4ED8' : 'solid transparent'}`, overflow: 'hidden' }
+    : isIconicMarker
     ? {
         background: selected ? 'rgba(29,78,216,.10)' : 'rgba(0,0,0,.035)',
         border: `1.5px ${selected ? 'solid #1D4ED8' : 'dashed rgba(0,0,0,.18)'}`,
@@ -143,6 +158,16 @@ export default function DecorationShape({ decoration, editable = false, selected
         borderRadius: isCircle ? '50%' : kind === 'floor' ? 10 : 4,
       }
 
+  // Nhan ten LUON hien ngang bat ke khoi cha xoay bao nhieu do - tu xoay nguoc lai
+  // displayRotation de trung hoa. Day la phan sua loi nhan bi xoay nghieng kho doc.
+  // display:'inline-block' bat buoc phai co vi transform khong dam bao ap dung dung
+  // cho phan tu inline thuan (span) tren moi trinh duyet.
+  const nameLabelStyle = {
+    display: 'inline-block',
+    transform: `rotate(${-displayRotation}deg)`,
+    whiteSpace: 'nowrap',
+  }
+
   return (
     <div
       ref={elRef}
@@ -160,6 +185,8 @@ export default function DecorationShape({ decoration, editable = false, selected
         // Thu tu lop: san(1) < tuong/duong di(2) < ban(3) < nhan/vat trang tri(4),
         // de nhan luon hien ro tren cung, khong bi san/tuong/ban che.
         zIndex: kind === 'floor' ? 1 : kind === 'wall' ? 2 : 4,
+        boxShadow: isFurnitureMarker && !editable ? '0 3px 6px rgba(0,0,0,.22)' : undefined,
+        borderRadius: isFurnitureMarker ? (isCircle ? '50%' : 6) : undefined,
         ...materialStyle,
       }}>
       {/* San: pattern SVG that (herringbone/terrazzo/soi/co/ho Koi) thay cho CSS
@@ -183,7 +210,24 @@ export default function DecorationShape({ decoration, editable = false, selected
           {icon}
         </span>
       )}
-      {/* Marker co icon: icon to + ten nho dang chip ben duoi, la trong tam nhan dien */}
+      {/* Marker co hinh mau vector (cay canh/quay bar/san khau) */}
+      {isFurnitureMarker && (
+        <Furniture width={displayWidth} height={displayHeight} id={decoration.id} />
+      )}
+      {isFurnitureMarker && decoration.name && (
+        <span style={{
+          position: 'absolute', bottom: 2, left: '50%',
+          transform: `translateX(-50%) rotate(${-displayRotation}deg)`,
+          display: 'inline-block',
+          fontSize: '.62rem', fontWeight: 600, color: '#374151',
+          background: 'rgba(255,255,255,.88)', padding: '0 4px', borderRadius: 4, lineHeight: 1.4,
+          maxWidth: '92%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          zIndex: 1,
+        }}>
+          {decoration.name}
+        </span>
+      )}
+      {/* Marker co icon emoji don gian (du phong cho preset tuong lai chua co vector rieng) */}
       {isIconicMarker && (
         <>
           <span aria-hidden style={{ fontSize: Math.max(20, Math.min(displayWidth, displayHeight) * 0.5), lineHeight: 1 }}>
@@ -194,19 +238,32 @@ export default function DecorationShape({ decoration, editable = false, selected
               fontSize: '.62rem', fontWeight: 600, color: '#374151',
               background: 'rgba(255,255,255,.85)', padding: '0 4px', borderRadius: 4, lineHeight: 1.3,
               maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              ...nameLabelStyle,
             }}>
               {decoration.name}
             </span>
           )}
         </>
       )}
-      {/* Marker khong co icon (nhan tu do) hoac san/tuong luc editable: van hien ten
-          de phan biet cac khu vuc cung mau/chat lieu (vd 2 manh san co canh nhau). */}
-      {!isIconicMarker && (isMarker || editable) && decoration.name && (
+      {/* Marker tu do (nhan tron/vuong khong icon rieng): nhan hien giua khoi nhu cu -
+          khoi nay du lon de chua chu ben trong. */}
+      {isMarker && !isIconicMarker && !isFurnitureMarker && decoration.name && (
+        <span style={{ position: 'relative', zIndex: 1, ...nameLabelStyle }}>
+          {decoration.name}
+        </span>
+      )}
+      {/* Tuong: nhan noi HAN ra NGOAI phia tren khoi thay vi nhoi ben trong - vi tuong
+          thuong rat mong (18-20px) nen chu de bi cat/kho doc neu ep vao ben trong.
+          Nen trang dac + bong do de luon noi ro bat ke dung tren nen san nao. Chi hien
+          khi dang chinh sua (editable) - khach xem so do khong can thay ten tuong. */}
+      {kind === 'wall' && editable && decoration.name && (
         <span style={{
-          position: isMarker ? 'static' : 'relative', zIndex: 1,
-          background: isMarker ? 'transparent' : 'rgba(255,255,255,.8)',
-          padding: isMarker ? 0 : '1px 5px', borderRadius: 4, lineHeight: 1.2,
+          position: 'absolute', top: -22, left: '50%',
+          transform: `translateX(-50%) rotate(${-displayRotation}deg)`,
+          display: 'inline-block', whiteSpace: 'nowrap',
+          fontSize: '.72rem', fontWeight: 700, color: '#1F2937',
+          background: '#fff', padding: '2px 7px', borderRadius: 5,
+          boxShadow: '0 2px 5px rgba(0,0,0,.35)', border: '1px solid rgba(0,0,0,.12)',
         }}>
           {decoration.name}
         </span>

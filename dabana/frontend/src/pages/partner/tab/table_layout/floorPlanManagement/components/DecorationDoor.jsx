@@ -23,7 +23,11 @@ export default function DecorationDoor({ decoration, editable = false, selected 
   const arcPath = flip
     ? `M ${w} 0 A ${w} ${w} 0 0 0 0 ${w}`
     : `M 0 0 A ${w} ${w} 0 0 1 ${w} ${w}`
-  const strokeColor = selected && editable ? '#1D4ED8' : '#463C31'
+  const strokeColor = selected && editable ? '#1D4ED8' : '#1F2937'
+  // Mau xam lanh (thay vi nau am truoc day) + lop "halo" trang phia sau net ve, giup
+  // ky hieu cua luon noi ro du dung tren nen san mau am (co/go/gach terrazzo) hay mau
+  // lanh - truoc day mau nau am de bi chim vao cac cham mau am tren nen san.
+  const haloColor = '#FFFFFF'
 
   return (
     <div
@@ -38,11 +42,12 @@ export default function DecorationDoor({ decoration, editable = false, selected 
         zIndex: 2,
       }}>
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${w}`}>
-        {/* khe ho tren tuong noi dat cua */}
-        <rect x="0" y={w - 3} width={w} height="3" fill="#F5EFE3" opacity=".95" />
-        {/* cung quet the hien huong mo */}
-        <path d={arcPath} fill="none" stroke={strokeColor} strokeWidth="1.2" strokeDasharray="4 3" opacity=".7" />
-        {/* canh cua dang mo */}
+        {/* khe ho tren tuong noi dat cua - vien nhe de van thay ro tren nen sang mau */}
+        <rect x="0" y={w - 3} width={w} height="3" fill="#F5EFE3" stroke="rgba(0,0,0,.22)" strokeWidth="0.6" opacity=".95" />
+        {/* halo trang phia sau cung quet + canh cua - giup net luon noi ro tren moi nen */}
+        <path d={arcPath} fill="none" stroke={haloColor} strokeWidth="3.2" opacity=".9" />
+        <path d={arcPath} fill="none" stroke={strokeColor} strokeWidth="1.4" strokeDasharray="4 3" />
+        <path d={leafPath} stroke={haloColor} strokeWidth="4.8" strokeLinecap="round" opacity=".9" />
         <path d={leafPath} stroke={strokeColor} strokeWidth="2.6" strokeLinecap="round" />
         {editable && selected && (
           <rect x="0.5" y="0.5" width={w - 1} height={w - 1} fill="none" stroke="#1D4ED8" strokeWidth="1" strokeDasharray="3 2" opacity=".5" />

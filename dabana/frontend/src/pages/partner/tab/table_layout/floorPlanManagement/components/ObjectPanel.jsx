@@ -155,7 +155,10 @@ export default function ObjectPanel({ floorPlan }) {
   // --- Che do dang ve duong di: UI rieng, khac han form binh thuong ---
   if (isDrawingPath) {
     return (
-      <div className="card" style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className="card" style={{
+        width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem',
+        height: 480, overflowY: 'auto',
+      }}>
         <div>
           <div style={{ fontWeight: 700, marginBottom: '.3rem' }}>🚶 Đang vẽ đường đi</div>
           <p style={{ fontSize: '.8rem', color: 'var(--text-muted)', margin: 0 }}>
@@ -203,7 +206,10 @@ export default function ObjectPanel({ floorPlan }) {
   }
 
   return (
-    <div className="card" style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div className="card" style={{
+      width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem',
+      height: 480, overflowY: 'auto',
+    }}>
       <div>
         <div style={{ fontSize: '.8rem', fontWeight: 600, marginBottom: '.3rem', color: 'var(--text-muted)' }}>Thêm mới</div>
         <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
