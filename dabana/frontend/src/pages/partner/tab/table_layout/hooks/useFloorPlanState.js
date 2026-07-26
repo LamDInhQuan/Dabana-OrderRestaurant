@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { zoneApi, tableApi } from '../../../../../api'
 import { pxToDbPosition } from '../utils/layoutTransform'
 import { findOverlap } from '../utils/layoutOverlap'
+import { getPreset } from '../floorPlanManagement/components/decorationPresets'
 
 export const EMPTY_STATUS_CODE = 1
 
@@ -24,6 +25,9 @@ export function useFloorPlanState(branchId) {
   const [loading, setLoading] = useState(true)
   const [savingTableId, setSavingTableId] = useState(null)
   const [savingLayout, setSavingLayout] = useState(false)
+  // pathDraft: null khi khong dang ve duong di, hoac mang [{x,y},...] cac diem da
+  // chon khi dang o che do ve (xem startPathDraft/addPathDraftPoint/finishPathDraft).
+  const [pathDraft, setPathDraft] = useState(null)
 
   const loadZones = useCallback(async () => {
     if (!branchId) return
@@ -219,8 +223,19 @@ export function useFloorPlanState(branchId) {
     }
   }, [activeZone, activeZoneTables, decorations])
 
-  const addDecoration = useCallback(async (shape, name, extra = {}) => {
-    const newDec = { id: `dec_${Date.now()}`, shape, name, x: 50, y: 50, ...extra }
+  const addDecoration = useCallback(async (presetKey, name, extra = {}) => {
+    const preset = getPreset(presetKey)
+    const kind = preset?.kind || 'marker'
+    const newDec = {
+      id: `dec_${Date.now()}`,
+      shape: presetKey,
+      kind,
+      // texture chi can cho floor/wall - marker (nhan/cay canh) khong dung field nay
+      texture: kind === 'floor' || kind === 'wall' ? presetKey : undefined,
+      round: !!preset?.round,
+      name, x: 50, y: 50,
+      ...extra,
+    }
     const ok = await persistDecorations([...decorations, newDec])
     if (ok) toast.success(`Đã thêm ${name}`)
     return ok
@@ -238,7 +253,7 @@ export function useFloorPlanState(branchId) {
     await persistDecorations(decorations.map((d) => d.id === dec.id ? { ...d, x: positionX, y: positionY } : d))
   }, [decorations, persistDecorations])
 
-  // Keo tay cam resize/rotate tren ShapeItem - luu ngay (khong doi selection)
+  // Keo tay cam resize/rotate tren DecorationShape - luu ngay (khong doi selection)
   const resizeDecoration = useCallback(async (dec, width, height) => {
     await persistDecorations(decorations.map((d) => d.id === dec.id ? { ...d, width, height } : d))
   }, [decorations, persistDecorations])
@@ -252,14 +267,64 @@ export function useFloorPlanState(branchId) {
     if (ok) { setSelected(null); toast.success('Đã xoá vật thể') }
   }, [decorations, persistDecorations])
 
+  // ---------------- Duong di (path) - ve bang cach nhap chuoi diem tren canvas ----------------
+  // pathDraft = null: khong o che do ve. pathDraft = [{x,y}, ...]: dang ve, moi lan
+  // nhap vao canvas se them 1 diem (xem LayoutCanvas.handleCanvasClick).
+
+  const startPathDraft = useCallback(() => {
+    clearSelection()
+    setPathDraft([])
+  }, [])
+
+  const addPathDraftPoint = useCallback((x, y) => {
+    setPathDraft((prev) => (prev ? [...prev, { x, y }] : [{ x, y }]))
+  }, [])
+
+  const undoPathDraftPoint = useCallback(() => {
+    setPathDraft((prev) => (prev && prev.length ? prev.slice(0, -1) : prev))
+  }, [])
+
+  const cancelPathDraft = useCallback(() => setPathDraft(null), [])
+
+  const finishPathDraft = useCallback(async (name, extra = {}) => {
+    if (!pathDraft || pathDraft.length < 2) {
+      toast.error('Cần ít nhất 2 điểm để tạo đường đi')
+      return false
+    }
+    const newDec = {
+      id: `dec_${Date.now()}`, kind: 'path', name: name || 'Lối đi',
+      points: pathDraft, strokeWidth: 20, style: 'solid', color: '#D8C9A3',
+      ...extra,
+    }
+    const ok = await persistDecorations([...decorations, newDec])
+    if (ok) { toast.success(`Đã thêm ${newDec.name}`); setPathDraft(null) }
+    return ok
+  }, [pathDraft, decorations, persistDecorations])
+
+  // Keo tay cam tren 1 diem cua duong di da luu: cap nhat tam thoi khi keo (khong goi
+  // API lien tuc), chi luu that su khi tha chuot (commit=true) - giong pattern
+  // resize/rotate cua ban an va vat trang tri khac.
+  const dragPathPoint = useCallback((decId, idx, x, y, commit) => {
+    const next = decorations.map((d) => (
+      d.id === decId ? { ...d, points: d.points.map((p, i) => (i === idx ? { x, y } : p)) } : d
+    ))
+    if (!commit) {
+      // Chi cap nhat hien thi tam thoi luc dang keo, khong goi API moi lan mousemove.
+      setDecorations(next)
+      return
+    }
+    persistDecorations(next)
+  }, [decorations, persistDecorations])
+
   return {
     branchId, zones, loading, activeZone, activeZoneTables, decorations, selected,
-    savingTableId, savingLayout,
+    savingTableId, savingLayout, pathDraft,
     selectZone: setActiveZoneId, reloadZones: loadZones,
     selectTable, selectDecoration, clearSelection,
     isTableEditable, moveTable, addTable, updateTable, deleteTable,
     resizeTable, rotateTable, updateTableGeometry,
     addDecoration, updateDecoration, moveDecoration, deleteDecoration,
     resizeDecoration, rotateDecoration,
+    startPathDraft, addPathDraftPoint, undoPathDraftPoint, cancelPathDraft, finishPathDraft, dragPathPoint,
   }
 }

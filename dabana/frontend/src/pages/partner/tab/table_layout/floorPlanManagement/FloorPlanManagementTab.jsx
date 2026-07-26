@@ -6,7 +6,8 @@ import ObjectPanel from './components/ObjectPanel'
 export default function FloorPlanManagementTab({ floorPlan }) {
   const { zones, activeZone, activeZoneTables, decorations, selected, savingTableId,
     selectZone, isTableEditable, moveTable, moveDecoration, selectTable, selectDecoration,
-    resizeTable, rotateTable, resizeDecoration, rotateDecoration } = floorPlan
+    resizeTable, rotateTable, resizeDecoration, rotateDecoration,
+    pathDraft, addPathDraftPoint, dragPathPoint } = floorPlan
 
   return (
     <div>
@@ -28,6 +29,9 @@ export default function FloorPlanManagementTab({ floorPlan }) {
             onRotateTable={rotateTable}
             onResizeDecoration={resizeDecoration}
             onRotateDecoration={rotateDecoration}
+            pathDraft={pathDraft}
+            onAddPathDraftPoint={addPathDraftPoint}
+            onDragPathPoint={dragPathPoint}
           />
           <BulkPositionConfig savingTableId={savingTableId} />
         </div>

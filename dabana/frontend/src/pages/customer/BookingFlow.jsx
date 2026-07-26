@@ -4,6 +4,12 @@ import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { useAuth } from '../../context/AuthContext'
 import { branchApi, zoneApi, menuApi, bookingApi, availableSlotApi, tableApi, branchPolicyApi, authApi } from '../../api'
+// Dùng chung bộ render tiểu cảnh (sàn cỏ/sỏi/gạch/gỗ, tường, đường đi...) với trang
+// quản lý sơ đồ bàn của partner để 2 bên hiển thị giống nhau, chỉ khác ở editable=false.
+import DecorationShape from '../partner/tab/table_layout/floorPlanManagement/components/DecorationShape'
+import DecorationPath from '../partner/tab/table_layout/floorPlanManagement/components/DecorationPath'
+import DecorationDoor from '../partner/tab/table_layout/floorPlanManagement/components/DecorationDoor'
+import { parseZoneDecorations } from '../partner/tab/table_layout/floorPlanManagement/components/decorationPresets'
 
 const STEPS = ['Thời gian & bàn', 'Thông tin', 'Đặt món', 'Xác nhận & cọc']
 
@@ -468,13 +474,33 @@ function SelectedTablesByZone({ selectedTables, zones }) {
   )
 }
 
-function TableAvailabilityGrid({ tables, selectedTables, onToggleTable, readOnly = false }) {
+// Lấy danh sách tiểu cảnh (decorations) của 1 khu vực từ danh sách zones trả về bởi
+// zoneApi.getByBranch - dùng chung logic đọc layoutData với trang partner.
+function getZoneDecorations(zones, zoneId) {
+  const zone = (zones || []).find(z => z.id === zoneId)
+  return parseZoneDecorations(zone)
+}
+
+function TableAvailabilityGrid({ tables, decorations = [], selectedTables, onToggleTable, readOnly = false }) {
+  // Xếp lớp giống hệt thứ tự vẽ ở sơ đồ bên partner: sàn dưới cùng -> tường ->
+  // đường đi -> bàn -> nhãn/vật trang trí trên cùng, để sơ đồ khách xem giống bên
+  // quản lý thay vì chỉ thấy mỗi ô bàn trơ trọi.
+  const floors = decorations.filter(d => (d.kind || 'marker') === 'floor')
+  const walls = decorations.filter(d => (d.kind || 'marker') === 'wall')
+  const doors = decorations.filter(d => d.kind === 'door')
+  const paths = decorations.filter(d => d.kind === 'path')
+  const markers = decorations.filter(d => (d.kind || 'marker') === 'marker')
+
   return (
     <div style={{
       position: 'relative', width: '100%', height: '420px',
       background: '#f8fafc', border: '1px dashed var(--border)', borderRadius: 12,
       overflow: 'auto', marginBottom: '1rem'
     }}>
+      {floors.map(dec => <DecorationShape key={dec.id} decoration={dec} />)}
+      {walls.map(dec => <DecorationShape key={dec.id} decoration={dec} />)}
+      {doors.map(dec => <DecorationDoor key={dec.id} decoration={dec} />)}
+      {paths.map(dec => <DecorationPath key={dec.id} decoration={dec} />)}
       {(tables || []).map(t => {
         const isAvail = t.availabilityStatus === 'AVAILABLE'
         const isSelected = selectedTables.some(st => st.id === t.id)
@@ -489,7 +515,7 @@ function TableAvailabilityGrid({ tables, selectedTables, onToggleTable, readOnly
             style={{
               position: 'absolute', left: `${posX}%`, top: `${posY}%`,
               transform: 'translate(-50%, -50%)',
-              width: 85, height: 70, borderRadius: 8,
+              width: 85, height: 70, borderRadius: 8, zIndex: 3,
               border: isSelected ? '2.5px solid var(--brand)' : `1.5px solid ${meta.color}`,
               background: isSelected ? 'var(--brand-light)' : `${meta.color}22`,
               cursor: clickable ? 'pointer' : 'not-allowed',
@@ -504,6 +530,7 @@ function TableAvailabilityGrid({ tables, selectedTables, onToggleTable, readOnly
           </div>
         )
       })}
+      {markers.map(dec => <DecorationShape key={dec.id} decoration={dec} />)}
       {tables?.length === 0 && (
         <p style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '.85rem' }}>
           Khu vực này không có bàn.
@@ -838,6 +865,7 @@ function StepTimeAndTable({
           ) : (
             <TableAvailabilityGrid
               tables={activeZoneTables}
+              decorations={getZoneDecorations(zonesFromApi, activeZoneId)}
               selectedTables={selectedTables}
               onToggleTable={onToggleTable}
             />
@@ -1087,7 +1115,12 @@ function StepContact({
           {tablesLoading ? (
             <p style={{ color: 'var(--text-muted)' }}>Đang tải tình trạng bàn...</p>
           ) : (
-            <TableAvailabilityGrid tables={tableAvailability} selectedTables={selectedTables} readOnly />
+            <TableAvailabilityGrid
+              tables={tableAvailability}
+              decorations={getZoneDecorations(zones, activeZoneId)}
+              selectedTables={selectedTables}
+              readOnly
+            />
           )}
         </div>
       )}
@@ -1489,6 +1522,7 @@ function BookingSuccess({ booking, branchId, zones, onGoToBookings, onGoHome }) 
               ) : (
                 <TableAvailabilityGrid
                   tables={zoneTablesMap[activeReviewZoneId] || []}
+                  decorations={getZoneDecorations(zones, activeReviewZoneId)}
                   selectedTables={[]}
                   readOnly
                 />

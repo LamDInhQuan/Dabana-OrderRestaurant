@@ -153,9 +153,20 @@ public class BookingService implements IBookingService {
         String contactPhone = StringUtils.hasText(req.getContactPhone())
                 ? req.getContactPhone()
                 : user.getPhone();
+        // Giong het contactName/contactPhone: neu request khong gui contactEmail
+        // (thanh vien da dang nhap thuong khong bat buoc nhap lai email), fallback
+        // ve email tai khoan. Truoc day thieu fallback nay -> tao ra booking co
+        // contact_email rong, vi pham @NotBlank cua entity Booking va lam crash
+        // scheduled task expireOverdueConfirmedBookings khi Hibernate flush.
+        String contactEmail = StringUtils.hasText(req.getContactEmail())
+                ? req.getContactEmail()
+                : user.getEmail();
+        if (!StringUtils.hasText(contactEmail)) {
+            throw new BusinessException(AuthErrorCode.EMAIL_NOT_NULL);
+        }
         booking.setContactName(contactName);
         booking.setContactPhone(contactPhone);
-        booking.setContactEmail(req.getContactEmail());
+        booking.setContactEmail(contactEmail);
         booking.setNote(req.getNote());
         // 6. Snapshot policy
         BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
