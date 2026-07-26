@@ -22,6 +22,8 @@ import ApprovalPanel from './pages/admin/ApprovalPanel'
 import UserManagement from './pages/admin/UserManagement'
 import ReviewModeration from './pages/admin/ReviewModeration'
 import CategoryManagement from './pages/admin/CategoryManagement'
+import SubscriptionPlanManagement from './pages/admin/SubscriptionPlanManagement'
+import SubscriptionInvoiceApproval from './pages/admin/SubscriptionInvoiceApproval'
 import Reports from './pages/admin/Reports'
 import BookingLockPage from './pages/customer/BookingLockPage'
 import BookingInvoicePage from './pages/customer/BookingInvoicePage'
@@ -103,6 +105,14 @@ export default function App() {
           <Route
             path="/admin/categories"
             element={<ProtectedRoute role="ADMIN"><CategoryManagement /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/subscription-plans"
+            element={<ProtectedRoute role="ADMIN"><SubscriptionPlanManagement /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/subscription-invoices"
+            element={<ProtectedRoute role="ADMIN"><SubscriptionInvoiceApproval /></ProtectedRoute>}
           />
           <Route
             path="/admin/reports"

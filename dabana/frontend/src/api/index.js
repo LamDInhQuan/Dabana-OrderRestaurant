@@ -86,7 +86,6 @@ export const zoneApi = {
 
 export const tableApi = {
   getByBranchAndZone: (bid, zoneId) => api.get('/dining-tables', { params: { branchId: bid, zoneId } }),
-  getByBranch: (bid) => api.get(`/dining-tables/${bid}`),
   create: (data) => api.post('/dining-tables/create', data),
   update: (id, data) => api.put(`/dining-tables/update/${id}`, data),
   updateLayout: (payload) => api.put('/dining-tables/positions', payload),
@@ -168,6 +167,34 @@ export const notificationApi = {
   getUnread: () => api.get('/notifications/unread'),
 }
 
+// ===== Subscription API (thu phí nền tảng theo gói) =====
+// restaurantId của các endpoint /me/** LUÔN suy ra từ JWT ở backend, không cần
+// truyền lên - khớp đúng convention /me sẵn có (giống restaurantApi.getMine()).
+export const subscriptionApi = {
+  // Công khai - trang "Bảng giá"
+  listPlans: () => api.get('/subscription-plans'),
+
+  // Tự quản lý gói của nhà hàng đang đăng nhập
+  getCurrent: () => api.get('/subscriptions/me/current'),
+  subscribeInitial: (planId) => api.post('/subscriptions/me', { planId }),
+  upgrade: (newPlanId) => api.post('/subscriptions/me/upgrade', { newPlanId }),
+  scheduleDowngrade: (newPlanId) => api.post('/subscriptions/me/schedule-downgrade', { newPlanId }),
+  cancelScheduledDowngrade: () => api.delete('/subscriptions/me/schedule-downgrade'),
+  checkBranchLimit: () => api.get('/subscriptions/me/branch-limit-check'),
+  listInvoices: () => api.get('/subscriptions/me/invoices'),
+
+  // Admin - CRUD gói
+  adminListAllPlans: () => api.get('/admin/subscription-plans'),
+  adminCreatePlan: (data) => api.post('/admin/subscription-plans', data),
+  adminUpdatePlan: (id, data) => api.put(`/admin/subscription-plans/${id}`, data),
+
+  // Admin - xác nhận thanh toán thủ công (TẠM THỜI, chưa tích hợp payOS)
+  adminListInvoices: (statuses) => api.get('/admin/subscriptions/invoices', {
+    params: statuses?.length ? { status: statuses.join(',') } : undefined
+  }),
+  adminMarkInvoicePaid: (invoiceId) => api.post(`/admin/subscriptions/invoices/${invoiceId}/mark-paid`),
+}
+
 // ===== Restaurant brand API (B03) =====
 export const restaurantApi = {
   getMine: () => api.get('/restaurants/me'),
@@ -176,6 +203,8 @@ export const restaurantApi = {
   // cancelPendingUpdate: () => api.post('/restaurants/cancel-pending-update'),
   PerDayReports: (branchId) => api.get(`/restaurants/me/perDayReportForBranch/${branchId}`),
   Dashboard: () => api.get('/restaurants/me/dashboard'),
+  GetTablesByBranch: (branchid) => api.get(`/restaurants/me/tables/${branchid}`),
+  UpcomingBooking: (branchid) => api.get(`/restaurants/me/bookings/${branchid}`)
 }
 
 // ===== BỔ SUNG: Operating Hour API =====

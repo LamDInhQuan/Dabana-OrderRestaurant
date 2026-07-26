@@ -5,8 +5,8 @@ import { STATUS_META, DEFAULT_STATUS_META } from './statusMeta'
 const DEFAULT_WIDTH = 90
 const DEFAULT_HEIGHT = 80
 
-export default function TableItem({ table, editable, saving, selected, onDragStart, onClick, onResize, onRotate }) {
-  const { left, top } = dbPositionToPercent(table.positionX, table.positionY)
+export default function TableItem({ table, editable, saving, selected, livePosition, onStartMove, onClick, onResize, onRotate }) {
+  const { left, top } = livePosition || dbPositionToPercent(table.positionX, table.positionY)
   const meta = STATUS_META[table.status] || DEFAULT_STATUS_META
   const elRef = useRef(null)
 
@@ -68,8 +68,7 @@ export default function TableItem({ table, editable, saving, selected, onDragSta
   return (
     <div
       ref={elRef}
-      draggable={editable}
-      onDragStart={editable ? (e) => onDragStart(e, table) : undefined}
+      onMouseDown={editable ? (e) => onStartMove(e, table) : undefined}
       onClick={() => onClick?.(table)}
       title={editable ? undefined : 'Chỉ có thể chỉnh sửa khi bàn đang ở trạng thái Trống'}
       style={{
@@ -78,7 +77,8 @@ export default function TableItem({ table, editable, saving, selected, onDragSta
         top: `${top}%`,
         transform: `translate(-50%, -50%) rotate(${displayRotation}deg)`,
         width: displayWidth, height: displayHeight, borderRadius: 10,
-        background: meta.color + '22',
+        zIndex: 3,
+        background: meta.color + '3D',
         border: `2.5px solid ${selected ? '#1D4ED8' : meta.color}`,
         boxShadow: selected ? '0 0 0 3px rgba(29,78,216,.25)' : 'var(--shadow-sm)',
         cursor: editable ? 'grab' : 'not-allowed',
@@ -86,11 +86,16 @@ export default function TableItem({ table, editable, saving, selected, onDragSta
         userSelect: 'none',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center',
-        transition: isTransforming ? 'none' : 'box-shadow .15s, opacity .15s',
+        transition: (isTransforming || livePosition) ? 'none' : 'box-shadow .15s, opacity .15s',
       }}>
-      <span style={{ fontWeight: 800, fontSize: '.85rem' }}>{table.tableName}</span>
-      <span style={{ fontSize: '.7rem', fontWeight: 600, color: meta.color }}>{meta.label}</span>
-      <span style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>{table.capacity} khách</span>
+      <div style={{
+        background: 'rgba(255,255,255,.88)', borderRadius: 6, padding: '2px 8px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}>
+        <span style={{ fontWeight: 800, fontSize: '.85rem' }}>{table.tableName}</span>
+        <span style={{ fontSize: '.7rem', fontWeight: 600, color: meta.color }}>{meta.label}</span>
+        <span style={{ fontSize: '.65rem', color: 'var(--text-muted)' }}>{table.capacity} khách</span>
+      </div>
       {selected && editable && (
         <>
           <div

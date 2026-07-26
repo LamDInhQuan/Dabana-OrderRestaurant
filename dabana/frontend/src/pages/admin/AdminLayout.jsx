@@ -7,6 +7,8 @@ const TABS = [
   ['/admin/users',      '👥 Người dùng'],
   ['/admin/reviews',    '⭐ Đánh giá'],
   ['/admin/categories', '🗂️ Danh mục'],
+  ['/admin/subscription-plans', '💳 Gói dịch vụ'],
+  ['/admin/subscription-invoices', '🧾 Xác nhận thanh toán'],
   ['/admin/reports',    '📈 Báo cáo'],
 ]
 

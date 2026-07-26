@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi } from '../../api'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 
@@ -19,6 +19,7 @@ import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
 import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
 import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
+import BillingTab from './tab/subscription/BillingTab'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -146,6 +147,7 @@ export default function PartnerDashboard() {
   const [replyDrafts, setReplyDrafts] = useState({})  // { [reviewId]: text }
   const [bkFilter, setBkFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
+  const [branchBookingList, setBranchBookings] = useState([])
   const floorPlan = useFloorPlanState(activeBranch?.id)
   const orderBoard = useOrderBoardState(activeBranch?.id)
   const menuState = useMenuState(activeBranch?.id)
@@ -200,7 +202,7 @@ export default function PartnerDashboard() {
       )
       .catch(() => { setRestaurant(null); setRestaurantForm(f => ({ ...f, restaurantName: '', logoUrl: '', description: '', cuisineType: '', phone: '', email: '', website: '' })) })
   }, [])
-  console.log("activeBranch", activeBranch);
+  // console.log("activeBranch", activeBranch);
   useEffect(() => {
     if (!activeBranch) return
     const bid = activeBranch.id
@@ -236,14 +238,14 @@ export default function PartnerDashboard() {
     // waitlist
     setWaitlist([])
     // reviews (B13)
-    reviewApi.getByBranch(bid).then(r => {
-      const raw = r.data?.data?.content || r.data?.content || r.data || []
-      const list = raw.map(rv => ({
-        ...rv,
-        rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
-      }))
-      setReviews(list.length ? list : DEMO_REVIEWS)
-    }).catch(() => setReviews(DEMO_REVIEWS))
+reviewApi.getByBranch(bid).then(r => {
+  const raw = r.data?.data?.content || r.data?.content || r.data || []
+  const list = raw.map(rv => ({
+    ...rv,
+    rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
+  }))
+  setReviews(list.length ? list : [])
+}).catch(() => setReviews([]))
     // B05: chính sách đặt cọc/hủy của chi nhánh
     // depositPolicyApi.getByBranch(bid).then(r => {
     //   if (r.data) setPolicy(p => ({ ...p, ...r.data }))
@@ -285,6 +287,26 @@ export default function PartnerDashboard() {
     fetchDashboardStats()
   }, [activeBranch?.id])
 
+  // fetch upcoming book
+  useEffect(() => {
+    const fetchBranchBookings = async () => {
+      if (!activeBranch?.id) return
+      try {
+        setStatsLoading(true)
+        const branchBookingRes = await restaurantApi.UpcomingBooking(activeBranch.id)
+        const branchBookingData = branchBookingRes?.data?.data || branchBookingRes?.data || []
+        setBranchBookings(Array.isArray(branchBookingData) ? branchBookingData : [])
+      } catch (error) {
+        console.error('Failed to load upcomingData:', error)
+        setBranchBookings([])
+      } finally {
+        setStatsLoading(false)
+      }
+    }
+
+    fetchBranchBookings()
+  }, [activeBranch?.id])
+
   // fetch tables
   useEffect(() => {
     if (!activeBranch?.id) {
@@ -292,7 +314,7 @@ export default function PartnerDashboard() {
       return
     }
 
-    tableApi.getByBranch(activeBranch.id)
+    restaurantApi.GetTablesByBranch(activeBranch.id)
       .then(res => {
         const payload =
           Array.isArray(res?.data?.data) ? res.data.data :
@@ -515,6 +537,24 @@ export default function PartnerDashboard() {
   }
 
   // ── B04 bước 1: tạo chi nhánh mới ─────────────────────
+  // ── B17: kiểm tra hạn mức chi nhánh theo gói trước khi mở form tạo mới ──
+  // Đây CHỈ là UX cảnh báo sớm - backend (BranchService) vẫn tự kiểm tra lại
+  // khi thực sự submit, nên không bỏ qua bước gọi API tạo chi nhánh thật.
+  const openNewBranchModal = async () => {
+    try {
+      const { data: res } = await subscriptionApi.checkBranchLimit()
+      const check = res?.data
+      if (check && !check.allowed) {
+        toast.error(check.message || 'Đã đạt giới hạn chi nhánh của gói hiện tại')
+        setActiveTab('billing')
+        return
+      }
+    } catch {
+      // Nếu API kiểm tra lỗi (vd. chưa có gói) vẫn cho mở form - backend sẽ chặn đúng lúc submit
+    }
+    setNewBranchModal(true)
+  }
+
   const createBranch = async (e) => {
     e.preventDefault()
     if (!newBranchForm.name.trim() || !newBranchForm.address.trim()) {
@@ -593,12 +633,13 @@ export default function PartnerDashboard() {
     { id: 'reports', icon: '📈', label: 'Thống kê' },
     { id: 'policy', icon: '💰', label: 'Chính sách' },
     { id: 'operating-hours', icon: '⏰', label: 'Khung giờ hoạt động' },
+    { id: 'billing', icon: '💳', label: 'Gói dịch vụ' },
     { id: 'notifications', icon: '🔔', label: 'Thông báo', badge: unreadCount },
     { id: 'settings', icon: '⚙️', label: 'Cài đặt' },
   ]
 
   // ── Filtered bookings ──────────────────────────────
-  const filteredBookings = bkFilter === 'ALL' ? bookings : bookings.filter(b => b.status === bkFilter)
+  const filteredBookings = bkFilter === 'ALL' ? branchBookingList : branchBookingList.filter(b => b.status === bkFilter)
 
   // ── RENDER ─────────────────────────────────────────
   return (
@@ -795,7 +836,7 @@ export default function PartnerDashboard() {
                       Xem tất cả →
                     </button>
                   </div>
-                  {bookings.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status)).slice(0, 5).map(b => (
+                  {branchBookingList.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status)).slice(0, 5).map(b => (
                     <div key={b.id} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '.6rem 0', borderBottom: `1px solid ${C.creamDark}`, gap: '.5rem'
@@ -809,7 +850,7 @@ export default function PartnerDashboard() {
                       <Badge status={b.status} statusMap={BOOKING_STATUS} />
                     </div>
                   ))}
-                  {bookings.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status)).length === 0 && (
+                  {branchBookingList.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status)).length === 0 && (
                     <p style={{ color: C.muted, fontSize: '.85rem', textAlign: 'center', padding: '1.5rem 0' }}>Không có đặt bàn sắp tới</p>
                   )}
                 </div>
@@ -839,9 +880,10 @@ export default function PartnerDashboard() {
             </div>
           )}
 
-          {/* ══════ BOOKINGS ══════ */}
+          {/* ══════ TAB BRANCH BOOKINGS LIST══════ */}
           {activeTab === 'bookings' && (
             <div>
+              {/* thanh lọc */}
               <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                 {[['ALL', 'Tất cả'], ['CONFIRMED', 'Đã xác nhận'], ['CHECKED_IN', 'Đang phục vụ'],
                 ['PENDING_NO_SHOW', 'Nghi No-show'], ['COMPLETED', 'Hoàn tất'], ['CANCELLED_BY_CUSTOMER', 'Đã huỷ']].map(([k, l]) => (
@@ -850,16 +892,17 @@ export default function PartnerDashboard() {
                     background: bkFilter === k ? C.brown : C.white,
                     color: bkFilter === k ? '#fff' : C.muted,
                     border: `1.5px solid ${bkFilter === k ? C.brown : C.border}`,
-                  }}>{l} {k === 'ALL' ? `(${bookings.length})` : bookings.filter(b => b.status === k).length > 0 ? `(${bookings.filter(b => b.status === k).length})` : ''}</button>
+                  }}>{l} {k === 'ALL' ? `(${branchBookingList.length})` : branchBookingList.filter(b => b.status === k).length > 0 ? `(${branchBookingList.filter(b => b.status === k).length})` : ''}</button>
                 ))}
               </div>
-
+              
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {filteredBookings.length === 0 && (
                   <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>
                     Không có đặt bàn nào ở trạng thái này
                   </div>
                 )}
+                {/* danh sách đơn đặt */}
                 {filteredBookings.map(b => {
                   const meta = BOOKING_STATUS[b.status] || { color: C.muted, bg: 'rgba(138,110,87,.1)', label: b.status }
                   return (
@@ -877,7 +920,10 @@ export default function PartnerDashboard() {
                         </p>
                       </div>
                       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', marginBottom: '1rem' }}>
-                        <span>🪑 Bàn: <strong>{b.tableCode}</strong></span>
+                        
+                        {/*  chi tiết tất cả bàn đặt */}
+                        {/* TODO: lấy danh sách bàn đặt của đơn đặt */}
+                        <span>🪑 Bàn: </span>
                         <span>👥 Khách: <strong>{b.guestCount}</strong></span>
                         {b.depositAmount > 0 && <span>💰 Cọc: <strong style={{ color: C.goldDark }}>{Number(b.depositAmount).toLocaleString('vi-VN')}₫</strong></span>}
                       </div>
@@ -1208,6 +1254,11 @@ export default function PartnerDashboard() {
             <BranchScheduleTab branch={activeBranch} />
           )}
 
+          {/* ══════ BILLING: thu phi nen tang (module subscription) ══════ */}
+          {activeTab === 'billing' && (
+            <BillingTab />
+          )}
+
           {/* ══════ SETTINGS: B03 + B04 ══════ */}
           {activeTab === 'settings' && (
             <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1295,7 +1346,7 @@ export default function PartnerDashboard() {
               <div style={S.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                   <div style={S.eyebrow}>Chi nhánh ({branches.length})</div>
-                  <button onClick={() => setNewBranchModal(true)} style={{ ...S.btnOut, fontSize: '.78rem', padding: '.4rem .9rem' }}>+ Thêm chi nhánh</button>
+                  <button onClick={openNewBranchModal} style={{ ...S.btnOut, fontSize: '.78rem', padding: '.4rem .9rem' }}>+ Thêm chi nhánh</button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
                   {branches.map(b => {

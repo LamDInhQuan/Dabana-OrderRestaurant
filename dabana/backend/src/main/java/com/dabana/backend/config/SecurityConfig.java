@@ -83,6 +83,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/restaurants/me/**", "/api/branchs/me/**")
                         .hasRole("RESTAURANT_PARTNER")
 
+                        // Module Subscription (thu phi nen tang): tu quan ly goi cua CHINH minh
+                        .requestMatchers("/api/subscriptions/me/**").hasRole("RESTAURANT_PARTNER")
+                        // Trang gia cong khai - khong can dang nhap
+                        .requestMatchers(HttpMethod.GET, "/api/subscription-plans/**").permitAll()
+
                         // Tim kiem & xem nha hang/chi nhanh - cong khai (B01 buoc 1-2)
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**", "/api/branchs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/menu-items/branch/**").permitAll()
