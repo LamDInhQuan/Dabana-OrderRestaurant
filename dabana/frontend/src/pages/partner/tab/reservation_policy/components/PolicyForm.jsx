@@ -1,14 +1,28 @@
 import React from "react";
 import { C, S, GoldDivider } from "../../../theme";
 
+// 💡 1. Khai báo Object mặc định rỗng để tránh crash khi prop không được truyền vào
+const DEFAULT_POLICY = {
+  policyCode: "",
+  name: "",
+  depositRequired: false,
+  depositType: "FIXED_AMOUNT",
+  depositValue: 0,
+  freeCancellationHours: 0,
+  lateCancellationPenaltyPercent: 0,
+  noShowPenaltyPercent: 0,
+  termsAndConditions: ""
+};
 
-export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
-  const set = (patch) => onChange({ ...policy, ...patch });
+export default function PolicyForm({ policy = DEFAULT_POLICY, onChange, onSubmit, onCancel }) {
+  // 💡 2. Guard clause: Đảm bảo p luôn là 1 object an toàn
+  const p = policy || DEFAULT_POLICY;
+  const set = (patch) => onChange && onChange({ ...p, ...patch });
 
   return (
     <div style={S.card}>
       <div style={{ ...S.eyebrow, marginBottom: "1.5rem" }}>
-        {policy.id ? "Chỉnh sửa chính sách" : "Tạo chính sách"}
+        {p.id ? "Chỉnh sửa chính sách" : "Tạo chính sách"}
       </div>
 
       <form
@@ -16,22 +30,23 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
         style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}
       >
         <div>
-          <label style={S.label}>Tên chính sách</label>
+          <label style={S.label}>Mã chính sách</label>
           <input
             style={S.input}
-            value={policy.policyCode || ""}
-            onChange={(e) => set({ name: e.target.value })}
+            value={p.policyCode || ""}
+            onChange={(e) => set({ policyCode: e.target.value })}
             required
           />
         </div>
 
         <div>
-          <label style={S.label}>Mô tả</label>
+          <label style={S.label}>Tên chính sách</label>
           <textarea
-            rows={3}
+            rows={2}
             style={S.input}
-            value={policy.policyName || ""}
-            onChange={(e) => set({ description: e.target.value })}
+            value={p.name || ""}
+            onChange={(e) => set({ policyName: e.target.value })}
+            required
           />
         </div>
 
@@ -59,9 +74,8 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
           <button
             type="button"
             onClick={() => {
-              const nextRequired = !policy.depositRequired;
+              const nextRequired = !p.depositRequired;
               if (!nextRequired) {
-                // 🟢 Reset sạch dữ liệu khi tắt toggle cọc
                 set({
                   depositRequired: false,
                   depositType: "FIXED_AMOUNT",
@@ -88,7 +102,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
               borderRadius: 99,
               cursor: "pointer",
               position: "relative",
-              background: policy.depositRequired ? C.green : "rgba(0,0,0,.15)",
+              background: p.depositRequired ? C.green : "rgba(0,0,0,.15)",
             }}
           >
             <div
@@ -99,14 +113,14 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 background: "#fff",
                 position: "absolute",
                 top: 3,
-                left: policy.depositRequired ? 28 : 3,
+                left: p.depositRequired ? 28 : 3,
                 transition: ".2s",
               }}
             />
           </button>
         </div>
 
-        {policy.depositRequired && (
+        {p.depositRequired && (
           <div
             style={{
               display: "grid",
@@ -118,7 +132,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
               <label style={S.label}>Loại đặt cọc</label>
               <select
                 style={S.input}
-                value={policy.depositType}
+                value={p.depositType || "FIXED_AMOUNT"}
                 onChange={(e) => set({ depositType: e.target.value })}
               >
                 <option value="FIXED_AMOUNT">Số tiền cố định</option>
@@ -132,8 +146,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 style={S.input}
                 type="number"
                 min={0}
-                value={policy.depositValue}
-                // 🟢 Ép về kiểu Number tránh lỗi chuỗi trống
+                value={p.depositValue ?? ""}
                 onChange={(e) => set({ depositValue: e.target.value === "" ? "" : +e.target.value })}
                 required
               />
@@ -145,7 +158,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 style={S.input}
                 type="number"
                 min={0}
-                value={policy.freeCancellationHours}
+                value={p.freeCancellationHours ?? 0}
                 onChange={(e) => set({ freeCancellationHours: e.target.value === "" ? 0 : +e.target.value })}
                 required
               />
@@ -158,7 +171,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 type="number"
                 min={0}
                 max={100}
-                value={policy.lateCancellationPenaltyPercent}
+                value={p.lateCancellationPenaltyPercent ?? 0}
                 onChange={(e) => set({ lateCancellationPenaltyPercent: e.target.value === "" ? 0 : +e.target.value })}
                 required
               />
@@ -171,7 +184,7 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
                 type="number"
                 min={0}
                 max={100}
-                value={policy.noShowPenaltyPercent}
+                value={p.noShowPenaltyPercent ?? 0}
                 onChange={(e) => set({ noShowPenaltyPercent: e.target.value === "" ? 0 : +e.target.value })}
                 required
               />
@@ -184,15 +197,13 @@ export default function PolicyForm({ policy, onChange, onSubmit, onCancel }) {
           <textarea
             rows={3}
             style={S.input}
-            value={policy.terms || ""}
+            value={p.termsAndConditions || ""}
             onChange={(e) => set({ terms: e.target.value })}
             placeholder="Điều khoản chi tiết hiển thị cho khách khi đặt bàn..."
           />
         </div>
 
         <GoldDivider />
-
-        {/* <PolicyPreview policy={policy} title="Xem trước" /> */}
 
         <div
           style={{

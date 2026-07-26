@@ -1,9 +1,7 @@
-// src/reservation_policy/policyRestaurant/PolicyResTab.jsx (hoặc file Container tương ứng của bạn)
+// src/reservation_policy/policyRestaurant/PolicyResTab.jsx
 import React, { useState, useEffect } from "react";
 import PolicyResList from "./component/PolicyResList";
 import PolicyFormModal from "./component/PolicyFormModal";
-
-// Import API get detail từ service của bạn
 import { reservationPolicyApi } from "../../../../../api";
 
 function PolicyResTab({ restaurantId }) {
@@ -11,34 +9,31 @@ function PolicyResTab({ restaurantId }) {
   const [selectedPolicyId, setSelectedPolicyId] = useState(null);
   const [policyDetail, setPolicyDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch danh sách policy khi load trang
   useEffect(() => {
-    fetchPolicyList();
-  }, []);
+    if (restaurantId) {
+      fetchPolicyList();
+    }
+  }, [restaurantId]);
 
   const fetchPolicyList = async () => {
     try {
       const res = await reservationPolicyApi.getAll(restaurantId);
-      setPolicies(res.data.data || res);
+      setPolicies(res.data?.data || res.data || res);
     } catch (err) {
       console.error("Lỗi lấy danh sách policy:", err);
     }
   };
 
-  // 🔥 1. HÀM CLICK CHỌN ITEM BÊN LIST -> GỌI API DETAIL
-  const handleSelectPolicy = async (policy) => {
-    console.log("Đã click policy:", policy);
+  const handleOpenEdit = async (policy) => {
     setSelectedPolicyId(policy.id);
     setLoadingDetail(true);
+    setIsModalOpen(true);
 
     try {
-      // Gọi API lấy chi tiết
-      const detail = await reservationPolicyApi.getDetail(restaurantId ,policy.id);
-      console.log("Dữ liệu detail nhận được từ API:", detail);
-
-      // Cập nhật state detail để truyền vào Form bên phải
-      setPolicyDetail(detail.data || detail);
+      const detail = await reservationPolicyApi.getDetail(restaurantId, policy.id);
+      setPolicyDetail(detail.data?.data || detail.data || detail);
     } catch (error) {
       console.error("Lỗi khi gọi API get detail:", error);
     } finally {
@@ -46,40 +41,61 @@ function PolicyResTab({ restaurantId }) {
     }
   };
 
-  // 🔥 2. HÀM NÚT "TẠO CHÍNH SÁCH KHUNG"
   const handleAddNew = () => {
     setSelectedPolicyId(null);
-    setPolicyDetail(null); // Clear detail để form chuyển sang mode Tạo mới
+    setPolicyDetail(null);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPolicyId(null);
+    setPolicyDetail(null);
+  };
+
+  const handleSavePolicy = async (formData) => {
+    try {
+      if (formData.id) {
+        await reservationPolicyApi.update(restaurantId, formData.id, formData);
+        alert("Cập nhật chính sách thành công!");
+      } else {
+        const payload = { ...formData, restaurantId };
+        const response = await reservationPolicyApi.create(restaurantId, payload);
+        alert("Tạo mới chính sách thành công!");
+        const createdData = response.data?.data || response.data || response;
+        if (createdData?.id) {
+          setSelectedPolicyId(createdData.id);
+          setPolicyDetail(createdData);
+        }
+      }
+      await fetchPolicyList();
+    } catch (error) {
+      console.error("Lỗi khi lưu policy:", error);
+      alert(error.response?.data?.message || "Lỗi khi lưu chính sách!");
+    }
   };
 
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
-      {/* CỘT TRÁI: DANH SÁCH */}
+    <div style={{ padding: "1rem" }}>
+      {/* Nguồn danh sách hiển thị tràn khung hình */}
       <PolicyResList
         policies={policies}
-        selectedId={selectedPolicyId}
-        onSelect={handleSelectPolicy} // 👈 Đảm bảo truyền đúng tên prop onSelect
+        onSelect={handleOpenEdit}
         onAddNew={handleAddNew}
       />
 
-      {/* CỘT PHẢI: FORM HIỂN THỊ / SỬA / TẠO */}
-      <div style={{ background: "#fff", padding: "1.5rem", borderRadius: 12, border: "1px solid #ECE4D3" }}>
-        {loadingDetail ? (
-          <div style={{ padding: "2rem", textAlign: "center", color: "#8A8272" }}>
-            Đang tải thông tin chi tiết policy...
-          </div>
-        ) : (
-          <PolicyFormModal
-            key={policyDetail?.id || "new"} // 🔥 Mẹo: Thêm key này giúp React re-render lại toàn bộ Form state khi đổi policy khác nhau
-            initialData={policyDetail}
-            onSave={(formData) => {
-              console.log("Save policy data:", formData);
-              // Call API create / update ở đây
-            }}
-            onClose={() => setPolicyDetail(null)}
-          />
-        )}
-      </div>
+      {/* Modal Popup Rộng thoáng */}
+      {isModalOpen && (
+        <PolicyFormModal
+          key={policyDetail?.id || "new"}
+          restaurantId={restaurantId}
+          initialData={policyDetail}
+          loading={loadingDetail}
+          onSave={handleSavePolicy}
+          onRefresh={fetchPolicyList}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

@@ -32,6 +32,58 @@ function PolicyDateSchedules({ restaurantId, policyId, schedules = [], onRefresh
     }
   };
 
+  // Mapping từ số thứ (hoặc chuỗi Enum) sang tên Thứ hiển thị
+  const DAY_MAP = {
+    1: "Thứ 2",
+    2: "Thứ 3",
+    3: "Thứ 4",
+    4: "Thứ 5",
+    5: "Thứ 6",
+    6: "Thứ 7",
+    7: "Chủ nhật",
+    MONDAY: "Thứ 2",
+    TUESDAY: "Thứ 3",
+    WEDNESDAY: "Thứ 4",
+    THURSDAY: "Thứ 5",
+    FRIDAY: "Thứ 6",
+    SATURDAY: "Thứ 7",
+    SUNDAY: "Chủ nhật",
+  };
+
+  // Hàm định dạng nhãn loại lịch trình (Schedule Label Format)
+  const renderScheduleLabel = (s) => {
+    // 1. Nếu có khoảng ngày -> DATE_RANGE
+    if (s.dateFrom || s.dateTo) {
+      return {
+        type: "DATE_RANGE",
+        badgeText: "Thứ / Sự kiện theo ngày",
+        badgeColor: "#E0E7FF", // Blue light
+        textColor: "#3730A3",
+        text: `${s.dateFrom || "..."}  →  ${s.dateTo || "..."}`,
+      };
+    }
+
+    // 2. Nếu có dayOfWeek -> DAY_OF_WEEK
+    if (s.dayOfWeek !== null && s.dayOfWeek !== undefined) {
+      const dayName = DAY_MAP[s.dayOfWeek] || `Thứ ${s.dayOfWeek}`;
+      return {
+        type: "DAY_OF_WEEK",
+        badgeText: "Theo thứ hàng tuần",
+        badgeColor: "#FEF3C7", // Amber light
+        textColor: "#92400E",
+        text: dayName,
+      };
+    }
+
+    // 3. Không có cả ngày lẫn thứ -> ALWAYS
+    return {
+      type: "ALWAYS",
+      badgeText: "Lịch cố định",
+      badgeColor: "#D1FAE5", // Green light
+      textColor: "#065F46",
+      text: "Tất cả các ngày trong tuần",
+    };
+  };
   const handleDelete = async (scheduleId) => {
     if (!window.confirm("Xoá lịch áp dụng này?")) return;
     try {
@@ -69,38 +121,59 @@ function PolicyDateSchedules({ restaurantId, policyId, schedules = [], onRefresh
         </div>
       ) : (
         <div style={ui.rowList}>
-          {schedules.map((s) => (
-            <div key={s.id} style={ui.row}>
-              <div style={ui.rowMain}>
-                <span style={ui.datePill}>{s.dateFrom || "Hàng ngày"}</span>
-                <span style={ui.arrow}>→</span>
-                <span style={ui.datePill}>{s.dateTo || "Hàng ngày"}</span>
-                {s.timeFrom && (
-                  <span style={ui.timeText}>
-                    {s.timeFrom.substring(0, 5)} – {s.timeTo.substring(0, 5)}
+          {schedules.map((s) => {
+            const info = renderScheduleLabel(s);
+            const hasTimeRange = s.timeFrom && s.timeTo;
+
+            return (
+              <div key={s.id} style={ui.row}>
+                <div style={ui.rowMain}>
+                  {/* Tag phân loại lịch trình */}
+                  <span
+                    style={{
+                      fontSize: ".7rem",
+                      fontWeight: 700,
+                      padding: ".2rem .5rem",
+                      borderRadius: 4,
+                      background: info.badgeColor,
+                      color: info.textColor,
+                    }}
+                  >
+                    {info.badgeText}
                   </span>
-                )}
+
+                  {/* Chi tiết thứ hoặc ngày */}
+                  <span style={ui.datePill}>{info.text}</span>
+
+                  {/* Khung giờ áp dụng (nếu có) */}
+                  {hasTimeRange && (
+                    <span style={ui.timeText}>
+                      ⏰ {s.timeFrom.substring(0, 5)} – {s.timeTo.substring(0, 5)}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: ".6rem" }}>
+                  <span
+                    style={{
+                      ...ui.statusBadge,
+                      background: s.status === "ACTIVE" ? "#10B981" : "#9CA3AF",
+                    }}
+                  >
+                    {s.status === "ACTIVE" ? "Đang bật" : "Tắt"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(s.id)}
+                    style={ui.deleteBtn}
+                    title="Xoá lịch"
+                  >
+                    Xoá
+                  </button>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: ".6rem" }}>
-                <span
-                  style={{
-                    ...ui.statusBadge,
-                    background: s.status === "ACTIVE" ? "#10B981" : "#9CA3AF",
-                  }}
-                >
-                  {s.status === "ACTIVE" ? "Đang bật" : "Tắt"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(s.id)}
-                  style={ui.deleteBtn}
-                  title="Xoá lịch"
-                >
-                  Xoá
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
