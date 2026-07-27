@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.restaurant.service;
 
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import com.dabana.backend.modules.restaurant.RestaurantErrorCode;
 import org.springframework.stereotype.Service;
 
 import com.dabana.backend.modules.auth.entity.User;
@@ -58,6 +60,16 @@ public class RestaurantService  {
     public RestaurantResponse findByOwnerId(Long ownerId) {
         return restaurantMapper.toResponse(restaurantRepos.findByOwnerUserId(ownerId).
                 orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId)));
+    }
+
+    public List<RestaurantResponse> findAll() {
+        List<Restaurant> restaurants = restaurantRepos.findAll();
+        if (restaurants.isEmpty()) {
+            throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
+        }
+        return restaurants.stream()
+                .map(restaurantMapper::toResponse)
+                .toList();
     }
 
     public Restaurant findByRestaurantName(String name) {

@@ -8,8 +8,7 @@ import com.dabana.backend.modules.reservation_policy.dto.request.AssignBranchPol
 import com.dabana.backend.modules.reservation_policy.dto.request.UpdateBranchPolicyRequest;
 import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyDetailResponse;
 import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyResponse;
-import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
-import com.dabana.backend.modules.reservation_policy.entity.ReservationPolicy;
+import com.dabana.backend.modules.reservation_policy.entity.*;
 import com.dabana.backend.modules.reservation_policy.mapper.BranchPolicyMapper;
 import com.dabana.backend.modules.reservation_policy.repository.BranchPolicyRepository;
 import com.dabana.backend.modules.reservation_policy.repository.ReservationPolicyRepository;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +51,39 @@ public class BranchPolicyService implements IBranchPolicyService {
 
         BranchPolicy branchPolicy = branchPolicyMapper.toEntity(request, branch, policy);
         branchPolicy.setStatus(PolicyStatus.ACTIVE);
+        // 3. Clone Deposit Rules từ Policy mẫu sang Branch Policy
+        // 3. Clone Deposit Rules mẫu sang Set của BranchPolicy
+        if (policy.getDepositRules() != null && !policy.getDepositRules().isEmpty()) {
+            for (ReservationPolicyDepositRule rule : policy.getDepositRules()) {
+                BranchPolicyDepositRule branchRule = BranchPolicyDepositRule.builder()
+                        .minGuest(rule.getMinGuest()) // Lưu ý đặt tên field minGuest/minGuests cho đồng bộ
+                        .maxGuest(rule.getMaxGuest())
+                        .depositType(rule.getDepositType())
+                        .depositValue(rule.getDepositValue())
+                        .maxTables(rule.getMaxTables())
+                        .maxCapacitySlop(rule.getMaxCapacitySlop())
+                        .minPreorderAmount(rule.getMinPreorderAmount())
+                        .build();
 
+                branchPolicy.addDepositRule(branchRule); // Dùng helper method
+            }
+        }
+
+        // 4. Clone Schedules mẫu sang Set của BranchPolicy
+        if (policy.getSchedules() != null && !policy.getSchedules().isEmpty()) {
+            for (ReservationPolicySchedule schedule : policy.getSchedules()) {
+                BranchPolicySchedule branchSchedule = BranchPolicySchedule.builder()
+                        .dayOfWeek(schedule.getDayOfWeek())
+                        .dateFrom(schedule.getDateFrom())
+                        .dateTo(schedule.getDateTo())
+                        .timeFrom(schedule.getTimeFrom())
+                        .timeTo(schedule.getTimeTo())
+                        .status(schedule.getStatus())
+                        .build();
+
+                branchPolicy.addSchedule(branchSchedule); // Dùng helper method
+            }
+        }
         BranchPolicy saved = branchPolicyRepository.save(branchPolicy);
         return branchPolicyMapper.toResponse(saved);
     }

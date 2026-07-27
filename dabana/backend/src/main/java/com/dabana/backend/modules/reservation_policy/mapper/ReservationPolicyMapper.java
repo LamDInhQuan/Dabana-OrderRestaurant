@@ -46,6 +46,7 @@ public class ReservationPolicyMapper {
 
         return ReservationPolicyDetailResponse.builder()
                 .id(policy.getId())
+                .restaurantId(policy.getRestaurant().getId())
                 .policyCode(policy.getPolicyCode())
                 .name(policy.getName())
                 .description(policy.getDescription())

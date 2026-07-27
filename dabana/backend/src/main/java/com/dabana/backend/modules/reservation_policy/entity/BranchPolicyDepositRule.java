@@ -38,9 +38,13 @@ public class BranchPolicyDepositRule extends BaseEntity {
     private BigDecimal depositValue;
 
 
-    @Column(name = "min_tables")
-    private Integer minTables = 1;
+    @Column(name = "max_capacity_slop", nullable = false)
+    private Integer maxCapacitySlop = 2;
 
     @Column(name = "max_tables")
     private Integer maxTables;
+
+    @Column(name = "min_preorder_amount", precision = 12, scale = 2)
+    private BigDecimal minPreorderAmount;
+
 }

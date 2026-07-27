@@ -106,6 +106,35 @@ public class BookingItemService implements IBookingItemService {
         publishTableBoardChanged(booking);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal calculateTotalPreorderAmount(Long bookingId) {
+        List<BookingItem> items = bookingItemRepository.findByBooking_IdOrderByCreatedAtAsc(bookingId);
+
+        return items.stream()
+                .map(item -> item.getSnapshotPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Override
+    public BigDecimal calculateTotalPreorderAmountFromRequests(List<BookingDtos.PreOrderItemRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        // Fetch giá của các món từ DB theo danh sách menuItemId
+        List<Long> itemIds = requests.stream().map(BookingDtos.PreOrderItemRequest::getMenuItemId).toList();
+        Map<Long, BigDecimal> priceMap = menuItemRepository.findAllById(itemIds).stream()
+                .collect(Collectors.toMap(MenuItem::getId, MenuItem::getPrice));
+
+        return requests.stream()
+                .map(req -> {
+                    BigDecimal price = priceMap.getOrDefault(req.getMenuItemId(), BigDecimal.ZERO);
+                    return price.multiply(BigDecimal.valueOf(req.getQuantity()));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private void assertBookingEditable(Booking booking) {
         BookingStatus status = booking.getStatus();
         if (status != BookingStatus.CONFIRMED && status != BookingStatus.CHECKED_IN) {

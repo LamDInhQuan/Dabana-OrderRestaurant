@@ -50,4 +50,20 @@ public class BranchPolicy extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "branchPolicy", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BranchPolicySchedule> schedules = new HashSet<>();
+
+    public void addDepositRule(BranchPolicyDepositRule rule) {
+        if (this.depositRules == null) {
+            this.depositRules = new HashSet<>();
+        }
+        this.depositRules.add(rule);
+        rule.setBranchPolicy(this);
+    }
+
+    public void addSchedule(BranchPolicySchedule schedule) {
+        if (this.schedules == null) {
+            this.schedules = new HashSet<>();
+        }
+        this.schedules.add(schedule);
+        schedule.setBranchPolicy(this);
+    }
 }

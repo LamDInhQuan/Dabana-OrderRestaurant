@@ -16,6 +16,9 @@ public class ReservationPolicyDepositRuleMapper {
                 .maxGuest(request.getMaxGuests())
                 .depositType(request.getDepositType())
                 .depositValue(request.getDepositValue())
+                .maxTables(request.getMaxTables())
+                .maxCapacitySlop(request.getMaxCapacitySlop())
+                .minPreorderAmount(request.getMinPreorderAmount())
                 .build();
     }
 
@@ -27,6 +30,9 @@ public class ReservationPolicyDepositRuleMapper {
                 .maxGuest(entity.getMaxGuest())
                 .depositType(entity.getDepositType())
                 .depositValue(entity.getDepositValue())
+                .maxTables(entity.getMaxTables())
+                .maxCapacitySlop(entity.getMaxCapacitySlop())
+                .minPreorderAmount(entity.getMinPreorderAmount())
                 .build();
     }
 }

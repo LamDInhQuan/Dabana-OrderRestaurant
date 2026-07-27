@@ -39,8 +39,7 @@ public class ReservationPolicyDepositRuleService implements IReservationPolicyDe
         ReservationPolicy policy = reservationPolicyRepository.findByIdAndRestaurantId(policyId, restaurantId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
 
-        validateRule(request);
-        assertNoGuestRangeOverlap(policyId, request.getMinGuests(), request.getMaxGuests(), null);
+        validateRule(policyId, request, null);
 
         ReservationPolicyDepositRule entity = reservationPolicyDepositRuleMapper.toEntity(request, policy);
         return reservationPolicyDepositRuleMapper.toResponse(reservationPolicyDepositRuleRepository.save(entity));
@@ -58,8 +57,7 @@ public class ReservationPolicyDepositRuleService implements IReservationPolicyDe
         ReservationPolicyDepositRule entity = reservationPolicyDepositRuleRepository.findByIdAndPolicyId(ruleId, policyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.DEPOSIT_RULE_NOT_FOUND));
 
-        validateRule(request);
-        assertNoGuestRangeOverlap(policyId, request.getMinGuests(), request.getMaxGuests(), ruleId);
+        validateRule(policyId, request, ruleId);
 
         entity.setMinGuest(request.getMinGuests());
         entity.setMaxGuest(request.getMaxGuests());
@@ -114,62 +112,37 @@ public class ReservationPolicyDepositRuleService implements IReservationPolicyDe
                 .toList();
     }
 
-    private void validateRule(CreateReservationPolicyDepositRuleRequest request) {
-        validateRule(request.getMinGuests(), request.getMaxGuests(), request.getDepositType(), request.getDepositValue());
+    private void validateRule(Long policyId, CreateReservationPolicyDepositRuleRequest request, Long ruleId) {
+        validateGuestRangeOverlap(policyId, request.getMinGuests(), request.getMaxGuests(), ruleId);
     }
 
-    private void validateRule(UpdateReservationPolicyDepositRuleRequest request) {
-        validateRule(request.getMinGuests(), request.getMaxGuests(), request.getDepositType(), request.getDepositValue());
+    private void validateRule(Long policyId, UpdateReservationPolicyDepositRuleRequest request, Long ruleId) {
+        validateGuestRangeOverlap(policyId, request.getMinGuests(), request.getMaxGuests(), ruleId);
     }
 
-    private void validateRule(
-            Integer minGuest,
-            Integer maxGuest,
-            DepositType depositType,
-            BigDecimal depositValue) {
-
-        if (minGuest == null || maxGuest == null) {
-            throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-        }
-
-        if (minGuest < 1) {
-            throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-        }
-
-        if (minGuest > maxGuest) {
-            throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-        }
-
-        if (depositType == null) {
-            throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-        }
-
-        switch (depositType) {
-            case NO_DEPOSIT -> {
-                if (depositValue != null &&
-                        depositValue.compareTo(BigDecimal.ZERO) != 0) {
-                    throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-                }
-            }
-            case FIXED, PER_PERSON -> {
-                if (depositValue == null ||
-                        depositValue.compareTo(BigDecimal.ZERO) <= 0) {
-                    throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-                }
-            }
-        }
-    }
-
-    private void assertNoGuestRangeOverlap(Long policyId, Integer minGuest, Integer maxGuest, Long excludeId) {
+    private void validateGuestRangeOverlap(Long policyId, Integer newMin, Integer newMax, Long excludeRuleId) {
         List<ReservationPolicyDepositRule> existingRules = reservationPolicyDepositRuleRepository.findAllByPolicyIdOrderByMinGuestAsc(policyId);
 
-        for (ReservationPolicyDepositRule existing : existingRules) {
-            if (excludeId != null && existing.getId().equals(excludeId)) {
+        for (ReservationPolicyDepositRule rule : existingRules) {
+            // Loại trừ chính nó khi làm tác vụ Update
+            if (excludeRuleId != null && rule.getId().equals(excludeRuleId)) {
                 continue;
             }
-            if (minGuest <= existing.getMaxGuest() && existing.getMinGuest() <= maxGuest) {
-                throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+
+            int existMin = rule.getMinGuest();
+            Integer existMax = rule.getMaxGuest(); // null = vô tận
+
+            // 1. Kiểm tra xem khoảng MỚI có nằm HẲN BÊN TRÁI (trước) khoảng CŨ không
+            boolean isNewTotallyBefore = (newMax != null && newMax < existMin);
+
+            // 2. Kiểm tra xem khoảng MỚI có nằm HẲN BÊN PHẢI (sau) khoảng CŨ không
+            boolean isNewTotallyAfter = (existMax != null && newMin > existMax);
+
+            // Nếu KHÔNG nằm hẳn bên trái VÀ ALSO KHÔNG nằm hẳn bên phải -> Chắc chắn bị CHỒNG LẤN
+            if (!isNewTotallyBefore && !isNewTotallyAfter) {
+                throw new BusinessException(PolicyErrorCode.POLICY_RULE_GUEST_RANGE_OVERLAP);
             }
         }
     }
+
 }

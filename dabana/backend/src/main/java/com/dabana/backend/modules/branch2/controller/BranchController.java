@@ -66,10 +66,10 @@ public class BranchController extends BaseController {
 //
     // 2. LẤY CHI NHÁNH THEO ID
     @GetMapping("/{id}")
-    public ResponseEntity<BranchResponse> getBranchById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<BranchResponse>> getBranchById(@PathVariable Long id) {
         // Service sẽ xử lý việc tìm kiếm và convert, Controller chỉ việc trả về
         BranchResponse response = branchService.findById(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, response));
     }
 
     // 3. TẠO MỚI CHI NHÁNH

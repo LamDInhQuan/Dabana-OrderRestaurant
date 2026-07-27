@@ -16,6 +16,8 @@ public class ReservationPolicyDetailResponse {
 
     private Long id;
 
+    private Long restaurantId;
+
     private String policyCode;
 
     private String name;

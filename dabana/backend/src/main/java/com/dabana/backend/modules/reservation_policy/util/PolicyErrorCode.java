@@ -97,7 +97,7 @@ public enum PolicyErrorCode implements ErrorCode {
     INVALID_SCHEDULE(
             "POLICY_SCHEDULE_INVALID",
             "Lich ap dung khong hop le"
-    ) ,
+    ),
     POLICY_SCHEDULE_ALREADY_EXISTS(
             "POLICY_SCHEDULE_ALREADY_EXISTS",
             "Chính sách này đã có lịch áp dụng"
@@ -111,7 +111,7 @@ public enum PolicyErrorCode implements ErrorCode {
     POLICY_SCHEDULE_DATE_RANGE_OVERLAP(
             "POLICY_SCHEDULE_DATE_RANGE_OVERLAP",
             "Khoảng ngày bị chồng chéo"
-    ) ,
+    ),
     ALWAYS_SCHEDULE_ALREADY_EXISTS(
             "BRANCH_POLICY_001",
             "Chính sách ALWAYS chỉ được phép có một lịch áp dụng."
@@ -125,7 +125,13 @@ public enum PolicyErrorCode implements ErrorCode {
     DATE_RANGE_SCHEDULE_OVERLAPPED(
             "BRANCH_POLICY_003",
             "Khoảng ngày áp dụng bị chồng chéo với một lịch đã tồn tại."
-    );
+    ),
+    POLICY_RULE_GUEST_RANGE_OVERLAP("RESERVATION_POLICY_001", "Khoảng số lượng khách bị trùng lấn với quy tắc đã tồn tại!"),
+    INVALID_GUEST_RANGE("RESERVATION_POLICY_001", "Số lượng khách tối thiểu không được lớn hơn số lượng khách tối đa!"),
+    GUEST_COUNT_OUT_OF_POLICY_RANGE(
+            "BRANCH_POLICY_004",
+            "Số lượng khách vượt quá hoặc nằm ngoài phạm vi quy định của chính sách đặt bàn"
+    );;
 
     private final String code;
     private final String message;

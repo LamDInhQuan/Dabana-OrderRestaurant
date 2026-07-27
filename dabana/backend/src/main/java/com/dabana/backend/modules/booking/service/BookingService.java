@@ -106,7 +106,19 @@ public class BookingService implements IBookingService {
         if (!availableSlotService.isReservationTimeAvailable(req.getBranchId(), req.getReservationTime())) {
             throw new BusinessException(BranchErrorCode.OPERATING_HOUR_NOT_FOUND);
         }
-        // 3. Resolve policy + tính tiền cọc
+        // 3. Validate bàn
+        var requestedTableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
+        if (requestedTableIds.isEmpty()) {
+            throw new BusinessException(BookingErrorCode.TABLE_IDS_REQUIRED);
+        }
+        List<DiningTable> tables = bookingTableService.loadTables(req.getTableIds());
+        bookingTableService.validateBookingConflict(req.getTableIds(), req.getReservationTime());
+        // 4. Tính trước tổng tiền món ăn đặt trước (Pre-order Total) nếu có
+        BigDecimal totalPreorderAmount = BigDecimal.ZERO;
+        if (req.getItems() != null && !req.getItems().isEmpty()) {
+            totalPreorderAmount = bookingItemService.calculateTotalPreorderAmountFromRequests(req.getItems());
+        }
+        // 5. Resolve policy + tính tiền cọc
         BranchPolicy branchPolicy = null;
         DepositResult depositResult = new DepositResult(); // Khởi tạo mặc định để tránh null
 
@@ -116,7 +128,7 @@ public class BookingService implements IBookingService {
                 depositResult = branchPolicyResolverService.calculate(
                         branchPolicy,
                         req.getGuestCount(),
-                        req.getReservationTime());
+                        req.getReservationTime(), totalPreorderAmount);
             } else {
                 depositResult.setDepositAmount(BigDecimal.ZERO);
             }
@@ -125,15 +137,31 @@ public class BookingService implements IBookingService {
             depositResult = new DepositResult();
             depositResult.setDepositAmount(BigDecimal.ZERO);
         }
-        // 4. Validate bàn
-        var requestedTableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
-        if (requestedTableIds.isEmpty()) {
-            throw new BusinessException(BookingErrorCode.TABLE_IDS_REQUIRED);
+        // 6. Check ràng buộc Bàn dựa theo Rule thu được từ Policy
+        if (depositResult.getRule() != null) {
+            var rule = depositResult.getRule();
+
+            // 6a. Kiểm tra Giới hạn số bàn tối đa
+            if (rule.getMaxTables() != null && tables.size() > rule.getMaxTables()) {
+                throw new BusinessException(BookingErrorCode.EXCEEDED_MAX_TABLES);
+            }
+
+            // 6b. Kiểm tra Sức chứa (Capacity) & Mức chênh lệch ghế cho phép (maxCapacitySlop)
+            int totalCapacity = tables.stream().mapToInt(DiningTable::getCapacity).sum();
+
+            if (totalCapacity < req.getGuestCount()) {
+                throw new BusinessException(BookingErrorCode.INSUFFICIENT_TABLE_CAPACITY);
+            }
+
+            int maxAllowedCapacity = req.getGuestCount() + (rule.getMaxCapacitySlop() != null ? rule.getMaxCapacitySlop() : 2);
+            if (totalCapacity > maxAllowedCapacity) {
+                throw new BusinessException(BookingErrorCode.EXCEEDED_MAX_CAPACITY_SLOP);
+            }
+        } else {
+            // Fallback kiểm tra capacity cơ bản nếu không khớp rule nào
+            bookingTableService.validateTablesGuestCount(tables, req.getGuestCount());
         }
-        List<DiningTable> tables = bookingTableService.loadTables(req.getTableIds());
-        bookingTableService.validateTablesGuestCount(tables, req.getGuestCount());
-        bookingTableService.validateBookingConflict(req.getTableIds(), req.getReservationTime());
-        // 5. Tạo Booking
+        // 7. Tạo Booking
         Booking booking = bookingMapper.toEntity(req, user, branch);
         boolean isDepositRequired = depositResult.getDepositAmount() != null
                 && depositResult.getDepositAmount().compareTo(BigDecimal.ZERO) > 0;
@@ -262,14 +290,14 @@ public class BookingService implements IBookingService {
         // 💡 Lấy phần tử đầu tiên của Deposit Rules (nếu có)
         var firstRule = (branchPolicy != null && branchPolicy.getDepositRules() != null
                 && !branchPolicy.getDepositRules().isEmpty())
-                        ? branchPolicy.getDepositRules().iterator().next()
-                        : null;
+                ? branchPolicy.getDepositRules().iterator().next()
+                : null;
 
         // 💡 Lấy phần tử đầu tiên của Schedules (nếu có)
         var firstSchedule = (branchPolicy != null && branchPolicy.getSchedules() != null
                 && !branchPolicy.getSchedules().isEmpty())
-                        ? branchPolicy.getSchedules().iterator().next()
-                        : null;
+                ? branchPolicy.getSchedules().iterator().next()
+                : null;
 
         return PolicySnapshotDto.builder()
                 // --- 1. Thông tin chung từ ReservationPolicy ---
@@ -299,11 +327,11 @@ public class BookingService implements IBookingService {
                 // --- 4. Thông tin quy định cọc từ BranchPolicyDepositRule ---
                 .minGuest(firstRule != null ? firstRule.getMinGuest() : null)
                 .maxGuest(firstRule != null ? firstRule.getMaxGuest() : null)
-                .minTables(firstRule != null ? firstRule.getMinTables() : null)
+                .maxCapacitySlop(firstRule != null ? firstRule.getMaxCapacitySlop() : null)
                 .maxTables(firstRule != null ? firstRule.getMaxTables() : null)
                 .depositType(firstRule != null ? firstRule.getDepositType() : null)
                 .depositValue(firstRule != null ? firstRule.getDepositValue() : null)
-
+                .minPreorderAmount(firstRule != null ? firstRule.getMinPreorderAmount() : null)
                 .build();
     }
 
@@ -333,7 +361,7 @@ public class BookingService implements IBookingService {
         if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn
-                                                                  // giữ bàn
+            // giữ bàn
             if (expiresAt != null && expiresAt.isAfter(now)) {
                 // Tính số giây còn lại: holdExpiresAt - bây giờ
                 long remainSeconds = java.time.Duration.between(now, expiresAt).toSeconds();

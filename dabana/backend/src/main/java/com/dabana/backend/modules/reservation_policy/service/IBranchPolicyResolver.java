@@ -4,6 +4,7 @@ import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.dto.response.BranchPolicyDetailResponse;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public interface IBranchPolicyResolver {
@@ -17,6 +18,6 @@ public interface IBranchPolicyResolver {
     DepositResult calculate(
             BranchPolicy policy,
             Integer guestCount ,
-            LocalDateTime reservationTime
+            LocalDateTime reservationTime, BigDecimal totalPreorderAmount
     );
 }

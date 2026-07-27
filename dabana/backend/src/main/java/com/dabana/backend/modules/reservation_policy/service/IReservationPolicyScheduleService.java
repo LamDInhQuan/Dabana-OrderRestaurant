@@ -1,7 +1,6 @@
 package com.dabana.backend.modules.reservation_policy.service;
 
 import com.dabana.backend.modules.reservation_policy.dto.request.CreateReservationPolicyScheduleRequest;
-import com.dabana.backend.modules.reservation_policy.dto.request.UpdateReservationPolicyScheduleRequest;
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyScheduleResponse;
 
 import java.util.List;
@@ -18,7 +17,7 @@ public interface IReservationPolicyScheduleService {
             Long restaurantId,
             Long policyId,
             Long scheduleId,
-            UpdateReservationPolicyScheduleRequest request
+            CreateReservationPolicyScheduleRequest request
     );
 
     void delete(Long restaurantId, Long policyId, Long scheduleId);

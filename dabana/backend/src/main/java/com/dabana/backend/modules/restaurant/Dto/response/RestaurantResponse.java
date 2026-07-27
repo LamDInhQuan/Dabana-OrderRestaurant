@@ -14,7 +14,7 @@ import lombok.Data;
 public class RestaurantResponse {
 
     private OwnerDto owner; 
-
+    private Long restaurantId ;
     private String restaurantName;
 
     private String logoUrl;

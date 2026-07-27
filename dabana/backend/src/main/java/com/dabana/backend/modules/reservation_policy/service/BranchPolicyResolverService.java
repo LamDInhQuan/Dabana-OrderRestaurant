@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -50,66 +51,33 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
     }
 
     @Override
-    public DepositResult calculate(BranchPolicy policy, Integer guestCount ,LocalDateTime reservationTime) {
-        BigDecimal depositAmount;
+    public DepositResult calculate(BranchPolicy policy, Integer guestCount, LocalDateTime reservationTime, BigDecimal totalPreorderAmount) {
         if (!isReservationTimeInActiveWindow(policy, reservationTime)) {
             return createFreeDepositResult(policy);
         }
-        // 1. Kiểm tra xem BranchPolicy có danh sách rule riêng hay không
-        boolean hasBranchRules = policy.getDepositRules() != null && !policy.getDepositRules().isEmpty();
+        BigDecimal preorderAmount = totalPreorderAmount != null ? totalPreorderAmount : BigDecimal.ZERO;
+        List<BranchPolicyDepositRule> rules = policy.getDepositRules().stream().toList();
 
-        if (hasBranchRules) {
-            // Tìm Rule khớp với số lượng khách
-            BranchPolicyDepositRule branchRule = policy.getDepositRules().stream()
+        // 2. Tìm Rule phù hợp với số lượng khách (xử lý cả trường hợp maxGuest null = vô tận)
+        if (rules != null && !rules.isEmpty()) {
+            BranchPolicyDepositRule matchedRule = rules.stream()
                     .filter(r -> guestCount >= r.getMinGuest() && guestCount <= r.getMaxGuest())
                     .findFirst()
                     .orElse(null);
 
-            // CASE A: Chi nhánh có rule và TÌM THẤY rule khớp số khách -> Tính tiền cọc
-            if (branchRule != null) {
-                switch (branchRule.getDepositType()) {
-                    case FIXED:
-                        depositAmount = branchRule.getDepositValue();
-                        break;
-                    case PER_PERSON:
-                        depositAmount = branchRule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
-                        break;
-                    default:
-                        throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
-                }
-                return new DepositResult(branchRule, depositAmount);
-            }
-
-            // CASE B: Chi nhánh CÓ cấu hình rule cho khung giờ này, nhưng số khách KHÔNG RƠI VÀO KHU VỰC BẮT CỌC
-            // -> Nghĩa là khung giờ/số khách này ĐƯỢC MIỄN CỌC (0đ), KHÔNG fallback về hệ thống!
-            return createFreeDepositResult(policy);
-        }
-
-        // 2. FALLBACK CHỈ KHI: Chi nhánh HOÀN TOÀN KHÔNG CÓ rule nào (Dùng cấu hình mặc định của hệ thống)
-        Optional<ReservationPolicyDepositRule> defaultRuleOpt = reservationPolicyDepositRuleRepository
-                .findFirstByPolicyIdAndMinGuestLessThanEqualAndMaxGuestGreaterThanEqual(
-                        policy.getPolicy().getId(), guestCount, guestCount
+            if (matchedRule != null) {
+                BigDecimal depositAmount = calculateDepositAmount(
+                        matchedRule.getDepositType(),
+                        matchedRule.getDepositValue(),
+                        matchedRule.getMinPreorderAmount(),
+                        guestCount,
+                        preorderAmount
                 );
-
-        if (defaultRuleOpt.isPresent()) {
-            ReservationPolicyDepositRule defaultRule = defaultRuleOpt.get();
-            switch (defaultRule.getDepositType()) {
-                case FIXED:
-                    depositAmount = defaultRule.getDepositValue();
-                    break;
-                case PER_PERSON:
-                    depositAmount = defaultRule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
-                    break;
-                default:
-                    throw new BusinessException(PolicyErrorCode.INVALID_DEPOSIT_RULE);
+                return new DepositResult(matchedRule, depositAmount);
             }
-            BranchPolicyDepositRule branchRule = new BranchPolicyDepositRule();
-            branchRule.setDepositType(defaultRule.getDepositType());
-            branchRule.setDepositValue(defaultRule.getDepositValue());
-            branchRule.setMinGuest(defaultRule.getMinGuest());
-            branchRule.setMaxGuest(defaultRule.getMaxGuest());
-            branchRule.setBranchPolicy(policy);
-            return new DepositResult(branchRule, depositAmount);
+
+            // Nằm ngoài dải số khách đã cấu hình -> Ném lỗi yêu cầu liên hệ nhà hàng
+            throw new BusinessException(PolicyErrorCode.GUEST_COUNT_OUT_OF_POLICY_RANGE);
         }
         // 3. Không tìm thấy ở đâu -> Miễn phí cọc
         return createFreeDepositResult(policy);
@@ -118,7 +86,7 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
     private boolean isReservationTimeInActiveWindow(BranchPolicy policy, LocalDateTime reservationTime) {
         // Nếu policy không có bất kỳ schedule nào, ta coi như nó áp dụng All-day (toàn thời gian)
         if (policy.getSchedules() == null || policy.getSchedules().isEmpty()) {
-            return true;
+            throw new BusinessException(PolicyErrorCode.SCHEDULE_NOT_FOUND); // throw exception luôn
         }
 
         LocalDate reqDate = reservationTime.toLocalDate();
@@ -170,14 +138,24 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
         // Sau khi duyệt hết tất cả schedules mà không có cái nào khớp -> Nằm ngoài khung giờ hiệu lực
         return false;
     }
+
+    private BigDecimal calculateDepositAmount(DepositType depositType, BigDecimal depositValue, BigDecimal minPreorderAmount, int guestCount, BigDecimal preorderAmount) {
+        return switch (depositType) {
+            case FIXED -> depositValue;
+            case PER_PERSON -> depositValue.multiply(BigDecimal.valueOf(guestCount));
+            case PERCENTAGE -> {
+                // Kiểm tra ngưỡng món đặt trước tối thiểu
+                // yield: Trả về giá trị cho riêng biểu thức switch đó , đó, sau đó code vẫn tiếp tục chạy các dòng tiếp theo bên dưới khối switch (nếu có).
+                if (minPreorderAmount != null && preorderAmount.compareTo(minPreorderAmount) < 0) {
+                    yield BigDecimal.ZERO;
+                }
+                yield preorderAmount.multiply(depositValue).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            }
+        };
+    }
+
     private DepositResult createFreeDepositResult(BranchPolicy policy) {
-        BranchPolicyDepositRule emptyRule = new BranchPolicyDepositRule();
-        emptyRule.setDepositType(DepositType.FIXED);
-        emptyRule.setDepositValue(BigDecimal.ZERO);
-        emptyRule.setMinGuest(0);
-        emptyRule.setMaxGuest(999);
-        emptyRule.setBranchPolicy(policy);
-        return new DepositResult(emptyRule, BigDecimal.ZERO);
+        return new DepositResult(null, BigDecimal.ZERO);
     }
 
     private boolean match(BranchPolicy policy, LocalDateTime reservationTime) {

@@ -46,7 +46,7 @@ public class RestaurantMapper {
         ownerdto.setPhone(user.getPhone());
         ownerdto.setAvatarUrl(user.getAvatarUrl());
         ownerdto.setFullName(user.getFullName());
-
+        response.setRestaurantId(restaurant.getId());
         response.setOwner(ownerdto);
         response.setRestaurantName(restaurant.getRestaurantName());
         response.setLogoUrl(restaurant.getLogoUrl());

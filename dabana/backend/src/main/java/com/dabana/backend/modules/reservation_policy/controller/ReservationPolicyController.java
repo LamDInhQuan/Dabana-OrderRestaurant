@@ -8,7 +8,6 @@ import com.dabana.backend.modules.reservation_policy.dto.request.CreateReservati
 import com.dabana.backend.modules.reservation_policy.dto.request.CreateReservationPolicyScheduleRequest;
 import com.dabana.backend.modules.reservation_policy.dto.request.UpdateReservationPolicyDepositRuleRequest;
 import com.dabana.backend.modules.reservation_policy.dto.request.UpdateReservationPolicyRequest;
-import com.dabana.backend.modules.reservation_policy.dto.request.UpdateReservationPolicyScheduleRequest;
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyDepositRuleResponse;
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyDetailResponse;
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyResponse;
@@ -117,7 +116,7 @@ public class ReservationPolicyController {
             @PathVariable Long restaurantId,
             @PathVariable Long policyId,
             @PathVariable Long scheduleId,
-            @Valid @RequestBody UpdateReservationPolicyScheduleRequest request) {
+            @Valid @RequestBody CreateReservationPolicyScheduleRequest request) {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
                 reservationPolicyScheduleService.update(restaurantId, policyId, scheduleId, request)));
     }

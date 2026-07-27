@@ -5,6 +5,7 @@ import com.dabana.backend.modules.booking.dto.BookingDtos;
 import com.dabana.backend.modules.booking.dto.request.UpdateBookingItemQuantityRequest;
 import com.dabana.backend.modules.booking.dto.response.PreorderItemResponse;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface IBookingItemService {
@@ -21,4 +22,9 @@ public interface IBookingItemService {
 
     /** Xoa han 1 dong mon dat truoc. */
     void deleteItem(Long itemId);
+
+    BigDecimal calculateTotalPreorderAmount(Long bookingId);
+
+    /** Tinh tong tien tu danh sach item request (dung khi tinh preview tien cọc trước khi save booking). */
+    BigDecimal calculateTotalPreorderAmountFromRequests(List<BookingDtos.PreOrderItemRequest> requests);
 }

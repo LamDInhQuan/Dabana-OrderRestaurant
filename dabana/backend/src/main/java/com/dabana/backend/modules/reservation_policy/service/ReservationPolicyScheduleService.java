@@ -2,7 +2,6 @@ package com.dabana.backend.modules.reservation_policy.service;
 
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.reservation_policy.dto.request.CreateReservationPolicyScheduleRequest;
-import com.dabana.backend.modules.reservation_policy.dto.request.UpdateReservationPolicyScheduleRequest;
 import com.dabana.backend.modules.reservation_policy.dto.response.ReservationPolicyScheduleResponse;
 import com.dabana.backend.modules.reservation_policy.entity.ReservationPolicy;
 import com.dabana.backend.modules.reservation_policy.entity.ReservationPolicySchedule;
@@ -20,9 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-
-import static com.dabana.backend.modules.reservation_policy.util.PolicyScheduleType.DATE_RANGE;
-import static com.dabana.backend.modules.reservation_policy.util.ScheduleType.DAY_OF_WEEK;
 
 @Service
 @RequiredArgsConstructor
@@ -51,27 +47,23 @@ public class ReservationPolicyScheduleService implements IReservationPolicySched
 
     @Override
     @Transactional
-    public ReservationPolicyScheduleResponse update(Long restaurantId, Long policyId, Long scheduleId, UpdateReservationPolicyScheduleRequest request) {
-//        restaurantRepository.findById(restaurantId)
-//                .orElseThrow(() -> new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND));
-//
-//        ReservationPolicy policy = reservationPolicyRepository.findByIdAndRestaurantId(policyId, restaurantId)
-//                .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
-//
-//        ReservationPolicySchedule entity = reservationPolicyScheduleRepository.findByIdAndPolicyId(scheduleId, policyId)
-//                .orElseThrow(() -> new BusinessException(PolicyErrorCode.SCHEDULE_NOT_FOUND));
-//
-//        validateSchedule(policy, request, null);
-//
-//        entity.setDayOfWeek(request.getDayOfWeek());
-//        entity.setDateFrom(request.getDateFrom());
-//        entity.setDateTo(request.getDateTo());
-//        entity.setTimeFrom(request.getTimeFrom());
-//        entity.setTimeTo(request.getTimeTo());
-//        entity.setStatus(request.getStatus());
-//
-//        return reservationPolicyScheduleMapper.toResponse(reservationPolicyScheduleRepository.save(entity));
-        return null ;
+    public ReservationPolicyScheduleResponse update(Long restaurantId, Long policyId, Long scheduleId, CreateReservationPolicyScheduleRequest request) {
+        restaurantRepository.findById(restaurantId)
+                .orElseThrow(() -> new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND));
+
+        ReservationPolicy policy = reservationPolicyRepository.findByIdAndRestaurantId(policyId, restaurantId)
+                .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
+
+        ReservationPolicySchedule entity = reservationPolicyScheduleRepository.findByIdAndPolicyId(scheduleId, policyId)
+                .orElseThrow(() -> new BusinessException(PolicyErrorCode.SCHEDULE_NOT_FOUND));
+        validateSchedule(policy, request, scheduleId);
+        entity.setDayOfWeek(request.getDayOfWeek());
+        entity.setDateFrom(request.getDateFrom());
+        entity.setDateTo(request.getDateTo());
+        entity.setTimeFrom(request.getTimeFrom());
+        entity.setTimeTo(request.getTimeTo());
+        entity.setStatus(request.getStatus());
+        return reservationPolicyScheduleMapper.toResponse(reservationPolicyScheduleRepository.save(entity));
     }
 
     @Override

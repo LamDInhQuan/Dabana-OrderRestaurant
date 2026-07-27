@@ -49,6 +49,7 @@ public class RestaurantController {
                     ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.findByOwnerId(owner.getId())));
 
      }
+
      @GetMapping("/dashboard")
      public ResponseEntity<ApiResponse<List<BranchReportDto>>> dashboard() {
           User owner = getLoggedOwner();

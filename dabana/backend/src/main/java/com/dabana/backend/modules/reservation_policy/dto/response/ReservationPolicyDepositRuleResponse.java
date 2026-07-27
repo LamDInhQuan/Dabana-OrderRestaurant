@@ -1,6 +1,7 @@
 package com.dabana.backend.modules.reservation_policy.dto.response;
 
 import com.dabana.backend.modules.reservation_policy.util.DepositType;
+import jakarta.persistence.Column;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,6 +20,12 @@ public class ReservationPolicyDepositRuleResponse {
     private Integer minGuest;
 
     private Integer maxGuest;
+
+    private Integer maxTables ;
+
+    private Integer maxCapacitySlop ;
+
+    private BigDecimal minPreorderAmount;
 
     private DepositType depositType;
 

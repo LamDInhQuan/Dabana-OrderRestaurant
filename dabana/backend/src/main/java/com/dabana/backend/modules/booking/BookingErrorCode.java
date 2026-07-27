@@ -108,7 +108,23 @@ public enum BookingErrorCode implements ErrorCode {
                         "Chỉ có thể nhận khách vãng lai vào bàn đang ở trạng thái Trống"),
         TABLE_IDS_REQUIRED(
                         "TABLE_IDS_REQUIRED",
-                        "Phải cung cấp danh sách table_ids");
+                        "Phải cung cấp danh sách table_ids") ,
+        EXCEEDED_MAX_TABLES(
+                "BOOKING_401",
+                "Số lượng bàn gộp vượt quá giới hạn tối đa cho phép của chính sách"
+        ),
+
+        // 2. Lỗi sức chứa bàn không đủ cho số khách đặt
+        INSUFFICIENT_TABLE_CAPACITY(
+                "BOOKING_402",
+                "Tổng sức chứa của bàn được chọn không đủ cho số lượng khách đặt"
+        ),
+
+        // 3. Lỗi lãng phí chỗ (Vượt quá dung sai/chênh lệch ghế cho phép)
+        EXCEEDED_MAX_CAPACITY_SLOP(
+                "BOOKING_403",
+                "Tổng số ghế của bàn quá lớn so với số khách (vượt quá mức chênh lệch cho phép), vui lòng chọn bàn phù hợp hơn"
+        );;
 
         private final String code;
         private final String message;

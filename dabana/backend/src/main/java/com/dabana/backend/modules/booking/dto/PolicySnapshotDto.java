@@ -28,8 +28,9 @@ public class PolicySnapshotDto {
     private Integer maxGuest;
     private DepositType depositType;
     private BigDecimal depositValue;
-    private Integer minTables ;
+    private Integer maxCapacitySlop ;
     private Integer maxTables;
+    private BigDecimal minPreorderAmount ;
     private Integer dayOfWeek;
     private LocalDate dateFrom;
     private LocalDate dateTo;
