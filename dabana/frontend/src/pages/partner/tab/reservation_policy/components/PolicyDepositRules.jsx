@@ -87,7 +87,7 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
             : null,
       };
 
-      await reservationPolicyApi.create(restaurantId, policyId, payload);
+      await reservationPolicyApi.createDepositRule(restaurantId, policyId, payload);
 
       toast.success("Thêm quy tắc đặt cọc thành công!");
       setForm(EMPTY_RULE);
