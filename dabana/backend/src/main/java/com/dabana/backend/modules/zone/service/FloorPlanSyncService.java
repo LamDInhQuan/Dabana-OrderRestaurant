@@ -174,9 +174,15 @@ public class FloorPlanSyncService {
                 JsonNode tableIdNode = tableNode.get("tableId");
                 // width/height/rotation la OPTIONAL: layout_data cu (tao truoc khi co
                 // tinh nang resize/rotate) se khong co cac field nay -> khong duoc coi la loi.
-                JsonNode widthNode = tableNode.get("width");
-                JsonNode heightNode = tableNode.get("height");
-                JsonNode rotationNode = tableNode.get("rotation");
+                // Luu y: Jackson tra ve NullNode (khac Java null) khi field TON TAI voi
+                // gia tri JSON null (vi du ban moi tao chua tung resize/rotate) - phai
+                // coi truong hop nay giong het "khong co field", khong duoc nem loi.
+                JsonNode widthNodeRaw = tableNode.get("width");
+                JsonNode heightNodeRaw = tableNode.get("height");
+                JsonNode rotationNodeRaw = tableNode.get("rotation");
+                JsonNode widthNode = (widthNodeRaw != null && !widthNodeRaw.isNull()) ? widthNodeRaw : null;
+                JsonNode heightNode = (heightNodeRaw != null && !heightNodeRaw.isNull()) ? heightNodeRaw : null;
+                JsonNode rotationNode = (rotationNodeRaw != null && !rotationNodeRaw.isNull()) ? rotationNodeRaw : null;
 
                 if (xNode == null || !xNode.isNumber() || yNode == null || !yNode.isNumber()) {
                     throw new BusinessException(ZoneErrorCode.INVALID_FLOOR_PLAN_LAYOUT);

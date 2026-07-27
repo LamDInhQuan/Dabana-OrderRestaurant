@@ -28,11 +28,12 @@ public class RestaurantMapper {
     public Restaurant toEntity(RestaurantUpdateRequest request,Restaurant restaurant) {
        
         restaurant.setRestaurantName(request.getRestaurantName());
-        restaurant.setPendingLogoUrl(request.getPendingLogoUrl());
-        restaurant.setPendingDescription(request.getPendingDescription());
+        restaurant.setLogoUrl(request.getLogoUrl());
+        restaurant.setDescription(request.getDescription());
         restaurant.setEmail(request.getEmail());
         restaurant.setPhone(request.getPhone());
         restaurant.setWebsite(request.getWebsite());
+        restaurant.setCuisineType(request.getCuisineType());
         return restaurant;
     }
 
@@ -47,6 +48,8 @@ public class RestaurantMapper {
         ownerdto.setAvatarUrl(user.getAvatarUrl());
         ownerdto.setFullName(user.getFullName());
 
+        response.setId(restaurant.getId());
+        response.setApprovalStatus(restaurant.getApprovalStatus());
         response.setOwner(ownerdto);
         response.setRestaurantName(restaurant.getRestaurantName());
         response.setLogoUrl(restaurant.getLogoUrl());

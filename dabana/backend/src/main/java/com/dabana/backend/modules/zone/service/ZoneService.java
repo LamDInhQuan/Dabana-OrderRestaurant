@@ -112,6 +112,11 @@ public class ZoneService implements IZoneService {
 //            throw new BusinessException(ZoneErrorCode.ZONE_HAS_FUTURE_BOOKINGS);
 //        }
 
+        // fk_floorplan_zone (rt_layout_floor_plans.zone_id) khong co ON DELETE CASCADE
+        // -> phai xoa FloorPlan cua zone TRUOC, neu khong DELETE zone se bi MySQL
+        // tu choi vi vi pham khoa ngoai (rơi vao 500 thay vi bao loi ro rang).
+        floorPlanRepository.findByZoneId(zoneId).ifPresent(floorPlanRepository::delete);
+
         zoneRepository.delete(zone);
     }
 

@@ -170,7 +170,6 @@ export default function PartnerDashboard() {
   const [savingHours, setSavingHours] = useState(false)
   const [newBranchModal, setNewBranchModal] = useState(false)
   const [newBranchForm, setNewBranchForm] = useState({
-    restaurantId: 1, // 👈 Thêm ID nhà hàng tương ứng vào đây
     name: '',
     address: '',
     province: '',
@@ -238,14 +237,14 @@ export default function PartnerDashboard() {
     // waitlist
     setWaitlist([])
     // reviews (B13)
-reviewApi.getByBranch(bid).then(r => {
-  const raw = r.data?.data?.content || r.data?.content || r.data || []
-  const list = raw.map(rv => ({
-    ...rv,
-    rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
-  }))
-  setReviews(list.length ? list : [])
-}).catch(() => setReviews([]))
+    reviewApi.getByBranch(bid).then(r => {
+      const raw = r.data?.data?.content || r.data?.content || r.data || []
+      const list = raw.map(rv => ({
+        ...rv,
+        rating: rv.rating ?? Math.round((rv.spaceRating + rv.serviceRating + rv.foodRating) / 3),
+      }))
+      setReviews(list.length ? list : [])
+    }).catch(() => setReviews([]))
     // B05: chính sách đặt cọc/hủy của chi nhánh
     // depositPolicyApi.getByBranch(bid).then(r => {
     //   if (r.data) setPolicy(p => ({ ...p, ...r.data }))
@@ -456,13 +455,11 @@ reviewApi.getByBranch(bid).then(r => {
     }
     setSavingRestaurant(true)
     try {
-      const { data: res } = await restaurantApi.update(restaurantForm)
+      const { data: res } = restaurant
+        ? await restaurantApi.update(restaurantForm)
+        : await restaurantApi.register(restaurantForm)   // 👈 tạo mới nếu chưa có
       setRestaurant(res.data)
-      toast.success(
-        res.data?.approvalStatus === 'PENDING_UPDATE'
-          ? 'Đã lưu! Logo/mô tả mới đang chờ quản trị viên duyệt.'
-          : 'Đã lưu thông tin thương hiệu!'
-      )
+      toast.success('Đã lưu thông tin thương hiệu!')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể lưu thông tin thương hiệu')
     } finally { setSavingRestaurant(false) }
@@ -560,11 +557,14 @@ reviewApi.getByBranch(bid).then(r => {
     if (!newBranchForm.name.trim() || !newBranchForm.address.trim()) {
       toast.error('Tên chi nhánh và địa chỉ không được để trống'); return
     }
+    if (!restaurant?.id) {
+      toast.error('Chưa tìm thấy hồ sơ nhà hàng, vui lòng lưu thông tin thương hiệu ở tab Cài đặt trước'); return
+    }
     setCreatingBranch(true)
     try {
       const payload = {
         ...newBranchForm,
-        restaurantId: Number(newBranchForm.restaurantId),
+        restaurantId: restaurant.id,
         latitude: newBranchForm.latitude === '' || newBranchForm.latitude === null
           ? null
           : Number(newBranchForm.latitude),
@@ -895,7 +895,7 @@ reviewApi.getByBranch(bid).then(r => {
                   }}>{l} {k === 'ALL' ? `(${branchBookingList.length})` : branchBookingList.filter(b => b.status === k).length > 0 ? `(${branchBookingList.filter(b => b.status === k).length})` : ''}</button>
                 ))}
               </div>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {filteredBookings.length === 0 && (
                   <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>
@@ -920,7 +920,7 @@ reviewApi.getByBranch(bid).then(r => {
                         </p>
                       </div>
                       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', marginBottom: '1rem' }}>
-                        
+
                         {/*  chi tiết tất cả bàn đặt */}
                         {/* TODO: lấy danh sách bàn đặt của đơn đặt */}
                         <span>🪑 Bàn: </span>

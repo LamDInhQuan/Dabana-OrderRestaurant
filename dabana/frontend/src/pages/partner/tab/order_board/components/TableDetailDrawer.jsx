@@ -111,16 +111,26 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
   }
 
   // Nhan gio mon tu MenuPickerModal (co the nhieu dong) - BE chua co endpoint
-  // them hang loat nen goi lan luot tung dong; dung Promise.allSettled de 1
-  // dong loi (vd het mon) khong lam mat cac dong da them thanh cong.
+  // them hang loat nen goi LAN LUOT tung dong (await tuan tu, KHONG ban song
+  // song): ban song song se khien nhieu request cung 401/refresh-token mot
+  // luc (neu access token vua het han), token refresh bi dua nhau va chi 1
+  // request "thang" -> cac dong con lai deu that bai dong loat du menu item
+  // hop le. Van gom loi tung dong (khong dung throw som) de 1 dong loi (vd
+  // het mon) khong lam mat cac dong da them thanh cong truoc do.
   const handleConfirmAddItems = async (cartLines) => {
-    const results = await Promise.allSettled(
-      cartLines.map((line) => extraOrderApi.addItem({
-        bookingId: booking.bookingId,
-        menuItemId: line.id,
-        quantity: line.quantity,
-      }))
-    )
+    const results = []
+    for (const line of cartLines) {
+      try {
+        await extraOrderApi.addItem({
+          bookingId: booking.bookingId,
+          menuItemId: line.id,
+          quantity: line.quantity,
+        })
+        results.push({ status: 'fulfilled' })
+      } catch (err) {
+        results.push({ status: 'rejected', reason: err })
+      }
+    }
     const failed = results.filter((r) => r.status === 'rejected')
     if (failed.length === 0) {
       toast.success(`Đã thêm ${cartLines.length} món`)
