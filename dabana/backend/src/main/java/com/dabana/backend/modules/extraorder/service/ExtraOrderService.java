@@ -70,6 +70,19 @@ public class ExtraOrderService implements IExtraOrderService {
             throw new BusinessException(ExtraOrderErrorCode.EXTRA_ORDER_ITEM_NOT_AVAILABLE);
         }
 
+        // Neu mon nay da duoc goi truoc do trong CUNG booking -> gop them so
+        // luong vao dong cu thay vi tao dong moi (tranh 1 mon xuat hien lap
+        // nhieu dong khac nhau trong Don hang / hoa don).
+        java.util.Optional<ExtraOrder> existing =
+                extraOrderRepository.findByBooking_IdAndMenuItem_Id(booking.getId(), menuItem.getId());
+        if (existing.isPresent()) {
+            ExtraOrder extraOrder = existing.get();
+            extraOrder.setQuantity(extraOrder.getQuantity() + request.getQuantity());
+            extraOrder = extraOrderRepository.save(extraOrder);
+            publishTableBoardChanged(booking);
+            return extraOrderMapper.toResponse(extraOrder);
+        }
+
         ExtraOrder extraOrder = new ExtraOrder();
         extraOrder.setBooking(booking);
         extraOrder.setMenuItem(menuItem);
