@@ -23,10 +23,10 @@ public class RestaurantUpdateRequest {
     @Size( max = 155,message = "Tên nhà hàng không được vượt quá 155 ký tự") 
     private String restaurantName;
 
-    private String pendingDescription;
+    private String description;
 
     @Size( max = 255) // Trong DB là Not Null [v] và varchar(255)
-    private String pendingLogoUrl;
+    private String logoUrl;
 
     @Size(max = 20,message = "Số điện thoại không được vượt quá 20 ký tự") // Mới bổ sung theo DB
     private String phone;

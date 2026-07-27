@@ -92,7 +92,9 @@ public class RestaurantService  {
                 .orElseThrow(() -> new RuntimeException("Restaurant not found for id: " + id));
 
         restaurant = restaurantMapper.toEntity(request, restaurant);
-        restaurant.setApprovalStatus(ApprovalStatus.PENDING_UPDATE);
+        // Khong con chuyen sang PENDING_UPDATE nua: nha hang tu cap nhat thi ap dung
+        // ngay lap tuc, khong can Admin duyet lai. Admin chi duyet 1 lan luc dang ky
+        // nha hang lan dau (xem Register()).
 
         return restaurantMapper.toResponse(restaurantRepos.save(restaurant));
     }

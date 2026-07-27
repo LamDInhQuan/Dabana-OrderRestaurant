@@ -61,8 +61,87 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
     }
   }
 
+  // Gop cac mon giong nhau (cung ten + cung gia - phong khi du lieu cu truoc
+  // fix gop-luc-them van con dong trung lap, hoac gop chung preorder +
+  // extra order neu trung ten mon) thanh 1 dong duy nhat cho hoa don.
+  const buildInvoiceLines = () => {
+    const map = new Map()
+    for (const item of orders) {
+      const key = `${item.itemName}__${item.price}`
+      const line = map.get(key)
+      if (line) {
+        line.quantity += item.quantity
+        line.subtotal += item.price * item.quantity
+      } else {
+        map.set(key, { itemName: item.itemName, price: item.price, quantity: item.quantity, subtotal: item.price * item.quantity })
+      }
+    }
+    return Array.from(map.values())
+  }
+
+  const printInvoice = () => {
+    const lines = buildInvoiceLines()
+    const rowsHtml = lines.map((l) => `
+      <tr>
+        <td>${l.itemName}</td>
+        <td style="text-align:center">${l.quantity}</td>
+        <td style="text-align:right">${formatMoney(l.price)}</td>
+        <td style="text-align:right">${formatMoney(l.subtotal)}</td>
+      </tr>
+    `).join('')
+
+    const html = `
+      <html>
+        <head>
+          <title>Hoá đơn - ${table.tableName}</title>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: 'Courier New', monospace; padding: 16px; max-width: 380px; margin: 0 auto; }
+            h1 { font-size: 1.05rem; text-align: center; margin: 0 0 4px; }
+            .sub { text-align: center; font-size: .78rem; margin-bottom: 12px; }
+            table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+            th { text-align: left; border-bottom: 1px dashed #000; padding-bottom: 4px; }
+            td { padding: 3px 0; vertical-align: top; }
+            .total-row td { border-top: 1px dashed #000; font-weight: bold; padding-top: 6px; }
+            .footer { text-align: center; margin-top: 16px; font-size: .76rem; }
+          </style>
+        </head>
+        <body>
+          <h1>HOÁ ĐƠN THANH TOÁN</h1>
+          <div class="sub">
+            ${table.tableName}${booking?.contactName ? ' · ' + booking.contactName : ''}<br/>
+            ${new Date().toLocaleString('vi-VN')}
+          </div>
+          <table>
+            <thead>
+              <tr><th>Món</th><th style="text-align:center">SL</th><th style="text-align:right">Đơn giá</th><th style="text-align:right">T.Tiền</th></tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+              <tr class="total-row"><td colspan="3">TỔNG CỘNG</td><td style="text-align:right">${formatMoney(table.estimatedTotal)}</td></tr>
+            </tbody>
+          </table>
+          <div class="footer">Cảm ơn quý khách!</div>
+        </body>
+      </html>
+    `
+
+    const printWindow = window.open('', '_blank', 'width=420,height=640')
+    if (!printWindow) {
+      toast.error('Trình duyệt đã chặn cửa sổ in, vui lòng cho phép popup')
+      return
+    }
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.onload = () => {
+      printWindow.focus()
+      printWindow.print()
+    }
+  }
+
   const handleCheckOut = async () => {
     if (!window.confirm(`Xác nhận thanh toán & check-out ${table.tableName}?`)) return
+    printInvoice()
     setChecking(true)
     try {
       await bookingApi.checkOut(booking.bookingId)
@@ -111,16 +190,26 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
   }
 
   // Nhan gio mon tu MenuPickerModal (co the nhieu dong) - BE chua co endpoint
-  // them hang loat nen goi lan luot tung dong; dung Promise.allSettled de 1
-  // dong loi (vd het mon) khong lam mat cac dong da them thanh cong.
+  // them hang loat nen goi LAN LUOT tung dong (await tuan tu, KHONG ban song
+  // song): ban song song se khien nhieu request cung 401/refresh-token mot
+  // luc (neu access token vua het han), token refresh bi dua nhau va chi 1
+  // request "thang" -> cac dong con lai deu that bai dong loat du menu item
+  // hop le. Van gom loi tung dong (khong dung throw som) de 1 dong loi (vd
+  // het mon) khong lam mat cac dong da them thanh cong truoc do.
   const handleConfirmAddItems = async (cartLines) => {
-    const results = await Promise.allSettled(
-      cartLines.map((line) => extraOrderApi.addItem({
-        bookingId: booking.bookingId,
-        menuItemId: line.id,
-        quantity: line.quantity,
-      }))
-    )
+    const results = []
+    for (const line of cartLines) {
+      try {
+        await extraOrderApi.addItem({
+          bookingId: booking.bookingId,
+          menuItemId: line.id,
+          quantity: line.quantity,
+        })
+        results.push({ status: 'fulfilled' })
+      } catch (err) {
+        results.push({ status: 'rejected', reason: err })
+      }
+    }
     const failed = results.filter((r) => r.status === 'rejected')
     if (failed.length === 0) {
       toast.success(`Đã thêm ${cartLines.length} món`)
@@ -354,6 +443,11 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
             {canCheckIn && (
               <button className="btn-primary" style={{ width: '100%' }} disabled={checking} onClick={handleCheckIn}>
                 {checking ? 'Đang xử lý...' : '✅ Check-in bàn'}
+              </button>
+            )}
+            {canCheckOut && (
+              <button className="btn-outline" style={{ width: '100%', marginBottom: '.5rem' }} onClick={printInvoice}>
+                🖨 In hoá đơn
               </button>
             )}
             {canCheckOut && (

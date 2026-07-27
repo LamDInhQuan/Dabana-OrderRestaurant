@@ -12,8 +12,14 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor: tự động refresh token nếu 401
-// Response interceptor: tự động refresh token nếu 401
+// Response interceptor: tự động refresh token nếu 401.
+// refreshPromise: nhieu request 401 cung luc (vd bulk-add mon, Promise.all
+// tai dashboard) phai DUNG CHUNG 1 lan goi /auth/refresh duy nhat, khong de
+// moi request tu goi refresh rieng - vi refreshToken thuong chi dung duoc
+// 1 lan (rotation): goi song song se khien chi request "thang" thanh cong,
+// cac request con lai dung refreshToken da bi vo hieu hoa -> that bai het.
+let refreshPromise = null
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -24,10 +30,14 @@ api.interceptors.response.use(
         const stored = localStorage.getItem('dabana_auth')
         if (!stored) return Promise.reject(error)
 
-        const { refreshToken } = JSON.parse(stored)
+        if (!refreshPromise) {
+          const { refreshToken } = JSON.parse(stored)
+          refreshPromise = axios.post('/api/auth/refresh', { refreshToken })
+            .finally(() => { refreshPromise = null })
+        }
 
-        // Gọi API refresh token
-        const res = await axios.post('/api/auth/refresh', { refreshToken })
+        // Gọi API refresh token (dung chung ket qua neu da co request khac kich hoat truoc)
+        const res = await refreshPromise
 
         if (res.data && res.data.code === 'SUCCESS') {
           const backendData = res.data.data;
