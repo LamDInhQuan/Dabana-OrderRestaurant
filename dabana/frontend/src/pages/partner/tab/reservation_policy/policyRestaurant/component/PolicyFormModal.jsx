@@ -54,11 +54,13 @@ function PolicyFormModal({ initialData, loading, onSave, onClose }) {
               {activeTab === "general" && <PolicyForm policy={initialData} onSave={onSave} />}
               {activeTab === "schedule" && (
                 <PolicyDateSchedules
+                  restaurantId={initialData.restaurantId}
                   policyId={initialData?.id}
                   schedules={initialData?.schedules || []} // 👈 Truyền mảng schedules trực tiếp từ API vào đây
+                  scheduleType={initialData.scheduleType}
                 />
               )}
-              {activeTab === "rules" && <PolicyDepositRules policyId={initialData?.id} />}
+              {activeTab === "rules" && <PolicyDepositRules policyId={initialData?.id} restaurantId={initialData.restaurantId} rules={initialData.depositRules}/>}
             </>
           )}
         </div>

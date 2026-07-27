@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
-import { branchApi, authApi, bookingApi } from '../../api' // Đảm bảo đã import bookingApi & authApi
+import { restaurantApi, branchApi, authApi, bookingApi } from '../../api'
 import GuestBookingLookup from './GuestBookingLookup'
 
-// ─── Cuisine filters ───────────────────────────────────────────
+// ─── Constants (giữ nguyên) ────────────────────────────────────
 const CUISINES = [
   { label: 'Tất cả', value: '', emoji: '🍽️' },
   { label: 'Việt Nam', value: 'Việt Nam', emoji: '🇻🇳' },
@@ -34,7 +35,7 @@ const EXPERIENCE = [
   { icon: '🛡️', title: 'Đặt cọc an toàn', desc: 'Hoàn tiền minh bạch theo chính sách từng nhà hàng. Mọi giao dịch đều được mã hóa.' },
 ]
 
-// ─── Counter hook ──────────────────────────────────────────────
+// ─── Hooks (giữ nguyên) ────────────────────────────────────────
 function useCounter(target, active) {
   const [val, setVal] = useState(0)
   useEffect(() => {
@@ -51,7 +52,6 @@ function useCounter(target, active) {
   return val
 }
 
-// ─── Scroll-reveal hook ────────────────────────────────────────
 function useReveal() {
   const ref = useRef(null)
   const [visible, setVisible] = useState(false)
@@ -65,7 +65,7 @@ function useReveal() {
   return [ref, visible]
 }
 
-// ─── Sub-components ────────────────────────────────────────────
+// ─── StatItem (giữ nguyên) ─────────────────────────────────────
 function StatItem({ num, suffix, label }) {
   const [ref, active] = useReveal()
   const val = useCounter(num, active)
@@ -84,19 +84,15 @@ function StatItem({ num, suffix, label }) {
   )
 }
 
-function BranchCard({ branch, index, onClick }) {
+// ─── RestaurantCard (giữ nguyên) — hiển thị theo brand ───────────────
+function RestaurantCard({ restaurant, index, onClick }) {
   const [hovered, setHovered] = useState(false)
   const [ref, visible] = useReveal()
   const [g0, g1] = CARD_GRADIENTS[index % CARD_GRADIENTS.length]
-  const coverImage =
-    branch.branchImageDtos?.find(img => img.isCover === 1)?.imageUrl ||
-    branch.branchImageDtos?.[0]?.imageUrl
-  const rating = branch.rating || null
-  const badge = branch.badge || null
-  const tags = branch.tags || []
 
   return (
-    <div ref={ref} className="reveal"
+    <div
+      ref={ref}
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -106,107 +102,279 @@ function BranchCard({ branch, index, onClick }) {
         transform: hovered ? 'translateY(-6px)' : 'none',
         transition: 'all .3s', cursor: 'pointer',
         opacity: visible ? 1 : 0,
-        transitionDelay: `${(index % 3) * .08}s`
-      }}>
-      {/* Image area */}
-      <div style={{ height: 210, position: 'relative', overflow: 'hidden' }}>
-        {coverImage ? (
+        transitionDelay: `${(index % 3) * .08}s`,
+      }}
+    >
+      <div style={{ height: 200, position: 'relative', overflow: 'hidden' }}>
+        {restaurant.logoUrl ? (
           <img
-            src={coverImage}
-            alt={branch.name}
+            src={restaurant.logoUrl}
+            alt={restaurant.restaurantName}
             style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
+              width: '100%', height: '100%', objectFit: 'cover',
               transform: hovered ? 'scale(1.06)' : 'scale(1)',
-              transition: 'transform .4s'
+              transition: 'transform .4s',
             }}
           />
         ) : (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: `linear-gradient(135deg,${g0},${g1})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '5rem'
-            }}
-          >
-            🍽️
-          </div>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: `linear-gradient(135deg,${g0},${g1})`,
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: '4.5rem',
+          }}>🍽️</div>
         )}
-        {badge && (
+
+        {restaurant.branchCount > 0 && (
           <div style={{
             position: 'absolute', top: '1rem', left: '1rem',
-            background: 'var(--gold)', color: 'var(--brown)',
-            fontSize: '.68rem', fontWeight: 700, padding: '.3rem .75rem',
-            letterSpacing: '.08em', textTransform: 'uppercase'
-          }}>{badge}</div>
+            background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(6px)',
+            color: 'var(--gold-light)', fontSize: '.7rem', fontWeight: 700,
+            padding: '.3rem .75rem', letterSpacing: '.06em',
+            borderRadius: 2, border: '1px solid rgba(201,168,76,.3)',
+          }}>
+            {restaurant.branchCount} chi nhánh
+          </div>
         )}
-        {rating && (
+
+        {restaurant.rating && (
           <div style={{
             position: 'absolute', top: '1rem', right: '1rem',
             background: 'rgba(0,0,0,.6)', color: 'var(--gold-light)',
             fontSize: '.8rem', fontWeight: 600, padding: '.3rem .6rem',
-            borderRadius: 2, display: 'flex', alignItems: 'center', gap: '.3rem'
-          }}>★ {rating}</div>
+            borderRadius: 2, display: 'flex', alignItems: 'center', gap: '.3rem',
+          }}>★ {restaurant.rating}</div>
         )}
       </div>
 
-      {/* Body */}
-      <div style={{ padding: '1.25rem 1.375rem 1.5rem' }}>
+      <div style={{ padding: '1.2rem 1.375rem 1.4rem' }}>
         <div style={{
           fontSize: '.7rem', fontWeight: 600, letterSpacing: '.15em',
-          textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '.4rem'
+          textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '.35rem',
         }}>
-          {branch.restaurant?.cuisineType || 'Ẩm thực'}
+          {restaurant.cuisineType || 'Ẩm thực'}
         </div>
         <h3 style={{
           fontFamily: "'Cormorant Garamond',Georgia,serif",
           fontSize: '1.3rem', fontWeight: 700, color: 'var(--brown)',
-          marginBottom: '.5rem', lineHeight: 1.25
-        }}>{branch.name}</h3>
-        <p style={{
-          fontSize: '.82rem', color: 'var(--muted)', marginBottom: '1rem',
-          display: 'flex', alignItems: 'flex-start', gap: '.35rem'
-        }}>
-          📍 {branch.address}, {branch.province}
-        </p>
-        {tags.length > 0 && (
-          <div style={{ display: 'flex', gap: '.45rem', flexWrap: 'wrap', marginBottom: '1.1rem' }}>
-            {tags.map(t => (
-              <span key={t} style={{
-                fontSize: '.7rem', fontWeight: 500,
-                padding: '.25rem .65rem', background: 'var(--cream)',
-                color: 'var(--muted)', borderRadius: 99
-              }}>{t}</span>
-            ))}
-          </div>
+          marginBottom: '.45rem', lineHeight: 1.25,
+        }}>{restaurant.restaurantName}</h3>
+        {restaurant.description && (
+          <p style={{
+            fontSize: '.8rem', color: 'var(--muted)', lineHeight: 1.6,
+            marginBottom: '1rem',
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>{restaurant.description}</p>
         )}
         <button style={{
-          width: '100%', background: hovered ? 'var(--gold)' : 'var(--cream-dark)',
+          width: '100%',
+          background: hovered ? 'var(--gold)' : 'var(--cream-dark)',
           color: hovered ? 'var(--white)' : 'var(--brown)',
           border: 'none', padding: '.7rem', fontSize: '.82rem', fontWeight: 600,
           letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'pointer',
-          borderRadius: 2, transition: 'all .2s', fontFamily: 'inherit'
-        }}>Đặt Bàn Ngay</button>
+          borderRadius: 2, transition: 'all .2s', fontFamily: 'inherit',
+        }}>Xem Chi Nhánh →</button>
       </div>
     </div>
   )
 }
 
+// ─── BranchCard (LÀM LẠI) — layout ngang, gọn, nhiều info hơn ─────
+function BranchCard({ branch, index, onClick }) {
+  const [hovered, setHovered] = useState(false)
+  const coverImage =
+    branch.branchImageDtos?.find(img => img.isCover === 1)?.imageUrl ||
+    branch.branchImageDtos?.[0]?.imageUrl
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', gap: '.9rem',
+        background: '#fff', borderRadius: 8,
+        border: '1px solid var(--border)',
+        boxShadow: hovered ? '0 6px 18px rgba(46,42,37,.1)' : 'none',
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        transition: 'all .2s', cursor: 'pointer', padding: '.7rem',
+      }}
+    >
+      {/* Ảnh nhỏ, vuông, không chiếm hết chiều rộng card */}
+      <div style={{
+        width: 86, height: 86, borderRadius: 6, overflow: 'hidden',
+        flexShrink: 0, position: 'relative', background: 'var(--cream-dark)',
+      }}>
+        {coverImage ? (
+          <img src={coverImage} alt={branch.name} style={{
+            width: '100%', height: '100%', objectFit: 'cover',
+            transform: hovered ? 'scale(1.08)' : 'scale(1)',
+            transition: 'transform .3s',
+          }} />
+        ) : (
+          <div style={{
+            position: 'absolute', inset: 0, display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.6rem', color: 'var(--gold)',
+          }}>🍽️</div>
+        )}
+      </div>
+
+      {/* Thông tin: tên + rating cùng hàng, địa chỉ 2 dòng, link đặt bàn nhỏ gọn */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '.3rem' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '.5rem' }}>
+          <h4 style={{
+            fontFamily: "'Cormorant Garamond',Georgia,serif",
+            fontSize: '1.05rem', fontWeight: 700, color: 'var(--brown)',
+            margin: 0, lineHeight: 1.25,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{branch.name}</h4>
+          {branch.rating && (
+            <span style={{
+              fontSize: '.74rem', fontWeight: 700, color: '#B8903D',
+              flexShrink: 0, display: 'flex', alignItems: 'center', gap: '.2rem',
+            }}>★ {branch.rating}</span>
+          )}
+        </div>
+
+        <p style={{
+          fontSize: '.78rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5,
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}>
+          📍 {branch.address}{branch.province ? `, ${branch.province}` : ''}
+        </p>
+
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '.3rem',
+          marginTop: '.1rem', color: 'var(--gold)',
+          fontSize: '.78rem', fontWeight: 700, letterSpacing: '.03em',
+          textTransform: 'uppercase',
+        }}>
+          Đặt bàn ngay
+          <span style={{ transition: 'transform .2s', transform: hovered ? 'translateX(3px)' : 'none' }}>→</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ─── BranchDrawer (SỬA) — render qua Portal + z-index cao, không bị Navbar đè ──
+function BranchDrawer({ restaurant, branches, loading, onClose, onSelectBranch }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true))
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  const handleClose = () => {
+    setVisible(false)
+    setTimeout(onClose, 280)
+  }
+
+  const content = (
+    <>
+      {/* Backdrop — z-index rất cao để chắc chắn nằm trên Navbar */}
+      <div
+        onClick={handleClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,.55)',
+          opacity: visible ? 1 : 0, transition: 'opacity .28s',
+        }}
+      />
+
+      {/* Drawer panel */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 9999,
+        width: '100%', maxWidth: 480,
+        background: 'var(--cream, #FAF8F5)',
+        boxShadow: '-8px 0 32px rgba(0,0,0,.2)',
+        display: 'flex', flexDirection: 'column',
+        transform: visible ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform .28s cubic-bezier(.4,0,.2,1)',
+      }}>
+        {/* Drawer header */}
+        <div style={{
+          background: 'linear-gradient(135deg,#5C3A1E,#7A4F2D)',
+          padding: '1.1rem 1.25rem',
+          display: 'flex', alignItems: 'center', gap: '.85rem', flexShrink: 0,
+        }}>
+          {restaurant.logoUrl && (
+            <img src={restaurant.logoUrl} alt={restaurant.restaurantName}
+              style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: '.68rem', color: 'rgba(255,255,255,.55)', letterSpacing: '.1em', textTransform: 'uppercase', margin: '0 0 .15rem' }}>
+              {restaurant.cuisineType || 'Ẩm thực'}
+            </p>
+            <h3 style={{
+              fontFamily: "'Cormorant Garamond',Georgia,serif",
+              fontSize: '1.15rem', fontWeight: 700, color: '#fff',
+              margin: 0, lineHeight: 1.2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{restaurant.restaurantName}</h3>
+            <p style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.5)', margin: '.15rem 0 0' }}>
+              {loading ? 'Đang tải...' : `${branches.length} chi nhánh`}
+            </p>
+          </div>
+          <button onClick={handleClose} style={{
+            background: 'rgba(255,255,255,.15)', border: 'none',
+            color: '#fff', width: 32, height: 32, borderRadius: 6,
+            cursor: 'pointer', fontSize: '1rem', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>✕</button>
+        </div>
+
+        {/* Drawer body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '.75rem' }}>⟳</div>
+              <p style={{ fontSize: '.88rem' }}>Đang tải chi nhánh...</p>
+            </div>
+          ) : branches.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>🏗️</div>
+              <p style={{ fontSize: '.88rem' }}>Chưa có chi nhánh hoạt động.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.65rem' }}>
+              {branches.map((b, i) => (
+                <BranchCard
+                  key={b.id}
+                  branch={b}
+                  index={i}
+                  onClick={() => onSelectBranch(b.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+
+  // Render thẳng vào document.body -> thoát mọi stacking context của cha,
+  // đảm bảo luôn nằm trên Navbar bất kể Navbar dùng position/z-index gì
+  return createPortal(content, document.body)
+}
+
 // ─── Main component ────────────────────────────────────────────
 export default function HomePage() {
   const navigate = useNavigate()
-  const [branches, setBranches] = useState([])
+
+  const [restaurants, setRestaurants] = useState([])
   const [keyword, setKeyword] = useState('')
   const [cuisine, setCuisine] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [heroLoaded, setHeroLoaded] = useState(false)
+  const [loadingRestaurants, setLoadingRestaurants] = useState(false)
 
-  // Booking form state
+  const [drawerRestaurant, setDrawerRestaurant] = useState(null)
+  const [drawerBranches, setDrawerBranches] = useState([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
+
   const [bName, setBName] = useState('')
   const [bPhone, setBPhone] = useState('')
   const [bEmail, setBEmail] = useState('')
@@ -215,42 +383,58 @@ export default function HomePage() {
   const [bGuests, setBGuests] = useState('2 người')
   const [bZone, setBZone] = useState('Trong nhà (máy lạnh)')
   const [bNote, setBNote] = useState('')
-  const [bRestaurant, setBRestaurant] = useState('')
+  const [bRestaurantId, setBRestaurantId] = useState('')
+  const [bBranchId, setBBranchId] = useState('')
+  const [bBranches, setBBranches] = useState([])
   const [bookSuccess, setBookSuccess] = useState(false)
 
-  // ── Lookup / Tra cứu đặt bàn State ──
-  const [lookupEmail, setLookupEmail] = useState('')
-  const [otpCode, setOtpCode] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [lookupLoading, setLookupLoading] = useState(false)
-  const [countdown, setCountdown] = useState(0)
-  const [bookingList, setBookingList] = useState(null)
-  const [lookupError, setLookupError] = useState('')
+  const [heroLoaded, setHeroLoaded] = useState(false)
 
   useEffect(() => {
     setTimeout(() => setHeroLoaded(true), 80)
-    loadBranches()
+    loadRestaurants()
   }, [])
 
-  // Timer đếm ngược OTP
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [countdown])
-
-  const loadBranches = async (params = {}) => {
-    setLoading(true)
+  const loadRestaurants = async (params = {}) => {
+    setLoadingRestaurants(true)
     try {
-      const res = await branchApi.getAll(params)
-      const list = res.data?.data ?? []
-      setBranches(list)
-    } catch (error) {
-      console.error(error)
-      setBranches([])
+      const res = await restaurantApi.getAll()
+      const list = res.data?.data ?? res.data ?? []
+      setRestaurants(list)
+    } catch (err) {
+      console.error('loadRestaurants', err)
+      setRestaurants([])
     } finally {
-      setLoading(false)
+      setLoadingRestaurants(false)
+    }
+  }
+
+  const openDrawer = async (restaurant) => {
+    setDrawerRestaurant(restaurant)
+    setDrawerBranches([])
+    setLoadingBranches(true)
+    try {
+      const res = await branchApi.getByRestaurant(restaurant.restaurantId)
+      const list = res.data?.data ?? res.data ?? []
+      setDrawerBranches(list)
+    } catch (err) {
+      console.error('openDrawer', err)
+      setDrawerBranches([])
+    } finally {
+      setLoadingBranches(false)
+    }
+  }
+
+  const handleSelectFormRestaurant = async (restaurantId) => {
+    setBRestaurantId(restaurantId)
+    setBBranchId('')
+    setBBranches([])
+    if (!restaurantId) return
+    try {
+      const res = await branchApi.getAll()
+      setBBranches(res)
+    } catch (err) {
+      console.error('handleSelectFormRestaurant', err)
     }
   }
 
@@ -258,7 +442,7 @@ export default function HomePage() {
     const params = {}
     if (keyword.trim()) params.keyword = keyword.trim()
     if (cuisine) params.cuisineType = cuisine
-    loadBranches(params)
+    loadRestaurants(params)
   }
 
   const handleBookSubmit = (e) => {
@@ -266,265 +450,155 @@ export default function HomePage() {
     setTimeout(() => setBookSuccess(true), 800)
   }
 
-
-
-  // ── Xử lý Tra cứu danh sách đơn bàn ──
-  // Gửi OTP
-  const handleSendLookupOtp = async (e) => {
-    e.preventDefault()
-    if (!lookupEmail) return
-    setLookupError('')
-    setLookupLoading(true)
-    try {
-      await authApi.sendOtp({ email: lookupEmail, purpose: 'GUEST_LOOKUP' })
-      setOtpSent(true)
-      setCountdown(60) // Đếm ngược 60 giây
-    } catch (err) {
-      setLookupError(err.response?.data?.message || 'Không thể gửi mã OTP. Vui lòng kiểm tra lại Email!')
-    } finally {
-      setLookupLoading(false)
-    }
-  }
-
-  // Gọi API lấy thông tin đặt bàn bằng Email + OTP
-  const handleVerifyAndLookup = async (e) => {
-    e.preventDefault()
-    if (!otpCode) return
-    setLookupError('')
-    setLookupLoading(true)
-    try {
-      const res = await bookingApi.guestLookup({ email: lookupEmail, otp: otpCode })
-      setBookingList(res.data?.data || [])
-    } catch (err) {
-      setLookupError(err.response?.data?.message || 'Mã OTP không chính xác hoặc đã hết hạn!')
-    } finally {
-      setLookupLoading(false)
-    }
-  }
-
-  // Helper render status badge
-  const renderStatusBadge = (status) => {
-    const statusMap = {
-      CONFIRMED: { text: 'Đã xác nhận', bg: '#e6f4ea', color: '#137333' },
-      PENDING: { text: 'Chờ xác nhận', bg: '#fef7e0', color: '#b06000' },
-      COMPLETED: { text: 'Hoàn thành', bg: '#e8f0fe', color: '#1a73e8' },
-      CANCELLED: { text: 'Đã hủy', bg: '#fce8e6', color: '#c5221f' },
-    }
-    const target = statusMap[status] || { text: status, bg: '#f1f3f4', color: '#5f6368' }
-    return (
-      <span style={{
-        padding: '.25rem .65rem', borderRadius: 4, fontSize: '.72rem', fontWeight: 700,
-        background: target.bg, color: target.color, textTransform: 'uppercase'
-      }}>
-        {target.text}
-      </span>
-    )
-  }
-
-  // ── STYLES ──────────────────────────────────────────────────
   const S = {
     section: { padding: '6rem 5%' },
     eyebrow: {
       fontSize: '.72rem', fontWeight: 600, letterSpacing: '.25em',
-      textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '.6rem'
+      textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '.6rem',
     },
     title: {
       fontFamily: "'Cormorant Garamond',Georgia,serif",
-      fontSize: 'clamp(2rem,4vw,3rem)', fontWeight: 700, color: 'var(--brown)', lineHeight: 1.15
+      fontSize: 'clamp(2rem,4vw,3rem)', fontWeight: 700,
+      color: 'var(--brown)', lineHeight: 1.15,
     },
     lead: { color: 'var(--muted)', lineHeight: 1.8, fontSize: '.95rem' },
   }
 
   return (
     <div style={{ fontFamily: "'Be Vietnam Pro',system-ui,sans-serif" }}>
-
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap" rel="stylesheet" />
-
       <Navbar />
 
-      {/* ══════════════ HERO ══════════════ */}
+      {/* ══════════════ HERO (giữ nguyên) ══════════════ */}
       <section style={{
         height: '100vh', minHeight: 640, position: 'relative',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
       }}>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(160deg,#1a0e06 0%,#3d2b1f 55%,#6b4226 100%)'
-        }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,#1a0e06 0%,#3d2b1f 55%,#6b4226 100%)' }} />
         <div style={{
           position: 'absolute', inset: 0, opacity: .06,
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5L35 20L50 20L38 29L43 44L30 35L17 44L22 29L10 20L25 20Z' fill='%23C9A84C'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat'
+          backgroundRepeat: 'repeat',
         }} />
-
         <div style={{
-          position: 'relative', zIndex: 2, textAlign: 'center',
-          padding: '0 1.5rem', maxWidth: 800,
+          position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 1.5rem', maxWidth: 800,
           opacity: heroLoaded ? 1 : 0, transform: heroLoaded ? 'none' : 'translateY(20px)',
-          transition: 'opacity .8s ease, transform .8s ease'
+          transition: 'opacity .8s ease, transform .8s ease',
         }}>
-          <div style={{
-            fontSize: '.75rem', fontWeight: 600, letterSpacing: '.28em',
-            textTransform: 'uppercase', color: 'var(--gold-light)', marginBottom: '1.25rem'
-          }}>
+          <div style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.28em', textTransform: 'uppercase', color: 'var(--gold-light)', marginBottom: '1.25rem' }}>
             ✦ Tinh hoa ẩm thực Việt ✦
           </div>
-          <h1 style={{
-            fontFamily: "'Cormorant Garamond',Georgia,serif",
-            fontSize: 'clamp(3rem,9vw,6.5rem)', fontWeight: 700,
-            color: '#fff', lineHeight: 1.05, marginBottom: '1.25rem'
-          }}>
-            Nơi mỗi<br />
-            <em style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>bữa tiệc</em>
-            <br />là ký ức
+          <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 'clamp(3rem,9vw,6.5rem)', fontWeight: 700, color: '#fff', lineHeight: 1.05, marginBottom: '1.25rem' }}>
+            Nơi mỗi<br /><em style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>bữa tiệc</em><br />là ký ức
           </h1>
-          <p style={{
-            fontSize: '1rem', color: 'rgba(255,255,255,.7)', lineHeight: 1.75,
-            maxWidth: 500, margin: '0 auto 2.5rem'
-          }}>
-            Đặt bàn tại hàng trăm nhà hàng cao cấp trên toàn quốc — chọn bàn,
-            đặt món, thanh toán cọc ngay trong vài giây.
+          <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,.7)', lineHeight: 1.75, maxWidth: 500, margin: '0 auto 2.5rem' }}>
+            Đặt bàn tại hàng trăm nhà hàng cao cấp trên toàn quốc — chọn bàn, đặt món, thanh toán cọc ngay trong vài giây.
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => document.getElementById('restaurants').scrollIntoView({ behavior: 'smooth' })}
-              style={{
-                background: 'var(--gold)', color: 'var(--brown)', border: 'none',
-                padding: '.9rem 2.5rem', fontSize: '.88rem', fontWeight: 700,
-                letterSpacing: '.1em', textTransform: 'uppercase', cursor: 'pointer',
-                borderRadius: 2, transition: 'all .2s', fontFamily: 'inherit'
-              }}>
+              style={{ background: 'var(--gold)', color: 'var(--brown)', border: 'none', padding: '.9rem 2.5rem', fontSize: '.88rem', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>
               Khám Phá Nhà Hàng
             </button>
             <button onClick={() => document.getElementById('booking').scrollIntoView({ behavior: 'smooth' })}
-              style={{
-                background: 'transparent', color: '#fff',
-                border: '1.5px solid rgba(255,255,255,.5)',
-                padding: '.88rem 2.5rem', fontSize: '.88rem', fontWeight: 500,
-                letterSpacing: '.08em', textTransform: 'uppercase', cursor: 'pointer',
-                borderRadius: 2, transition: 'all .2s', fontFamily: 'inherit'
-              }}>
+              style={{ background: 'transparent', color: '#fff', border: '1.5px solid rgba(255,255,255,.5)', padding: '.88rem 2.5rem', fontSize: '.88rem', fontWeight: 500, letterSpacing: '.08em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>
               Đặt Bàn / Tra Cứu
             </button>
           </div>
         </div>
-
         <div onClick={() => document.getElementById('stats').scrollIntoView({ behavior: 'smooth' })}
-          style={{
-            position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.4rem', cursor: 'pointer', zIndex: 2
-          }}>
+          style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.4rem', cursor: 'pointer', zIndex: 2 }}>
           <span style={{ fontSize: '.68rem', letterSpacing: '.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,.35)' }}>Cuộn xuống</span>
-          <div style={{
-            width: 1, height: 40,
-            background: 'linear-gradient(to bottom,rgba(255,255,255,.35),transparent)',
-            animation: 'pulse 1.8s ease-in-out infinite'
-          }} />
+          <div style={{ width: 1, height: 40, background: 'linear-gradient(to bottom,rgba(255,255,255,.35),transparent)', animation: 'pulse 1.8s ease-in-out infinite' }} />
         </div>
         <style>{`@keyframes pulse{0%,100%{opacity:.35}50%{opacity:.9}}`}</style>
       </section>
 
-      {/* ══════════════ STATS ══════════════ */}
-      <div id="stats" style={{
-        background: 'var(--brown)', padding: '3.5rem 5%',
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem'
-      }}>
+      {/* ══════════════ STATS (giữ nguyên) ══════════════ */}
+      <div id="stats" style={{ background: 'var(--brown)', padding: '3.5rem 5%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
         {STATS.map((s, i) => <StatItem key={i} {...s} />)}
       </div>
 
       {/* ══════════════ RESTAURANTS ══════════════ */}
       <section id="restaurants" style={S.section}>
-        <div style={{
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-          marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1rem'
-        }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={S.eyebrow}>Khám phá</div>
             <h2 style={S.title}>Nhà Hàng Nổi Bật</h2>
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '.88rem' }}>
-            {loading ? 'Đang tải...' : `${branches.length} chi nhánh`}
+            {loadingRestaurants ? 'Đang tải...' : `${restaurants.length} thương hiệu`}
           </p>
         </div>
 
-        {/* Search bar */}
         <div style={{ display: 'flex', gap: '.75rem', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
-          <input value={keyword} onChange={e => setKeyword(e.target.value)}
-            placeholder="Tìm tên nhà hàng, địa chỉ..."
+          <input
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            style={{ flex: 1, minWidth: 220, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-          <select value={cuisine} onChange={e => setCuisine(e.target.value)}
-            style={{ width: 'auto', minWidth: 180, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
+            placeholder="Tìm tên nhà hàng, loại ẩm thực..."
+            style={{ flex: 1, minWidth: 220, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
+          />
+          <select
+            value={cuisine}
+            onChange={e => setCuisine(e.target.value)}
+            style={{ width: 'auto', minWidth: 180, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
+          >
             {CUISINES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
           </select>
-          <button onClick={handleSearch} style={{
-            background: 'var(--brown)', color: '#fff', border: 'none',
-            padding: '.65rem 1.75rem', fontSize: '.88rem', fontWeight: 600,
-            letterSpacing: '.06em', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap'
-          }}>🔍 Tìm kiếm</button>
+          <button onClick={handleSearch} style={{ background: 'var(--brown)', color: '#fff', border: 'none', padding: '.65rem 1.75rem', fontSize: '.88rem', fontWeight: 600, letterSpacing: '.06em', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            🔍 Tìm kiếm
+          </button>
         </div>
 
-        {/* Cuisine pills */}
         <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
           {CUISINES.map(c => (
-            <button key={c.value} onClick={() => { setCuisine(c.value); loadBranches(c.value ? { cuisineType: c.value } : {}) }}
+            <button
+              key={c.value}
+              onClick={() => { setCuisine(c.value); loadRestaurants(c.value ? { cuisineType: c.value } : {}) }}
               style={{
                 padding: '.35rem .9rem', borderRadius: 99, fontSize: '.8rem', fontWeight: 600,
                 border: cuisine === c.value ? '2px solid var(--gold)' : '1.5px solid var(--border)',
                 background: cuisine === c.value ? 'var(--gold)' : 'var(--white)',
                 color: cuisine === c.value ? 'var(--brown)' : 'var(--muted)',
-                cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit'
-              }}>{c.emoji} {c.label}</button>
+                cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit',
+              }}
+            >{c.emoji} {c.label}</button>
           ))}
         </div>
 
-        {/* Cards grid */}
-        {branches.length === 0 && !loading ? (
+        {restaurants.length === 0 && !loadingRestaurants ? (
           <div style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--muted)' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-            <p>Không tìm thấy chi nhánh phù hợp. Thử từ khoá khác nhé!</p>
+            <p>Không tìm thấy nhà hàng phù hợp. Thử từ khoá khác nhé!</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '2rem' }}>
-            {branches.map((b, i) => (
-              <BranchCard key={b.id} branch={b} index={i}
-                onClick={() => navigate(`/branch/${b.id}`)} />
+            {restaurants.map((r, i) => (
+              <RestaurantCard
+                key={r.id}
+                restaurant={r}
+                index={i}
+                onClick={() => openDrawer(r)}
+              />
             ))}
           </div>
         )}
       </section>
 
-      {/* ══════════════ EXPERIENCE ══════════════ */}
-      <div id="experience" style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        minHeight: 520, background: 'var(--brown)'
-      }}>
-        <div style={{
-          background: 'linear-gradient(135deg,#5c3a1e 0%,#8B6914 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '8rem', minHeight: 320
-        }}>🏮</div>
-
+      {/* ══════════════ EXPERIENCE (giữ nguyên) ══════════════ */}
+      <div id="experience" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', minHeight: 520, background: 'var(--brown)' }}>
+        <div style={{ background: 'linear-gradient(135deg,#5c3a1e 0%,#8B6914 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8rem', minHeight: 320 }}>🏮</div>
         <div style={{ padding: '4rem 8%' }}>
           <div style={{ ...S.eyebrow, color: 'var(--gold-light)' }}>Tại sao chọn Dabana</div>
           <h2 style={{ ...S.title, color: 'var(--cream)', marginBottom: '.75rem' }}>
-            Trải Nghiệm<br />
-            <em style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>Khác Biệt</em>
+            Trải Nghiệm<br /><em style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>Khác Biệt</em>
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '2rem' }}>
             {EXPERIENCE.map(item => (
               <div key={item.title} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: 40, height: 40, border: '1px solid var(--gold)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '1rem', flexShrink: 0, color: 'var(--gold)'
-                }}>{item.icon}</div>
+                <div style={{ width: 40, height: 40, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, color: 'var(--gold)' }}>{item.icon}</div>
                 <div>
-                  <h4 style={{
-                    fontFamily: "'Cormorant Garamond',Georgia,serif",
-                    fontSize: '1.05rem', fontWeight: 600, color: 'var(--cream)', marginBottom: '.2rem'
-                  }}>
-                    {item.title}
-                  </h4>
+                  <h4 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.05rem', fontWeight: 600, color: 'var(--cream)', marginBottom: '.2rem' }}>{item.title}</h4>
                   <p style={{ fontSize: '.82rem', color: 'rgba(251,247,239,.5)', lineHeight: 1.65 }}>{item.desc}</p>
                 </div>
               </div>
@@ -533,11 +607,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ══════════════ BOOKING & LOOKUP SECTION ══════════════ */}
+      {/* ══════════════ BOOKING & LOOKUP ══════════════ */}
       <section id="booking" style={{ ...S.section, background: 'var(--cream-dark)' }}>
         <div style={{ maxWidth: 880, margin: '0 auto' }}>
-
-          {/* Section Header */}
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
             <div style={S.eyebrow}>Dịch vụ trực tuyến</div>
             <h2 style={S.title}>Đặt Bàn & Tra Cứu Lịch Sử</h2>
@@ -547,13 +619,11 @@ export default function HomePage() {
               <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right,transparent,var(--gold-light),transparent)' }} />
             </div>
           </div>
-          {/* Form Box */}
+
           <GuestBookingLookup />
+
           <div>
-
             <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '2.5rem 0' }} />
-
-            {/* ─── FORM ĐẶT BÀN TRỰC TUYẾN ─── */}
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
               <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.6rem', fontWeight: 700, color: 'var(--brown)' }}>
                 Tạo Yêu Cầu Đặt Bàn Mới
@@ -563,25 +633,46 @@ export default function HomePage() {
             {!bookSuccess ? (
               <form onSubmit={handleBookSubmit}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Họ và tên</label>
-                    <input value={bName} onChange={e => setBName(e.target.value)} placeholder="Nguyễn Văn A" required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Số điện thoại</label>
-                    <input value={bPhone} onChange={e => setBPhone(e.target.value)} placeholder="0901 234 567" required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Email</label>
-                    <input type="email" value={bEmail} onChange={e => setBEmail(e.target.value)} placeholder="email@gmail.com" required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-                  </div>
+                  {[
+                    { label: 'Họ và tên', value: bName, setter: setBName, placeholder: 'Nguyễn Văn A', type: 'text' },
+                    { label: 'Số điện thoại', value: bPhone, setter: setBPhone, placeholder: '0901 234 567', type: 'text' },
+                    { label: 'Email', value: bEmail, setter: setBEmail, placeholder: 'email@gmail.com', type: 'email' },
+                  ].map(f => (
+                    <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+                      <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>{f.label}</label>
+                      <input type={f.type} value={f.value} onChange={e => f.setter(e.target.value)} placeholder={f.placeholder} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
+                    </div>
+                  ))}
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
                     <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Nhà hàng</label>
-                    <select value={bRestaurant} onChange={e => setBRestaurant(e.target.value)} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
+                    <select
+                      value={bRestaurantId}
+                      onChange={e => handleSelectFormRestaurant(e.target.value)}
+                      required
+                      style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
+                    >
                       <option value="">— Chọn nhà hàng —</option>
-                      {branches.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                      {restaurants.map(r => <option key={r.id} value={r.id}>{r.restaurantName}</option>)}
                     </select>
                   </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Chi nhánh</label>
+                    <select
+                      value={bBranchId}
+                      onChange={e => setBBranchId(e.target.value)}
+                      required
+                      disabled={!bRestaurantId || bBranches.length === 0}
+                      style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2, opacity: (!bRestaurantId || bBranches.length === 0) ? .5 : 1 }}
+                    >
+                      <option value="">
+                        {!bRestaurantId ? '← Chọn nhà hàng trước' : bBranches.length === 0 ? 'Đang tải chi nhánh...' : '— Chọn chi nhánh —'}
+                      </option>
+                      {bBranches.map(b => <option key={b.id} value={b.id}>{b.name} — {b.address}</option>)}
+                    </select>
+                  </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
                     <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Ngày đến</label>
                     <input type="date" value={bDate} onChange={e => setBDate(e.target.value)} min={new Date().toISOString().split('T')[0]} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
@@ -605,41 +696,45 @@ export default function HomePage() {
                       {['Trong nhà (máy lạnh)', 'Ngoài trời (sân vườn)', 'Phòng VIP riêng', 'Không yêu cầu'].map(z => <option key={z}>{z}</option>)}
                     </select>
                   </div>
+
                   <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
                     <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Yêu cầu đặc biệt</label>
                     <textarea value={bNote} onChange={e => setBNote(e.target.value)} rows={3} placeholder="Dị ứng thực phẩm, tiệc sinh nhật, trang trí đặc biệt..." style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
                   </div>
+
                   <div style={{ gridColumn: '1/-1', textAlign: 'center', marginTop: '.5rem' }}>
-                    <button type="submit" style={{
-                      background: 'var(--gold)', color: 'var(--brown)', border: 'none',
-                      padding: '1rem 3.5rem', fontSize: '.9rem', fontWeight: 700,
-                      letterSpacing: '.12em', textTransform: 'uppercase', cursor: 'pointer',
-                      borderRadius: 2, fontFamily: 'inherit', transition: 'all .2s'
-                    }}>
+                    <button type="submit" style={{ background: 'var(--gold)', color: 'var(--brown)', border: 'none', padding: '1rem 3.5rem', fontSize: '.9rem', fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>
                       ✦ Xác Nhận Đặt Bàn ✦
                     </button>
                   </div>
                 </div>
               </form>
             ) : (
-              <div style={{
-                background: 'linear-gradient(135deg,#3d2b1f,#6b4226)',
-                color: 'var(--gold-light)', padding: '3rem 2rem',
-                textAlign: 'center', borderRadius: 4
-              }}>
+              <div style={{ background: 'linear-gradient(135deg,#3d2b1f,#6b4226)', color: 'var(--gold-light)', padding: '3rem 2rem', textAlign: 'center', borderRadius: 4 }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎊</div>
-                <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.8rem', fontWeight: 700, marginBottom: '.75rem' }}>
-                  Đặt bàn thành công!
-                </h3>
+                <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.8rem', fontWeight: 700, marginBottom: '.75rem' }}>Đặt bàn thành công!</h3>
                 <p style={{ color: 'rgba(232,201,122,.75)', fontSize: '.95rem', lineHeight: 1.7 }}>
-                  Chúng tôi sẽ liên hệ xác nhận qua điện thoại/email trong vài phút.<br />
-                  Hẹn gặp bạn tại nhà hàng!
+                  Chúng tôi sẽ liên hệ xác nhận qua điện thoại/email trong vài phút.<br />Hẹn gặp bạn tại nhà hàng!
                 </p>
               </div>
             )}
           </div>
         </div>
-      </section >
-    </div >
+      </section>
+
+      {/* ══════════════ BRANCH DRAWER ══════════════ */}
+      {drawerRestaurant && (
+        <BranchDrawer
+          restaurant={drawerRestaurant}
+          branches={drawerBranches}
+          loading={loadingBranches}
+          onClose={() => setDrawerRestaurant(null)}
+          onSelectBranch={(branchId) => {
+            setDrawerRestaurant(null)
+            navigate(`/branch/${branchId}`)
+          }}
+        />
+      )}
+    </div>
   )
 }
