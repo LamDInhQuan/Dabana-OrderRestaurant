@@ -85,7 +85,7 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh }) {
           form.depositType === "PERCENTAGE" && form.minPreorderAmount
             ? Number(form.minPreorderAmount)
             : null,
-      };
+      };  
 
       await reservationPolicyApi.createDepositRule(restaurantId, policyId, payload);
 
