@@ -29,6 +29,10 @@ import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+import com.dabana.backend.modules.invoice.dto.request.ConfirmCheckoutRequest;
+import com.dabana.backend.modules.invoice.dto.response.InvoicePreviewResponse;
+import com.dabana.backend.modules.invoice.service.IInvoiceService;
+import com.dabana.backend.modules.invoice.util.InvoiceErrorCode;
 import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
@@ -65,6 +69,7 @@ public class BookingService implements IBookingService {
     private final DiningTableService diningTableService;
     private final UserRepository userRepository;
     private final BranchCancellationPolicyService branchCancellationPolicyService;
+    private final IInvoiceService invoiceService;
 
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va
@@ -419,27 +424,43 @@ public class BookingService implements IBookingService {
     }
 
     // ============================================================
-    // B12: nhan vien check-out sau khi khach dung bua xong
-    // LUU Y: phan thanh toan/xuat hoa don (rs_invoices) CHUA lam o day - TODO,
-    // se bo sung khi module thanh toan hoan thien. O day chi doi trang thai don +
-    // ban.
+    // B12: nhan vien xac nhan da thu tien roi check-out sau khi khach dung
+    // bua xong. Truoc khi doi status/ban, tao va luu hoa don (rs_invoices)
+    // qua InvoiceService - neu booking nay da co hoa don (checkout goi
+    // trung/lai) se nem INVOICE_ALREADY_PAID va KHONG doi status ban.
     // ============================================================
     @Override
     @Transactional
-    public BookingResponse checkOut(Long bookingId) {
+    public BookingResponse checkOut(Long bookingId, ConfirmCheckoutRequest request, User collector) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
         if (booking.getStatus() != BookingStatus.CHECKED_IN) {
             throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_OUT);
         }
-        // TODO: tinh rs_invoices (preorder_subtotal + extra_order_subtotal + surcharge
-        // - deposit_paid)
-        // khi module thanh toan duoc thiet ke xong. Hien tai chi dong don, chua tao hoa
-        // don.
+        if (request == null || request.getPaymentMethod() == null) {
+            throw new BusinessException(InvoiceErrorCode.PAYMENT_METHOD_REQUIRED);
+        }
+
+        invoiceService.createInvoiceForCheckout(booking, request, collector);
+
         booking.setStatus(BookingStatus.COMPLETED);
         booking = bookingRepository.save(booking);
         applyTableStatus(booking, DiningTableStatus.CLEANING);
         return bookingMapper.toResponse(booking);
+    }
+
+    // ============================================================
+    // Xem truoc hoa don TRUOC khi xac nhan thanh toan (khong ghi DB) - dung
+    // cho modal "Thanh toan hoa don" o Tab Goi mon.
+    // ============================================================
+    @Override
+    public InvoicePreviewResponse previewInvoice(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
+            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_OUT);
+        }
+        return invoiceService.preview(booking);
     }
 
     // ============================================================

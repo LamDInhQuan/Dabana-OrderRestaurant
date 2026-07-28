@@ -5,6 +5,7 @@ import com.dabana.backend.modules.subscription.dto.request.SubscribeInitialPlanR
 import com.dabana.backend.modules.subscription.dto.request.UpgradePlanRequest;
 import com.dabana.backend.modules.subscription.dto.response.AdminSubscriptionInvoiceResponse;
 import com.dabana.backend.modules.subscription.dto.response.BranchLimitCheckResponse;
+import com.dabana.backend.modules.subscription.dto.response.InvoicePaymentInfoResponse;
 import com.dabana.backend.modules.subscription.dto.response.RestaurantSubscriptionResponse;
 import com.dabana.backend.modules.subscription.dto.response.SubscriptionInvoiceResponse;
 import com.dabana.backend.modules.subscription.enums.InvoiceStatus;
@@ -45,6 +46,22 @@ public interface ISubscriptionService {
      *                 chi xem hoa don can xu ly (dung cho man "Cho xac nhan thanh toan").
      */
     List<AdminSubscriptionInvoiceResponse> listInvoicesForAdmin(List<InvoiceStatus> statuses);
+
+    /**
+     * Tao link thanh toan payOS cho 1 hoa don cua CHINH restaurant nay (kiem tra
+     * quyen so huu). Neu hoa don da co link con hieu luc (checkoutUrl != null,
+     * status con PENDING/OVERDUE) thi tra ve link CU, khong goi payOS tao lai -
+     * tranh trung orderCode (orderCode = invoiceId, khong doi duoc).
+     */
+    InvoicePaymentInfoResponse createPaymentLinkForInvoice(Long restaurantId, Long invoiceId);
+
+    /**
+     * Lay thong tin thanh toan hien tai cua hoa don - goi song payOS
+     * (paymentRequests().get) de lay amountPaid/status moi nhat. Nem
+     * PAYMENT_LINK_NOT_FOUND neu hoa don chua tung tao link (FE se catch loi
+     * nay va tu goi sang createPaymentLinkForInvoice, giong dung luong dat coc).
+     */
+    InvoicePaymentInfoResponse getPaymentInfo(Long restaurantId, Long invoiceId);
 
     /**
      * CHUA tich hop payOS: dung tam de Admin xac nhan thanh toan thu cong trong

@@ -34,4 +34,5 @@ public class AdminSubscriptionInvoiceResponse {
     private LocalDate dueDate;
     private InvoiceStatus status;
     private LocalDateTime paidAt;
+    private Boolean downgradeRenewal;
 }

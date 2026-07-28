@@ -20,6 +20,7 @@ public class SubscriptionInvoiceMapper {
                 .dueDate(invoice.getDueDate())
                 .status(invoice.getStatus())
                 .paidAt(invoice.getPaidAt())
+                .downgradeRenewal(invoice.getDowngradeRenewal())
                 .build();
     }
 
@@ -39,6 +40,7 @@ public class SubscriptionInvoiceMapper {
                 .dueDate(invoice.getDueDate())
                 .status(invoice.getStatus())
                 .paidAt(invoice.getPaidAt())
+                .downgradeRenewal(invoice.getDowngradeRenewal())
                 .build();
     }
 }

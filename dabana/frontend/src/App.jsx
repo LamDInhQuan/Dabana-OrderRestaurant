@@ -24,6 +24,7 @@ import ReviewModeration from './pages/admin/ReviewModeration'
 import CategoryManagement from './pages/admin/CategoryManagement'
 import SubscriptionPlanManagement from './pages/admin/SubscriptionPlanManagement'
 import SubscriptionInvoiceApproval from './pages/admin/SubscriptionInvoiceApproval'
+import SubscriptionPayosConfigPage from './pages/admin/SubscriptionPayosConfigPage'
 import Reports from './pages/admin/Reports'
 import BookingLockPage from './pages/customer/BookingLockPage'
 import BookingInvoicePage from './pages/customer/BookingInvoicePage'
@@ -113,6 +114,10 @@ export default function App() {
           <Route
             path="/admin/subscription-invoices"
             element={<ProtectedRoute role="ADMIN"><SubscriptionInvoiceApproval /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/subscription-payos-config"
+            element={<ProtectedRoute role="ADMIN"><SubscriptionPayosConfigPage /></ProtectedRoute>}
           />
           <Route
             path="/admin/reports"

@@ -19,6 +19,7 @@ import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
 import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
 import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
+import BranchBankAccountSettings from './tab/settings/BranchBankAccountSettings'
 import BillingTab from './tab/subscription/BillingTab'
 
 // ── Google Font ─────────────────────────────────────────────────
@@ -1462,6 +1463,9 @@ export default function PartnerDashboard() {
                   </div> */}
                   {/* policy restaurant  */}
                   <PolicyResTab restaurantId={activeBranch.restaurantId} />
+
+                  {/* Tài khoản ngân hàng + payOS (kênh Thu/Chi) */}
+                  <BranchBankAccountSettings branchId={activeBranch.id} />
                 </>
               )}
             </div>

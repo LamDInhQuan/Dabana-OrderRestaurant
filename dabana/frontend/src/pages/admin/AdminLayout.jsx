@@ -9,6 +9,7 @@ const TABS = [
   ['/admin/categories', '🗂️ Danh mục'],
   ['/admin/subscription-plans', '💳 Gói dịch vụ'],
   ['/admin/subscription-invoices', '🧾 Xác nhận thanh toán'],
+  ['/admin/subscription-payos-config', '🔑 Cấu hình payOS'],
   ['/admin/reports',    '📈 Báo cáo'],
 ]
 
