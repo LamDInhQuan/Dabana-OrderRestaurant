@@ -418,4 +418,20 @@ export const paymentApi = {
   mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`)
 };
 
+export const branchCancellationPolicyApi = {
+  // GET: Lấy chính sách hủy cọc của chi nhánh
+  getByBranch: (branchId) =>
+    api.get(`/branches/${branchId}/cancellation-policy`),
+
+  // POST: Tạo mới chính sách hủy cọc cho chi nhánh
+  create: (branchId, data) =>
+    api.post(`/branches/${branchId}/cancellation-policy`, data),
+
+  // PUT: Cập nhật chính sách hủy cọc cho chi nhánh
+  update: (branchId, data) => {
+    console.log("data gửi đi update:", data);
+    return api.put(`/branches/${branchId}/cancellation-policy`, data);
+  },
+};
+
 export default api

@@ -414,7 +414,7 @@ export default function HomePage() {
     setDrawerBranches([])
     setLoadingBranches(true)
     try {
-      const res = await branchApi.getByRestaurant(restaurant.restaurantId)
+      const res = await branchApi.getByRestaurant(restaurant.id)
       const list = res.data?.data ?? res.data ?? []
       setDrawerBranches(list)
     } catch (err) {

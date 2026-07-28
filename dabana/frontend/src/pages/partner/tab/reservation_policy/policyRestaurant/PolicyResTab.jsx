@@ -26,6 +26,20 @@ function PolicyResTab({ restaurantId }) {
     }
   };
 
+  // 🟢 HÀM MỚI: Tải lại chi tiết của policy đang mở trong Modal
+  const fetchPolicyDetail = async () => {
+    const policyIdToFetch = selectedPolicyId || policyDetail?.id;
+    if (!restaurantId || !policyIdToFetch) return;
+
+    try {
+      const detail = await reservationPolicyApi.getDetail(restaurantId, policyIdToFetch);
+      const data = detail.data?.data || detail.data || detail;
+      setPolicyDetail(data); // Update state policyDetail -> trigger re-render Modal
+    } catch (error) {
+      console.error("Lỗi khi refetch detail policy:", error);
+    }
+  };
+
   const handleOpenEdit = async (policy) => {
     setSelectedPolicyId(policy.id);
     setLoadingDetail(true);
@@ -77,22 +91,21 @@ function PolicyResTab({ restaurantId }) {
 
   return (
     <div style={{ padding: "1rem" }}>
-      {/* Nguồn danh sách hiển thị tràn khung hình */}
       <PolicyResList
         policies={policies}
         onSelect={handleOpenEdit}
         onAddNew={handleAddNew}
       />
 
-      {/* Modal Popup Rộng thoáng */}
       {isModalOpen && (
         <PolicyFormModal
-          key={policyDetail?.id || "new"}
+          // 🔴 BỎ KEY NÀY ĐI HOẶC CHỈ ĐỂ policyDetail?.id NẾU CẦN RESET
+          // key={policyDetail?.id || "new"} 
           restaurantId={restaurantId}
           initialData={policyDetail}
           loading={loadingDetail}
           onSave={handleSavePolicy}
-          onRefresh={fetchPolicyList}
+          onRefresh={fetchPolicyDetail} // 🟢 ĐỔI THÀNH fetchPolicyDetail VÀO ĐÂY!
           onClose={handleCloseModal}
         />
       )}

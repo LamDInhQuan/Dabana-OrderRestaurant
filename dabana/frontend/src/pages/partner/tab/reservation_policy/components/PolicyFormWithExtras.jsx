@@ -1,146 +1,244 @@
-// src/reservation_policy/components/PolicyFormWithExtras.jsx
-import React from "react";
+import React, { useState } from "react";
+// Import các sub-components dùng chung
 import PolicyForm from "./PolicyForm";
-import PolicySchedule from "./PolicySchedule";
-import PolicyDepositRules from "./PolicyDepositRules";
 import PolicyDateSchedules from "./PolicyDateSchedules";
+import PolicyDepositRules from "./PolicyDepositRules";
 
 export default function PolicyFormWithExtras({
   restaurantId,
-  policy = {},
+  branchId,
+  policy,
+  rules, // nhận rules trực tiếp từ props nếu có
+  isReadOnly = false,
   onChange,
   onSubmit,
   onCancel,
   onRefresh,
+  onAssignToBranch,
 }) {
-  // Helper map scheduleType hiện tại
-  const scheduleType = policy.scheduleType || policy.policyScheduleType || "ALWAYS";
+  const [activeTab, setActiveTab] = useState("general"); // 'general' | 'schedule' | 'rules'
+  const [loading, setLoading] = useState(false);
 
-  // 1. CHUYỂN ĐỔI DATA SCHEDULE TỪ API CHUẨN SANG PROPS CỦA PolicySchedule
-  // Extract mảng thứ từ backend (VD: [6, 7] từ mảng schedules)
-  const daysOfWeek = (policy.schedules || [])
-    .map((s) => s.dayOfWeek)
-    .filter((d) => d !== null && d !== undefined);
+  if (!policy) return null;
 
-  // Extract dateFrom, dateTo nếu là loại DATE_RANGE
-  const firstSchedule = policy.schedules?.[0] || {};
-  const dateFrom = firstSchedule.dateFrom || "";
-  const dateTo = firstSchedule.dateTo || "";
+  // Fallback lấy thông tin policy chuẩn
+  const policyInfo = policy.policy || policy;
 
-  // 2. HANDLERS ĐỒNG BỘ DỮ LIỆU TỪ PolicySchedule VÀO OBJECT POLICY
-  const handleApplyTypeChange = (newType) => {
-    onChange({
-      ...policy,
-      scheduleType: newType,
-      policyScheduleType: newType,
-      schedules: [], // Reset schedule khi đổi loại
-    });
-  };
+  // Lấy ID chính xác dù object có bị bọc bên trong hay không
+  const targetPolicyId = policy?.id || policyInfo?.id || policy?.policyId;
 
-  const handleDaysOfWeekChange = (newDays) => {
-    // Convert danh sách các thứ [6, 7] thành mảng schedules theo format Backend
-    const updatedSchedules = newDays.map((day) => ({
-      policyId: policy.id,
-      dayOfWeek: day,
-      dateFrom: null,
-      dateTo: null,
-      timeFrom: "17:00:00",
-      timeTo: "22:00:00",
-      status: "ACTIVE",
-    }));
+  // Trích xuất danh sách schedules & scheduleType từ policy
+  const scheduleType = policyInfo?.scheduleType || policy?.scheduleType || "ALWAYS";
+  const dateSchedules = policyInfo?.schedules || policy?.schedules || policyInfo?.dateSchedules || policy?.dateSchedules || [];
 
-    onChange({
-      ...policy,
-      schedules: updatedSchedules,
-    });
-  };
+  // Trích xuất danh sách rules: Ưu tiên prop 'rules' truyền vào, nếu không sẽ lấy từ object 'policy'
+  const depositRules = rules || policy?.depositRules || policyInfo?.depositRules || policy?.rules || policyInfo?.rules || [];
 
-  const handleDateFromChange = (newDateFrom) => {
-    const currentSchedules = policy.schedules?.length > 0 ? [...policy.schedules] : [{}];
-    currentSchedules[0] = {
-      ...currentSchedules[0],
-      policyId: policy.id,
-      dateFrom: newDateFrom,
-      dateTo: currentSchedules[0]?.dateTo || null,
-      timeFrom: currentSchedules[0]?.timeFrom || "08:00:00",
-      timeTo: currentSchedules[0]?.timeTo || "22:00:00",
-      status: "ACTIVE",
-    };
-
-    onChange({
-      ...policy,
-      schedules: currentSchedules,
-    });
-  };
-
-  const handleDateToChange = (newDateTo) => {
-    const currentSchedules = policy.schedules?.length > 0 ? [...policy.schedules] : [{}];
-    currentSchedules[0] = {
-      ...currentSchedules[0],
-      policyId: policy.id,
-      dateFrom: currentSchedules[0]?.dateFrom || null,
-      dateTo: newDateTo,
-      timeFrom: currentSchedules[0]?.timeFrom || "08:00:00",
-      timeTo: currentSchedules[0]?.timeTo || "22:00:00",
-      status: "ACTIVE",
-    };
-
-    onChange({
-      ...policy,
-      schedules: currentSchedules,
-    });
-  };
+  const isBranchMode = Boolean(branchId);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem", width: "100%" }}>
-      {/* 1. FORM CHÍNH (Tên, Mã, Mô tả, Điều khoản...) */}
-      <PolicyForm
-        policy={policy}
-        onChange={onChange}
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-      />
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          width: "90%",
+          maxWidth: "1000px",
+          maxHeight: "90vh",
+          borderRadius: 12,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow:
+            "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+        }}
+      >
+        {/* Header Modal */}
+        <div
+          style={{
+            padding: "1rem 1.5rem",
+            borderBottom: "1px solid #ECE4D3",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: "#fff",
+          }}
+        >
+          <div>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "1.1rem",
+                color: "#1F2937",
+                fontWeight: 700,
+              }}
+            >
+              {isReadOnly
+                ? "👁️ Chi tiết chính sách mẫu (Chỉ xem)"
+                : isBranchMode
+                  ? "Chi tiết chính sách Chi nhánh"
+                  : "Cấu hình chính sách Nhà hàng"}
+            </h3>
+            <span style={{ fontSize: "0.8rem", color: "#6B7280" }}>
+              Mã: {policyInfo.policyCode || policyInfo.code || "N/A"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              border: "none",
+              background: "none",
+              fontSize: "1.5rem",
+              cursor: "pointer",
+              color: "#6B7280",
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
 
-      {/* 2. CẤU HÌNH LOẠI LỊCH (PolicySchedule) */}
-      <div style={{ borderTop: "1px solid #ECE4D3", paddingTop: "1.25rem" }}>
-        <h4 style={{ margin: "0 0 1rem 0", color: "#2E2A25", fontSize: "1rem" }}>
-          Khung thời gian áp dụng
-        </h4>
-        <PolicySchedule
-          applyType={scheduleType}
-          onApplyTypeChange={handleApplyTypeChange}
-          daysOfWeek={daysOfWeek}
-          onDaysOfWeekChange={handleDaysOfWeekChange}
-          dateFrom={dateFrom}
-          onDateFromChange={handleDateFromChange}
-          dateTo={dateTo}
-          onDateToChange={handleDateToChange}
-        />
+        {/* Horizontal Sub-Tabs */}
+        <div
+          style={{
+            display: "flex",
+            borderBottom: "1px solid #ECE4D3",
+            background: "#FDFCF9",
+            padding: "0 1.5rem",
+            gap: "0.5rem",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab("general")}
+            style={{
+              padding: "0.8rem 1.2rem",
+              border: "none",
+              background: "none",
+              borderBottom:
+                activeTab === "general"
+                  ? "2px solid #C9A24B"
+                  : "2px solid transparent",
+              fontWeight: activeTab === "general" ? "bold" : "normal",
+              color: activeTab === "general" ? "#855D10" : "#6B7280",
+              cursor: "pointer",
+              fontSize: "0.9rem",
+            }}
+          >
+            1. Thông tin chung
+          </button>
+
+          <button
+            type="button"
+            disabled={!targetPolicyId}
+            onClick={() => setActiveTab("schedule")}
+            style={{
+              padding: "0.8rem 1.2rem",
+              border: "none",
+              background: "none",
+              borderBottom:
+                activeTab === "schedule"
+                  ? "2px solid #C9A24B"
+                  : "2px solid transparent",
+              fontWeight: activeTab === "schedule" ? "bold" : "normal",
+              color: activeTab === "schedule" ? "#855D10" : "#6B7280",
+              cursor: !targetPolicyId ? "not-allowed" : "pointer",
+              opacity: !targetPolicyId ? 0.5 : 1,
+              fontSize: "0.9rem",
+            }}
+          >
+            2. Lịch áp dụng
+          </button>
+
+          <button
+            type="button"
+            disabled={!targetPolicyId}
+            onClick={() => setActiveTab("rules")}
+            style={{
+              padding: "0.8rem 1.2rem",
+              border: "none",
+              background: "none",
+              borderBottom:
+                activeTab === "rules"
+                  ? "2px solid #C9A24B"
+                  : "2px solid transparent",
+              fontWeight: activeTab === "rules" ? "bold" : "normal",
+              color: activeTab === "rules" ? "#855D10" : "#6B7280",
+              cursor: !targetPolicyId ? "not-allowed" : "pointer",
+              opacity: !targetPolicyId ? 0.5 : 1,
+              fontSize: "0.9rem",
+            }}
+          >
+            3. Quy tắc cọc
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div style={{ padding: "1.5rem", overflowY: "auto", flex: 1 }}>
+          {loading ? (
+            <div
+              style={{
+                padding: "2rem",
+                textAlign: "center",
+                color: "#8A8272",
+              }}
+            >
+              Đang tải thông tin chi tiết...
+            </div>
+          ) : (
+            <>
+              {/* Tab 1: Thông tin chung */}
+              {activeTab === "general" && (
+                <PolicyForm
+                  policy={policyInfo}
+                  isBranchMode={isBranchMode}
+                  isReadOnly={isReadOnly}
+                  onChange={onChange}
+                  onSave={async (formData) => {
+                    if (isReadOnly) return;
+                    if (onSubmit) await onSubmit(formData);
+                  }}
+                  onCancel={onCancel}
+                  onAssignToBranch={onAssignToBranch}
+                />
+              )}
+
+              {/* Tab 2: Lịch áp dụng */}
+              {activeTab === "schedule" && (
+                <PolicyDateSchedules
+                  restaurantId={restaurantId}
+                  policyId={targetPolicyId}
+                  scheduleType={scheduleType}
+                  schedules={dateSchedules}
+                  onRefresh={onRefresh}
+                  readOnly={isReadOnly}
+                />
+              )}
+
+              {/* Tab 3: Quy tắc đặt cọc */}
+              {activeTab === "rules" && (
+                <PolicyDepositRules
+                  restaurantId={restaurantId}
+                  policyId={targetPolicyId}
+                  rules={depositRules}
+                  onRefresh={onRefresh}
+                  readOnly={isReadOnly}
+                />
+              )}
+            </>
+          )}
+        </div>
       </div>
-
-      {/* 3. MỐC GIỜ CHI TIẾT THEO NGÀY (Nếu đã có Policy ID từ Backend) */}
-      {policy.id && (
-        <div style={{ borderTop: "1px solid #ECE4D3", paddingTop: "1.25rem" }}>
-          <PolicyDateSchedules
-            restaurantId={restaurantId}
-            policyId={policy.id}
-            schedules={policy.schedules || []}
-            onRefresh={onRefresh}
-          />
-        </div>
-      )}
-
-      {/* 4. QUY TẮC ĐẶT CỌC (PolicyDepositRules) */}
-      {policy.id && (
-        <div style={{ borderTop: "1px solid #ECE4D3", paddingTop: "1.25rem" }}>
-          <PolicyDepositRules
-            restaurantId={restaurantId}
-            policyId={policy.id}
-            rules={policy.depositRules || []}
-            onRefresh={onRefresh}
-          />
-        </div>
-      )}
     </div>
   );
 }

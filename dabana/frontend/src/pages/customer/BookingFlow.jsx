@@ -10,6 +10,7 @@ import DecorationShape from '../partner/tab/table_layout/floorPlanManagement/com
 import DecorationPath from '../partner/tab/table_layout/floorPlanManagement/components/DecorationPath'
 import DecorationDoor from '../partner/tab/table_layout/floorPlanManagement/components/DecorationDoor'
 import { parseZoneDecorations } from '../partner/tab/table_layout/floorPlanManagement/components/decorationPresets'
+import ReservationPolicyBanner from './step/ReservationPolicyBanner'
 
 const STEPS = ['Thời gian & bàn', 'Thông tin', 'Đặt món', 'Xác nhận & cọc']
 
@@ -625,73 +626,13 @@ function StepTimeAndTable({
         </div>
       </div>
 
-      {policyLoading ? (
-        <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '.85rem' }}>Đang tải chính sách cọc...</p>
-      ) : policy ? (
-        <div style={{
-          padding: '1rem 1.1rem', borderRadius: 12, marginBottom: '1.25rem',
-          background: activeDepositRule
-            ? 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)'
-            : '#F0FDF4',
-          border: `1.5px solid ${activeDepositRule ? '#FDBA74' : '#86EFAC'}`,
-        }}>
-          <div className="flex items-center gap-2" style={{ marginBottom: '.5rem' }}>
-            <span style={{
-              width: 28, height: 28, borderRadius: '50%', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', fontSize: '.95rem',
-              background: activeDepositRule ? '#F59E0B' : '#22C55E', flexShrink: 0,
-            }}>
-              <span style={{ filter: 'grayscale(0)' }}>{activeDepositRule ? '💰' : '✓'}</span>
-            </span>
-            <strong style={{ fontSize: '.92rem' }}>
-              {activeDepositRule
-                ? `Cần đặt cọc ${depositLabel} cho ${guestCount} khách`
-                : 'Không yêu cầu đặt cọc cho số khách này'}
-            </strong>
-          </div>
-
-          {policy.depositRules?.length > 0 && (
-            <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginBottom: '.65rem' }}>
-              {policy.depositRules
-                .slice()
-                .sort((a, b) => a.minGuest - b.minGuest)
-                .map(rule => {
-                  const isActive = rule.id === activeDepositRule?.id
-                  const rangeLabel = rule.minGuest === rule.maxGuest
-                    ? `${rule.minGuest} khách`
-                    : `${rule.minGuest}–${rule.maxGuest} khách`
-                  const amountLabel = rule.depositType === 'PER_PERSON'
-                    ? `${formatVND(rule.depositValue)}/người`
-                    : formatVND(rule.depositValue)
-                  return (
-                    <div key={rule.id} style={{
-                      padding: '.4rem .65rem', borderRadius: 8, minWidth: 78, textAlign: 'center',
-                      background: isActive ? '#F59E0B' : '#fff',
-                      border: `1.5px solid ${isActive ? '#F59E0B' : '#F1D9BE'}`,
-                      boxShadow: isActive ? '0 2px 8px rgba(245,158,11,.35)' : 'none',
-                      transition: 'all .2s',
-                    }}>
-                      <div style={{ fontSize: '.68rem', fontWeight: 600, color: isActive ? '#fff' : 'var(--text-muted)' }}>
-                        {rangeLabel}
-                      </div>
-                      <div style={{ fontSize: '.8rem', fontWeight: 700, color: isActive ? '#fff' : '#B45309' }}>
-                        {amountLabel}
-                      </div>
-                    </div>
-                  )
-                })}
-            </div>
-          )}
-
-          <p style={{ fontSize: '.76rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
-            Áp dụng theo chính sách <strong>{policy.policy?.name}</strong>
-            {policy.schedules?.[0] && (
-              <> trong khung giờ <strong>{policy.schedules[0].timeFrom?.slice(0, 5)}–{policy.schedules[0].timeTo?.slice(0, 5)}</strong></>
-            )}.
-            {' '}Hủy trước 2 giờ được hoàn 100% cọc; hủy trong vòng 2 giờ hoặc không đến sẽ không hoàn cọc.
-          </p>
-        </div>
-      ) : null}
+      <ReservationPolicyBanner
+        policyLoading={policyLoading}
+        policy={policy}
+        guestCount={guestCount}
+        activeDepositRule={activeDepositRule} // Truyền activeDepositRule từ state/memo của component cha
+        formatVND={formatVND}
+      />
 
       <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.5rem' }}>Khung giờ đến</label>
       {isClosedThatDay ? (
@@ -712,9 +653,9 @@ function StepTimeAndTable({
                   const needsDeposit = isSlotUnderDeposit(s)
                   return (
                     <button key={s} type="button" onClick={() => {
-      console.log('Slot được chọn:', s); // 👈 Log ra xem slot có đúng dạng "14:00" không
-      setTimeSlot(s);
-    }}
+                      console.log('Slot được chọn:', s); // 👈 Log ra xem slot có đúng dạng "14:00" không
+                      setTimeSlot(s);
+                    }}
                       className="btn-sm"
                       style={{
                         position: 'relative', overflow: 'visible',

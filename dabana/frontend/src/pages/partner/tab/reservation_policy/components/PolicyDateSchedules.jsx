@@ -56,7 +56,7 @@ const formatDateRangeDisplay = (dateFrom, dateTo) => {
 };
 
 // Custom Time Select Component
-function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
+function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disabled = false }) {
   const parseVal = (valStr) => {
     if (!valStr) return { hour: "", minute: "00", session: "SA" };
     const [h, m] = valStr.split(":");
@@ -70,11 +70,9 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
       session = "TOI";
       h12 = hNum === 18 ? 6 : hNum - 12;
     } else if (hNum >= 12) {
-      // 12:00 -> 17:59
-      session = "CHIEU"; // Hoặc nếu là 12h tròn thì để 12
+      session = "CHIEU";
       h12 = hNum === 12 ? 12 : hNum - 12;
     } else {
-      // 00:00 -> 11:59
       session = "SA";
       h12 = hNum === 0 ? 12 : hNum;
     }
@@ -82,11 +80,10 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
     return {
       hour: String(h12).padStart(2, "0"),
       minute: mStr,
-      session
+      session,
     };
   };
 
-  // Sửa hàm emitTime trong CustomTimeSelect
   const emitTime = (h12Str, mStr, sStr) => {
     if (!h12Str) {
       onChange("");
@@ -94,14 +91,10 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
     }
     let h = parseInt(h12Str, 10);
 
-    if (sStr === "TOI" || sStr === "CHIEU") {
-      // Nếu chọn Chiều/Tối và h < 12 thì cộng 12 (VD: 1 Chiều -> 13, 6 Tối -> 18)
-      // Riêng 12 Chiều vẫn giữ nguyên là 12:00
+    if (sStr === "SA") {
+      if (h === 12) h = 0;
+    } else if (sStr === "CHIEU" || sStr === "TOI") {
       if (h < 12) h += 12;
-    } else if (sStr === "SA") {
-      // 12 Sáng nếu người dùng chọn thì quy về 12:00 (Trưa) thay vì 00:00
-      // Hoặc nếu muốn 12 Sáng = 00:00 thì đổi option dropdown thành "Chiều" khi chọn 12
-      if (h === 12) h = 12;
     }
 
     const formattedH = String(h).padStart(2, "0");
@@ -111,11 +104,11 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
 
   const { hour, minute, session } = parseVal(value);
 
-
   return (
     <div style={{ display: "flex", gap: "2px", alignItems: "center" }}>
       <select
         value={hour}
+        disabled={disabled}
         onChange={(e) => {
           if (!e.target.value) onChange("");
           else emitTime(e.target.value, minute || "00", session);
@@ -137,25 +130,20 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
         <>
           <select
             value={minute}
+            disabled={disabled}
             onChange={(e) => emitTime(hour, e.target.value, session)}
             style={ui.input}
           >
-            <option value="00">00m</option>
-            <option value="05">05m</option>
-            <option value="10">10m</option>
-            <option value="15">15m</option>
-            <option value="20">20m</option>
-            <option value="25">25m</option>
-            <option value="30">30m</option>
-            <option value="35">35m</option>
-            <option value="40">40m</option>
-            <option value="45">45m</option>
-            <option value="50">50m</option>
-            <option value="55">55m</option>
+            {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
+              <option key={m} value={m}>
+                {m}m
+              </option>
+            ))}
           </select>
 
           <select
             value={session}
+            disabled={disabled}
             onChange={(e) => emitTime(hour, minute, e.target.value)}
             style={{ ...ui.input, fontWeight: 700, color: "#C9A24B" }}
           >
@@ -169,15 +157,14 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày" }) {
   );
 }
 
-// -------------------------------------------------------------
 // MAIN COMPONENT
-// -------------------------------------------------------------
 function PolicyDateSchedules({
   restaurantId,
   policyId,
   scheduleType = "ALWAYS",
   schedules = [],
   onRefresh,
+  readOnly = false, // 👈 Thêm prop readOnly ở đây (mặc định = false)
 }) {
   const [items, setItems] = useState(schedules);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -197,7 +184,7 @@ function PolicyDateSchedules({
   }, [policyId, scheduleType]);
 
   const isAlwaysFull = scheduleType === "ALWAYS" && items.length >= 1;
-  const shouldHideForm = !isEditing && isAlwaysFull;
+  const shouldHideForm = readOnly || (!isEditing && isAlwaysFull);
 
   // Group theo Năm nếu là DATE_RANGE
   const groupedSchedules = useMemo(() => {
@@ -212,9 +199,9 @@ function PolicyDateSchedules({
     const groups = {};
     sorted.forEach((item) => {
       let yearGroup = "Tất cả các năm";
-      if (item.dateFrom) {
+      if (item.dateFrom && item.dateFrom.includes("-")) {
         yearGroup = `NĂM ${item.dateFrom.split("-")[0]}`;
-      } else if (item.dateTo) {
+      } else if (item.dateTo && item.dateTo.includes("-")) {
         yearGroup = `NĂM ${item.dateTo.split("-")[0]}`;
       }
 
@@ -241,8 +228,7 @@ function PolicyDateSchedules({
   const handleResetForm = () => setForm(EMPTY_FORM);
 
   const handleEditClick = (schedule) => {
-    console.log("schedule", schedule);
-
+    if (readOnly) return;
     setForm({
       id: schedule.id,
       dayOfWeek: schedule.dayOfWeek ?? "",
@@ -256,6 +242,7 @@ function PolicyDateSchedules({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (readOnly) return;
 
     if (!restaurantId || !policyId) {
       toast.error("Thiếu thông tin nhà hàng hoặc chính sách!");
@@ -302,15 +289,9 @@ function PolicyDateSchedules({
       if (isEditing) {
         await reservationPolicyApi.updateSchedule(restaurantId, policyId, form.id, payload);
         toast.success("Đã cập nhật lịch áp dụng");
-        setItems((prev) =>
-          prev.map((item) => (item.id === form.id ? { ...item, ...payload } : item))
-        );
       } else {
-        const res = await reservationPolicyApi.createSchedule(restaurantId, policyId, payload);
+        await reservationPolicyApi.createSchedule(restaurantId, policyId, payload);
         toast.success("Đã thêm lịch áp dụng");
-        if (res?.data) {
-          setItems((prev) => [...prev, res.data.data]);
-        }
       }
 
       handleResetForm();
@@ -324,13 +305,12 @@ function PolicyDateSchedules({
   };
 
   const confirmDelete = async () => {
-    if (!deleteId) return;
+    if (readOnly || !deleteId) return;
 
     try {
       setDeleting(true);
       await reservationPolicyApi.deleteSchedule(restaurantId, policyId, deleteId);
       toast.success("Đã xoá lịch áp dụng");
-      setItems((prev) => prev.filter((item) => item.id !== deleteId));
       if (form.id === deleteId) handleResetForm();
       if (onRefresh) await onRefresh();
     } catch (err) {
@@ -342,7 +322,6 @@ function PolicyDateSchedules({
     }
   };
 
-  // Hàm Render Card duy nhất & chuẩn hóa
   const renderItemCard = (s) => {
     const isSel = form.id === s.id;
     const hasTime = s.timeFrom && s.timeTo;
@@ -380,12 +359,17 @@ function PolicyDateSchedules({
             {s.status === "ACTIVE" ? "Đang bật" : "Tắt"}
           </span>
 
-          <button type="button" onClick={() => handleEditClick(s)} style={ui.editBtn}>
-            Sửa
-          </button>
-          <button type="button" onClick={() => setDeleteId(s.id)} style={ui.deleteBtn}>
-            Xoá
-          </button>
+          {/* CHỈ HIỂN THỊ NÚT KHI KHÔNG PHẢI READONLY */}
+          {!readOnly && (
+            <>
+              <button type="button" onClick={() => handleEditClick(s)} style={ui.editBtn}>
+                Sửa
+              </button>
+              <button type="button" onClick={() => setDeleteId(s.id)} style={ui.deleteBtn}>
+                Xoá
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -402,15 +386,18 @@ function PolicyDateSchedules({
             </div>
           </div>
         </div>
-        <span style={ui.countPill}>{items.length} bản ghi</span>
+        <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+          {readOnly && <span style={ui.readOnlyBadge}>👁️ Chỉ xem</span>}
+          <span style={ui.countPill}>{items.length} bản ghi</span>
+        </div>
       </header>
 
       {/* RENDER DỮ LIỆU */}
       {items.length === 0 ? (
         <div style={ui.emptyState}>Chưa có lịch nào được thiết lập.</div>
       ) : scheduleType === "DATE_RANGE" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1rem" }}>
-          {Object.keys(groupedSchedules).map((groupTitle) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: readOnly ? 0 : "1rem" }}>
+          {Object.keys(groupedSchedules || {}).map((groupTitle) => (
             <div key={groupTitle} style={ui.yearGroup}>
               <div style={ui.yearHeader}>{groupTitle}</div>
               <div style={ui.rowList}>
@@ -420,117 +407,121 @@ function PolicyDateSchedules({
           ))}
         </div>
       ) : (
-        <div style={{ ...ui.rowList, marginBottom: "1rem" }}>
+        <div style={{ ...ui.rowList, marginBottom: readOnly ? 0 : "1rem" }}>
           {sortedItems.map((s) => renderItemCard(s))}
         </div>
       )}
 
-      {/* FORM NHẬP LỊCH */}
-      {shouldHideForm ? (
-        <div style={ui.fullNotice}>
-          💡 Lịch cố định (Luôn luôn) chỉ cần 1 cấu hình chung. Bấm <b>"Sửa"</b> ở bản ghi trên nếu bạn muốn thay đổi.
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} style={ui.form}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem" }}>
-            <span style={{ fontSize: ".82rem", fontWeight: 700, color: "#4B5563" }}>
-              {isEditing ? "✏️ Chỉnh sửa lịch áp dụng" : "➕ Thêm lịch áp dụng mới"}
-            </span>
-            <span style={{ fontSize: ".72rem", color: "#6B7280", fontStyle: "italic" }}>
-              💡 Mẹo: Bỏ trống khung giờ nếu muốn áp dụng <b>Cả ngày</b>
-            </span>
-          </div>
-
-          <div style={ui.formGrid}>
-            {scheduleType === "DAY_OF_WEEK" && (
-              <div style={{ ...ui.field, flex: "1.2 1 130px" }}>
-                <label style={ui.label}>Chọn Thứ *</label>
-                <select
-                  value={form.dayOfWeek}
-                  onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: e.target.value }))}
-                  style={ui.input}
-                >
-                  <option value="">-- Chọn Thứ --</option>
-                  {availableDayOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+      {/* FORM NHẬP LỊCH - CHỈ RENDER KHI KHÔNG PHẢI READONLY VÀ CHƯA ĐẦY */}
+      {!readOnly && (
+        <>
+          {shouldHideForm ? (
+            <div style={ui.fullNotice}>
+              💡 Lịch cố định (Luôn luôn) chỉ cần 1 cấu hình chung. Bấm <b>"Sửa"</b> ở bản ghi trên nếu bạn muốn thay đổi.
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} style={ui.form}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem" }}>
+                <span style={{ fontSize: ".82rem", fontWeight: 700, color: "#4B5563" }}>
+                  {isEditing ? "✏️ Chỉnh sửa lịch áp dụng" : "➕ Thêm lịch áp dụng mới"}
+                </span>
+                <span style={{ fontSize: ".72rem", color: "#6B7280", fontStyle: "italic" }}>
+                  💡 Mẹo: Bỏ trống khung giờ nếu muốn áp dụng <b>Cả ngày</b>
+                </span>
               </div>
-            )}
 
-            {scheduleType === "DATE_RANGE" && (
-              <>
-                <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
-                  <label style={ui.label}>Từ ngày *</label>
-                  <input
-                    type="date"
-                    value={form.dateFrom}
-                    onChange={(e) => setForm((f) => ({ ...f, dateFrom: e.target.value }))}
-                    style={ui.input}
+              <div style={ui.formGrid}>
+                {scheduleType === "DAY_OF_WEEK" && (
+                  <div style={{ ...ui.field, flex: "1.2 1 130px" }}>
+                    <label style={ui.label}>Chọn Thứ *</label>
+                    <select
+                      value={form.dayOfWeek}
+                      onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: e.target.value }))}
+                      style={ui.input}
+                    >
+                      <option value="">-- Chọn Thứ --</option>
+                      {availableDayOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {scheduleType === "DATE_RANGE" && (
+                  <>
+                    <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
+                      <label style={ui.label}>Từ ngày *</label>
+                      <input
+                        type="date"
+                        value={form.dateFrom}
+                        onChange={(e) => setForm((f) => ({ ...f, dateFrom: e.target.value }))}
+                        style={ui.input}
+                      />
+                    </div>
+
+                    <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
+                      <label style={ui.label}>Đến ngày *</label>
+                      <input
+                        type="date"
+                        value={form.dateTo}
+                        onChange={(e) => setForm((f) => ({ ...f, dateTo: e.target.value }))}
+                        style={ui.input}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div style={{ ...ui.field, flex: "1.8 1 160px" }}>
+                  <label style={ui.label}>Giờ mở</label>
+                  <CustomTimeSelect
+                    value={form.timeFrom}
+                    onChange={(val) => setForm((f) => ({ ...f, timeFrom: val }))}
+                    placeholder="Cả ngày"
                   />
                 </div>
 
-                <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
-                  <label style={ui.label}>Đến ngày *</label>
-                  <input
-                    type="date"
-                    value={form.dateTo}
-                    onChange={(e) => setForm((f) => ({ ...f, dateTo: e.target.value }))}
-                    style={ui.input}
+                <div style={{ ...ui.field, flex: "1.8 1 160px" }}>
+                  <label style={ui.label}>Giờ đóng</label>
+                  <CustomTimeSelect
+                    value={form.timeTo}
+                    onChange={(val) => setForm((f) => ({ ...f, timeTo: val }))}
+                    placeholder="Cả ngày"
                   />
                 </div>
-              </>
-            )}
 
-            <div style={{ ...ui.field, flex: "1.8 1 160px" }}>
-              <label style={ui.label}>Giờ mở</label>
-              <CustomTimeSelect
-                value={form.timeFrom}
-                onChange={(val) => setForm((f) => ({ ...f, timeFrom: val }))}
-                placeholder="Cả ngày"
-              />
-            </div>
+                <div style={{ ...ui.field, flex: "1 1 90px" }}>
+                  <label style={ui.label}>Trạng thái</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                    style={ui.input}
+                  >
+                    <option value="ACTIVE">Bật</option>
+                    <option value="INACTIVE">Tắt</option>
+                  </select>
+                </div>
 
-            <div style={{ ...ui.field, flex: "1.8 1 160px" }}>
-              <label style={ui.label}>Giờ đóng</label>
-              <CustomTimeSelect
-                value={form.timeTo}
-                onChange={(val) => setForm((f) => ({ ...f, timeTo: val }))}
-                placeholder="Cả ngày"
-              />
-            </div>
+                <div style={{ display: "flex", gap: ".4rem", alignSelf: "flex-end" }}>
+                  <button type="submit" disabled={saving} style={ui.addBtn}>
+                    {saving ? "..." : isEditing ? "Cập nhật" : "+ Thêm"}
+                  </button>
 
-            <div style={{ ...ui.field, flex: "1 1 90px" }}>
-              <label style={ui.label}>Trạng thái</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                style={ui.input}
-              >
-                <option value="ACTIVE">Bật</option>
-                <option value="INACTIVE">Tắt</option>
-              </select>
-            </div>
-
-            <div style={{ display: "flex", gap: ".4rem", alignSelf: "flex-end" }}>
-              <button type="submit" disabled={saving} style={ui.addBtn}>
-                {saving ? "..." : isEditing ? "Cập nhật" : "+ Thêm"}
-              </button>
-
-              {isEditing && (
-                <button type="button" onClick={handleResetForm} style={ui.cancelBtn}>
-                  Hủy
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
+                  {isEditing && (
+                    <button type="button" onClick={handleResetForm} style={ui.cancelBtn}>
+                      Hủy
+                    </button>
+                  )}
+                </div>
+              </div>
+            </form>
+          )}
+        </>
       )}
 
       {/* MODAL XÁC NHẬN XÓA */}
-      {deleteId && (
+      {!readOnly && deleteId && (
         <div style={ui.modalOverlay}>
           <div style={ui.modalCard}>
             <div style={ui.modalIcon}>⚠️</div>
@@ -570,7 +561,8 @@ const ui = {
   panelIcon: { width: 34, height: 34, borderRadius: 8, background: "#FBF7EE", border: "1px solid #E7E1D3", display: "flex", alignItems: "center", justifyContent: "center" },
   panelTitle: { fontSize: ".9rem", fontWeight: 700, color: "#2E2A25" },
   countPill: { fontSize: ".7rem", fontWeight: 600, color: "#6B6353", background: "#FBF7EE", border: "1px solid #E7E1D3", borderRadius: 99, padding: ".25rem .6rem" },
-  emptyState: { color: "#8A8272", fontSize: ".82rem", background: "#FBF7EE", border: "1px dashed #E7E1D3", borderRadius: 8, padding: ".8rem 1rem", marginBottom: "1rem" },
+  readOnlyBadge: { fontSize: ".7rem", fontWeight: 700, color: "#3B82F6", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 99, padding: ".25rem .6rem" },
+  emptyState: { color: "#8A8272", fontSize: ".82rem", background: "#FBF7EE", border: "1px dashed #E7E1D3", borderRadius: 8, padding: ".8rem 1rem" },
 
   yearGroup: { background: "#FAF8F5", border: "1px solid #EAE3D2", borderRadius: 8, padding: ".6rem .8rem" },
   yearHeader: { fontSize: ".72rem", fontWeight: 800, color: "#8C6A27", marginBottom: ".4rem", letterSpacing: "0.5px" },

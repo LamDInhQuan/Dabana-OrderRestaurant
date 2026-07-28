@@ -1,15 +1,13 @@
-// Gợi ý cấu trúc cho PolicyFormModal.jsx
-import React, { useState } from "react";
-// Import các sub components
+import { useState } from "react";
 import PolicyForm from "../../components/PolicyForm";
-import PolicySchedule from "../../components/PolicySchedule";
 import PolicyDepositRules from "../../components/PolicyDepositRules";
 import PolicyDateSchedules from "../../components/PolicyDateSchedules";
 
-function PolicyFormModal({ initialData, loading, onSave, onClose }) {
+// 🟢 1. Thêm prop onRefresh vào tham số Modal
+function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
   console.log('initialData', initialData);
 
-  const [activeTab, setActiveTab] = useState("general"); // 'general' | 'schedule' | 'rules'
+  const [activeTab, setActiveTab] = useState("general"); 
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
@@ -52,15 +50,25 @@ function PolicyFormModal({ initialData, loading, onSave, onClose }) {
           ) : (
             <>
               {activeTab === "general" && <PolicyForm policy={initialData} onSave={onSave} />}
+              
               {activeTab === "schedule" && (
                 <PolicyDateSchedules
-                  restaurantId={initialData.restaurantId}
+                  restaurantId={initialData?.restaurantId}
                   policyId={initialData?.id}
-                  schedules={initialData?.schedules || []} // 👈 Truyền mảng schedules trực tiếp từ API vào đây
-                  scheduleType={initialData.scheduleType}
+                  schedules={initialData?.schedules || []}
+                  scheduleType={initialData?.scheduleType}
+                  onRefresh={onRefresh} // 🟢 Truyền onRefresh xuống nếu tab Lịch áp dụng cũng cần
                 />
               )}
-              {activeTab === "rules" && <PolicyDepositRules policyId={initialData?.id} restaurantId={initialData.restaurantId} rules={initialData.depositRules}/>}
+              
+              {activeTab === "rules" && (
+                <PolicyDepositRules 
+                  policyId={initialData?.id} 
+                  restaurantId={initialData?.restaurantId} 
+                  rules={initialData?.depositRules || []}
+                  onRefresh={onRefresh} // 🟢 TRUYỀN ONREFRESH VÀO ĐÂY!
+                />
+              )}
             </>
           )}
         </div>
