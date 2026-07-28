@@ -40,4 +40,8 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Long> 
     long countByZone_Branch_Id(Long branchId);
 
     long countByZone_Branch_IdAndStatusIn(Long branchId, List<DiningTableStatus> statuses);
+
+    // long countByBookingBookingTable_Id(Long id);
+
+
 }

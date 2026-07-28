@@ -22,7 +22,7 @@ public class PerDayReport {
     private Long dailyServing;
     private Long dailyBooked;
     private Long dailyWait;
-    private LocalDateTime reportedDate;
+    private LocalDate reportedDate;
     @JsonIgnore
     private List<BookingResponse> bookingDtos;
 

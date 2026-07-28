@@ -218,6 +218,7 @@ export const subscriptionApi = {
 // ===== Restaurant brand API (B03) =====
 export const restaurantApi = {
   getMine: () => api.get('/restaurants/me'),
+  getAll: () => api.get('/restaurants/all'),
   register: (data) => api.post('/restaurants/me', data),
   update: (data) => api.put('/restaurants/me', data),
   // cancelPendingUpdate: () => api.post('/restaurants/cancel-pending-update'),
@@ -225,7 +226,10 @@ export const restaurantApi = {
   Dashboard: () => api.get('/restaurants/me/dashboard'),
   GetTablesByBranch: (branchid) => api.get(`/restaurants/me/tables/${branchid}`),
   UpcomingBooking: (branchid) => api.get(`/restaurants/me/bookings/${branchid}`),
-  getAll: () => api.get('/restaurants/all')
+  export: (branchIds,from,to) => api.get(`/restaurants/me/export`, {
+    responseType: "blob",
+    params:{branchIds,from ,to }
+  })
 }
 
 // ===== BỔ SUNG: Operating Hour API =====
@@ -414,15 +418,34 @@ export const orderBoardApi = {
 }
 
 export const paymentApi = {
-  createPaymentLink: (bookingId) => api.post('/payment/create-link', {
-    bookingId: Number(bookingId)
+  // Lệnh THU tiền cọc - map đúng DepositPaymentController, ghi vào bảng
+  // pm_deposit_payments (nguồn dữ liệu chuẩn: order_code, amount, status,
+  // amount_paid, qr_code, bin/account nhận tiền, paid_at...).
+  // Thay cho nhánh cũ /payment/create-link + /payment/info/{orderCode} nằm ở
+  // PaymentWebhookController - nhánh đó không ghi gì vào DB.
+
+  // Lấy lệnh thu cọc đang hiệu lực (PENDING/PROCESSING) của 1 reservation.
+  // 404 (DEPOSIT_NOT_FOUND) nếu chưa từng tạo hoặc lệnh cũ đã CANCELLED/EXPIRED.
+  getActiveDeposit: (reservationId) => api.get(`/payment/deposits/reservation/${reservationId}`),
+
+  // Lấy lệnh thu cọc MỚI NHẤT bất kể status - dùng để POLL trạng thái thanh
+  // toán. Không dùng getActiveDeposit để poll vì nó chỉ trả PENDING/PROCESSING,
+  // nên ngay khi deposit chuyển PAID sẽ bị 404 và FE tưởng nhầm "chưa thanh toán".
+  getLatestDeposit: (reservationId) => api.get(`/payment/deposits/reservation/${reservationId}/latest`),
+
+  // Tạo lệnh thu cọc mới. reservationId + amount (tiền cọc thật) là 2 field
+  // duy nhất FE cần gửi - các field còn lại (buyerName/buyerEmail/buyerPhone,
+  // cancelUrl/returnUrl, orderCode...) BE tự suy ra từ booking.
+  createDeposit: (reservationId, amount) => api.post('/payment/deposits', {
+    reservationId: Number(reservationId),
+    amount: Number(amount),
   }),
-  // API lấy thông tin thanh toán chi tiết (QR, ngân hàng, số tiền)
-  getDetail: (bookingId) => api.get(`/payment/info/${bookingId}`),
 
-  // API Polling kiểm tra trạng thái thanh toán hiện tại
-  getStatus: (bookingId) => api.get(`/api/v1/payment/${bookingId}/status`),
-
+  // Hủy lệnh thu cọc đang hiệu lực (vd hết giờ giữ bàn / khách tự hủy trước khi thanh toán).
+  cancelDeposit: (reservationId, cancellationReason) => api.post(
+    `/payment/deposits/reservation/${reservationId}/cancel`,
+    { cancellationReason }
+  ),
   // 🌟 ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
   mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`),
   refund: (bookingId, data) => api.post(`/payment/${bookingId}/cancel-refund`, data),

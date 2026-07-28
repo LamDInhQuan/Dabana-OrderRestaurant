@@ -20,8 +20,14 @@ import com.dabana.backend.security.CustomUserDetail;
 
 import lombok.RequiredArgsConstructor;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,6 +36,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.format.annotation.DateTimeFormat;
 
 
 //TODO: phan quyen cho chu nha hang
@@ -68,10 +76,28 @@ public class RestaurantController {
      }
 
      @GetMapping("/tables/{branchId}")
-     public ResponseEntity<ApiResponse<List<DiningTableResponse>>> getUpcomingBookingByBranch(@PathVariable Long branchId) {
+     public ResponseEntity<ApiResponse<List<DiningTableResponse>>> getUpcomingBookingByBranch(
+               @PathVariable Long branchId) {
 
           return ResponseEntity.ok(
                     ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.getAllTableByBranch(branchId)));
+
+     }
+     @GetMapping("/export")
+     public ResponseEntity<InputStreamResource> exportExcel(
+               @RequestParam(required = false) List<Long> branchIds,
+               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) throws IOException {
+          User owner = getLoggedOwner();
+          ByteArrayInputStream stream = restaurantService.exportToExcel(owner.getId(), branchIds, from, to);
+          String fileName = "BookingsReport_" + LocalDate.now() + ".xlsx";
+          HttpHeaders headers = new HttpHeaders();
+
+          headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);
+          return ResponseEntity.ok().headers(headers)
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new InputStreamResource(stream));
 
      }
 

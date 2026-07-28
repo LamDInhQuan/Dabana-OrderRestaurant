@@ -23,4 +23,5 @@ public interface BookingTableRepository extends JpaRepository<BookingTable, Long
     @EntityGraph(attributePaths = {"booking", "booking.customer", "diningTable"})
     List<BookingTable> findByDiningTable_IdInAndBooking_StatusIn(
             Collection<Long> tableIds, Collection<BookingStatus> statuses);
+    
 }

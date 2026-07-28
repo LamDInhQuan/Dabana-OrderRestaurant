@@ -22,6 +22,8 @@ import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
 import BranchBankAccountSettings from './tab/settings/BranchBankAccountSettings'
 import BillingTab from './tab/subscription/BillingTab'
 import BranchImageManager from './tab/settings/BranchImageManager'
+import ExportExcelBar from './exportBar'
+import ManageBookings from './ManageBookings'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -113,6 +115,9 @@ function StatCard({ icon, label, value, sub, color, trend }) {
     </div>
   )
 }
+async function exportExcel(branchid) {
+  const blob = restaurantApi.exportExcel(branchApi)
+}
 
 // ── Countdown for waitlist invite ────────────────────────────────
 function WaitCountdown({ expiresAt }) {
@@ -128,6 +133,8 @@ function WaitCountdown({ expiresAt }) {
     {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
   </span>
 }
+
+
 
 // ══════════════════════════════════════════════════════════════════
 export default function PartnerDashboard() {
@@ -153,7 +160,16 @@ export default function PartnerDashboard() {
   const floorPlan = useFloorPlanState(activeBranch?.id)
   const orderBoard = useOrderBoardState(activeBranch?.id)
   const menuState = useMenuState(activeBranch?.id)
-  const [TABLE_STATUS, setTables] = useState([])
+  const [allTables, setTables] = useState([])
+  const [exportBranchId, setExportBranchId] = useState(activeBranch?.id || "");
+  const [exportFromDate, setExportFromDate] = useState("");
+  const [exportToDate, setExportToDate] = useState("");
+
+  useEffect(() => {
+    if (activeBranch?.id) {
+      setExportBranchId(activeBranch.id)
+    }
+  }, [activeBranch?.id])
 
   // ── modal states ───────────────────────────────────
   const [policyModal, setPolicyModal] = useState(false)
@@ -194,7 +210,6 @@ export default function PartnerDashboard() {
   const [creatingBranch, setCreatingBranch] = useState(false);
 
   //dining table status
-
 
 
   useEffect(() => {
@@ -336,7 +351,7 @@ export default function PartnerDashboard() {
       .catch(() => setTables([]))
   }, [activeBranch?.id])
 
-  const allTables = TABLE_STATUS
+
   const tablesByStatus = {
     1: [],
     2: [],
@@ -427,18 +442,6 @@ export default function PartnerDashboard() {
     status: k, count: bookings.filter(b => b.status === k).length, meta: BOOKING_STATUS[k],
   })).filter(x => x.count > 0)
 
-  const doBookingAction = async (id, action) => {
-    try {
-      if (action === 'check-in') await bookingApi.checkIn(id)
-      if (action === 'check-out') await bookingApi.checkOut(id)
-      if (action === 'no-show') await bookingApi.cancel(id, { reason: 'No-show' })
-      if (action === 'cancel') await bookingApi.cancel(id, { cancelledByRestaurant: true })
-    } catch { }
-    setBookings(prev => prev.map(b => b.id === id ? {
-      ...b, status: action === 'check-in' ? 'CHECKED_IN' : action === 'check-out' ? 'COMPLETED' : action === 'no-show' ? 'NO_SHOW' : 'CANCELLED_BY_RESTAURANT'
-    } : b))
-    toast.success(action === 'check-in' ? 'Check-in thành công!' : action === 'check-out' ? 'Check-out & Hoàn tất!' : 'Đã cập nhật trạng thái')
-  }
 
   // ── B13: phản hồi đánh giá ───────────────────────────
   const submitReply = async (reviewId) => {
@@ -834,6 +837,7 @@ export default function PartnerDashboard() {
                 fontSize: '.62rem', fontWeight: 800, borderRadius: 99, padding: '.05rem .35rem'
               }}>{unreadCount}</span>}
             </button>
+
             <button onClick={() => navigate('/')} style={{ ...S.btnOut, padding: '.45rem 1rem', fontSize: '.78rem' }}>
               🌐 Về trang chủ
             </button>
@@ -842,9 +846,11 @@ export default function PartnerDashboard() {
 
         <div style={{ padding: '2rem' }}>
 
+
           {/* ══════ DASHBOARD ══════ */}
           {activeTab === 'dashboard' && (
             <div>
+              <ExportExcelBar branches={branches} />
               <div style={{ ...S.eyebrow, marginBottom: '1.5rem' }}>Tổng quan hôm nay</div>
 
               {/* Stats */}
@@ -914,7 +920,12 @@ export default function PartnerDashboard() {
                       <div style={{ flex: 1 }}>
                         <p style={{ fontWeight: 600, fontSize: '.87rem', color: C.text }}>{b.contactName}</p>
                         <p style={{ fontSize: '.75rem', color: C.muted }}>
-                          Bàn {b.tableCode} · {b.guestCount} khách · {new Date(b.reservationTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          Bàn: {b.tables.map((table, index) => (
+                            <strong key={table.id || index}>
+                              {table.tableName}
+                              {index < b.tables.length - 1 ? ', ' : ''}
+                            </strong>
+                          ))} · {b.guestCount} khách · {new Date(b.reservationTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       <Badge status={b.status} statusMap={BOOKING_STATUS} />
@@ -952,69 +963,7 @@ export default function PartnerDashboard() {
 
           {/* ══════ TAB BRANCH BOOKINGS LIST══════ */}
           {activeTab === 'bookings' && (
-            <div>
-              {/* thanh lọc */}
-              <div style={{ display: 'flex', gap: '.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                {[['ALL', 'Tất cả'], ['CONFIRMED', 'Đã xác nhận'], ['CHECKED_IN', 'Đang phục vụ'],
-                ['PENDING_NO_SHOW', 'Nghi No-show'], ['COMPLETED', 'Hoàn tất'], ['CANCELLED_BY_CUSTOMER', 'Đã huỷ']].map(([k, l]) => (
-                  <button key={k} onClick={() => setBkFilter(k)} style={{
-                    ...S.btnSm,
-                    background: bkFilter === k ? C.brown : C.white,
-                    color: bkFilter === k ? '#fff' : C.muted,
-                    border: `1.5px solid ${bkFilter === k ? C.brown : C.border}`,
-                  }}>{l} {k === 'ALL' ? `(${branchBookingList.length})` : branchBookingList.filter(b => b.status === k).length > 0 ? `(${branchBookingList.filter(b => b.status === k).length})` : ''}</button>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {filteredBookings.length === 0 && (
-                  <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>
-                    Không có đặt bàn nào ở trạng thái này
-                  </div>
-                )}
-                {/* danh sách đơn đặt */}
-                {filteredBookings.map(b => {
-                  const meta = BOOKING_STATUS[b.status] || { color: C.muted, bg: 'rgba(138,110,87,.1)', label: b.status }
-                  return (
-                    <div key={b.id} style={{ ...S.card, border: `1px solid ${C.border}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.875rem', flexWrap: 'wrap', gap: '.5rem' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '.3rem' }}>
-                            <span style={{ fontWeight: 700, fontSize: '.95rem' }}>#{b.id} — {b.contactName}</span>
-                            <Badge status={b.status} statusMap={BOOKING_STATUS} />
-                          </div>
-                          <p style={{ fontSize: '.8rem', color: C.muted }}>{b.contactPhone}{b.note && ` · 📝 ${b.note}`}</p>
-                        </div>
-                        <p style={{ fontSize: '.78rem', color: C.muted }}>
-                          {new Date(b.reservationTime).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.85rem', marginBottom: '1rem' }}>
-
-                        {/*  chi tiết tất cả bàn đặt */}
-                        {/* TODO: lấy danh sách bàn đặt của đơn đặt */}
-                        <span>🪑 Bàn: </span>
-                        <span>👥 Khách: <strong>{b.guestCount}</strong></span>
-                        {b.depositAmount > 0 && <span>💰 Cọc: <strong style={{ color: C.goldDark }}>{Number(b.depositAmount).toLocaleString('vi-VN')}₫</strong></span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-                        {b.status === 'CONFIRMED' && <>
-                          <button onClick={() => doBookingAction(b.id, 'check-in')} style={{ ...S.btnSm, background: C.green, color: '#fff' }}>✅ Check-in</button>
-                          <button onClick={() => doBookingAction(b.id, 'cancel')} style={{ ...S.btnSm, background: C.redBg, color: C.red, border: `1px solid ${C.red}33` }}>🚫 Huỷ (NH)</button>
-                        </>}
-                        {b.status === 'CHECKED_IN' && (
-                          <button onClick={() => doBookingAction(b.id, 'check-out')} style={{ ...S.btnSm, background: C.brown, color: '#fff' }}>🚪 Check-out</button>
-                        )}
-                        {b.status === 'PENDING_NO_SHOW' && <>
-                          <button onClick={() => doBookingAction(b.id, 'check-in')} style={{ ...S.btnSm, background: C.green, color: '#fff' }}>✅ Khách vừa đến</button>
-                          <button onClick={() => doBookingAction(b.id, 'no-show')} style={{ ...S.btnSm, background: C.red, color: '#fff' }}>❌ Chốt No-show</button>
-                        </>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            <ManageBookings bookings={branchBookingList} />
           )}
 
           {/* ══════ GỌI MÓN (TAB GỌI MÓN - realtime bàn) ══════ */}
@@ -1264,7 +1213,7 @@ export default function PartnerDashboard() {
                     {menuByCategory.length === 0 && <p style={{ color: C.muted, fontSize: '.85rem' }}>Chưa có dữ liệu</p>}
                   </div>
                 </div>
-
+                {/* doanh thu tiền cọc */}
                 <div style={{ ...S.card, gridColumn: '1/-1' }}>
                   <div style={{ ...S.eyebrow, marginBottom: '1.25rem' }}>Doanh thu tiền cọc 7 ngày gần nhất</div>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '.625rem', height: 120 }}>

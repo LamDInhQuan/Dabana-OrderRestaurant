@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
-import { bookingApi } from '../../api'
+import { bookingApi,restaurantApi } from '../../api'
 
 const STATUS_META = {
   CONFIRMED:        { label: 'Đã xác nhận', badge: 'badge-green', actions: ['check-in'] },
@@ -14,24 +14,25 @@ const STATUS_META = {
   CANCELLED_BY_RESTAURANT: { label: 'NH huỷ', badge: 'badge-red', actions: [] },
 }
 
-export default function ManageBookings() {
+export default function ManageBookings({bookings}) {
   const [params] = useSearchParams()
-  const branchId = params.get('branchId')
-  const [bookings, setBookings]   = useState([])
+  
+  const [filteredbookings, setBookings]   = useState([])
   const [filter, setFilter]       = useState('CONFIRMED')
   const [loading, setLoading]     = useState(true)
 
   const load = () => {
     setLoading(true)
-    // In real impl: bookingApi.getByBranch(branchId, filter)
-    // Using myBookings as proxy for demo
-    bookingApi.myBookings().then(r => {
-      setBookings((r.data || []).filter(b => b.status === filter))
+
+    
+      setBookings((bookings || []).filter(b => b.status === filter))
       setLoading(false)
-    }).catch(() => setLoading(false))
+   
   }
 
-  useEffect(() => { load() }, [filter, branchId])
+  useEffect(() => {
+    load()
+  }, [filter,bookings])
 
   const doAction = async (bookingId, action) => {
     try {
@@ -48,7 +49,7 @@ export default function ManageBookings() {
 
   return (
     <>
-      <Navbar />
+
       <div className="page-container" style={{ padding: '2rem 1rem' }}>
         <h1 style={{ fontWeight: 800, fontSize: '1.4rem', marginBottom: '1.5rem' }}>Quản lý đặt bàn</h1>
 
@@ -67,14 +68,14 @@ export default function ManageBookings() {
 
         {loading && <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p>}
 
-        {!loading && bookings.length === 0 && (
+        {filteredbookings.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
             Không có đặt bàn nào ở trạng thái này.
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
-          {bookings.map(b => {
+          {filteredbookings.map(b => {
             const meta = STATUS_META[b.status] || { label: b.status, badge: 'badge-gray', actions: [] }
             return (
               <div key={b.id} className="card" style={{ border: '1px solid var(--border)' }}>
@@ -89,10 +90,17 @@ export default function ManageBookings() {
                   <span className={`badge ${meta.badge}`}>{meta.label}</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '.87rem', marginBottom: '.875rem', flexWrap: 'wrap' }}>
-                  <span>🪑 Bàn: <strong>{b.tableCode}</strong></span>
-                  <span>👥 Khách: <strong>{b.guestCount}</strong></span>
-                  <span>🕐 <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></span>
+                <div style={{ display: 'flex', gap: '.5rem', fontSize: '.87rem', marginBottom: '.875rem', flexWrap: 'wrap',flexDirection:'column' }}>
+                  <p>
+                    🪑  Bàn: {b.tables.map((table, index) => (
+                            <strong key={table.id || index}>
+                              {table.tableName}
+                              {index < b.tables.length - 1 ? ', ' : ''}
+                            </strong>
+                          ))}
+                  </p>
+                  <p>👥 Khách: <strong>{b.guestCount}</strong></p>
+                  <p>🕐 <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
                   {b.depositAmount > 0 && <span>💰 Cọc: <strong>{Number(b.depositAmount).toLocaleString('vi-VN')}₫</strong></span>}
                 </div>
 
