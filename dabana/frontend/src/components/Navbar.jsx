@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
-export default function Navbar() {
+export default function Navbar({ solid = false }) {
   const { auth, logout, isRole } = useAuth()
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
@@ -21,19 +21,21 @@ export default function Navbar() {
     navigate('/login')
   }
 
+  const isSolidBg = solid || scrolled
+
   const navStyle = {
     position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
     height: 70,
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '0 5%',
     transition: 'all .3s',
-    background: scrolled ? 'rgba(251,247,239,.97)' : 'transparent',
-    backdropFilter: scrolled ? 'blur(8px)' : 'none',
-    boxShadow: scrolled ? '0 2px 20px rgba(61,43,31,.1)' : 'none',
+    background: isSolidBg ? 'rgba(251,247,239,.97)' : 'transparent',
+    backdropFilter: isSolidBg ? 'blur(8px)' : 'none',
+    boxShadow: isSolidBg ? '0 2px 20px rgba(61,43,31,.1)' : 'none',
   }
 
-  const linkColor = scrolled ? 'var(--brown)' : 'rgba(255,255,255,.9)'
-  const logoColor = scrolled ? 'var(--gold)' : 'var(--gold-light)'
+  const linkColor = isSolidBg ? 'var(--brown)' : 'rgba(255,255,255,.9)'
+  const logoColor = isSolidBg ? 'var(--gold)' : 'var(--gold-light)'
 
   return (
     <>
@@ -45,7 +47,7 @@ export default function Navbar() {
           color: logoColor, letterSpacing: '.04em',
           transition: 'color .3s'
         }}>
-          DA<span style={{ fontStyle: 'italic', color: scrolled ? 'var(--brown-mid)' : 'rgba(255,255,255,.7)' }}>bana</span>
+          DA<span style={{ fontStyle: 'italic', color: isSolidBg ? 'var(--brown-mid)' : 'rgba(255,255,255,.7)' }}>bana</span>
         </Link>
 
         {/* Desktop links */}
@@ -75,7 +77,7 @@ export default function Navbar() {
               <Link to="/login">
                 <button style={{
                   background: 'transparent', color: linkColor,
-                  border: `1.5px solid ${scrolled ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                  border: `1.5px solid ${isSolidBg ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
                   padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
                   letterSpacing: '.08em', textTransform: 'uppercase', borderRadius: 2,
                   cursor: 'pointer', transition: 'all .2s'
@@ -96,7 +98,7 @@ export default function Navbar() {
                 <Link to="/my-bookings">
                   <button style={{
                     background: 'transparent', color: linkColor,
-                    border: `1.5px solid ${scrolled ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                    border: `1.5px solid ${isSolidBg ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
                     padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
                     letterSpacing: '.06em', textTransform: 'uppercase', borderRadius: 2,
                     cursor: 'pointer'
@@ -107,7 +109,7 @@ export default function Navbar() {
                 <Link to="/partner">
                   <button style={{
                     background: 'transparent', color: linkColor,
-                    border: `1.5px solid ${scrolled ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                    border: `1.5px solid ${isSolidBg ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
                     padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
                     letterSpacing: '.06em', textTransform: 'uppercase', borderRadius: 2,
                     cursor: 'pointer'
@@ -118,7 +120,7 @@ export default function Navbar() {
                 <Link to="/admin">
                   <button style={{
                     background: 'transparent', color: linkColor,
-                    border: `1.5px solid ${scrolled ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                    border: `1.5px solid ${isSolidBg ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
                     padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
                     letterSpacing: '.06em', textTransform: 'uppercase', borderRadius: 2,
                     cursor: 'pointer'
@@ -131,7 +133,7 @@ export default function Navbar() {
               <Link to="/change-password">
                 <button style={{
                   background: 'transparent', color: linkColor,
-                  border: `1.5px solid ${scrolled ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                  border: `1.5px solid ${isSolidBg ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
                   padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
                   letterSpacing: '.06em', textTransform: 'uppercase', borderRadius: 2,
                   cursor: 'pointer'
