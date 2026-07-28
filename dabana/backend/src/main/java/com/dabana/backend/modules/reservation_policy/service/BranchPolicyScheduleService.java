@@ -35,11 +35,11 @@ public class BranchPolicyScheduleService implements IBranchPolicyScheduleService
 
     @Override
     @Transactional
-    public BranchPolicyScheduleResponse create(Long branchId, Long policyId, CreateBranchPolicyScheduleRequest request) {
+    public BranchPolicyScheduleResponse create(Long branchId, Long branchPolicyId, CreateBranchPolicyScheduleRequest request) {
         branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
+        BranchPolicy branchPolicy = branchPolicyRepository.findById(branchPolicyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
         validateSchedule(branchPolicy.getPolicy().getScheduleType(), request);
@@ -61,11 +61,11 @@ public class BranchPolicyScheduleService implements IBranchPolicyScheduleService
 
     @Override
     @Transactional
-    public BranchPolicyScheduleResponse update(Long branchId, Long policyId, Long scheduleId, UpdateBranchPolicyScheduleRequest request) {
+    public BranchPolicyScheduleResponse update(Long branchId, Long branchPolicyId, Long scheduleId, UpdateBranchPolicyScheduleRequest request) {
         branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
+        BranchPolicy branchPolicy = branchPolicyRepository.findById(branchPolicyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
         BranchPolicySchedule entity = branchPolicyScheduleRepository.findByIdAndBranchPolicyId(scheduleId, branchPolicy.getId())
@@ -95,11 +95,11 @@ public class BranchPolicyScheduleService implements IBranchPolicyScheduleService
 
     @Override
     @Transactional
-    public void delete(Long branchId, Long policyId, Long scheduleId) {
+    public void delete(Long branchId, Long branchPolicyId, Long scheduleId) {
         branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
+        BranchPolicy branchPolicy = branchPolicyRepository.findById(branchPolicyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
         BranchPolicySchedule entity = branchPolicyScheduleRepository.findByIdAndBranchPolicyId(scheduleId, branchPolicy.getId())

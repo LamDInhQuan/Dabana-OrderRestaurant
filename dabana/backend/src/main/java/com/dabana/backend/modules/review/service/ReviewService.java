@@ -8,6 +8,7 @@ import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.review.Review;
 import com.dabana.backend.modules.review.ReviewRepository;
 import com.dabana.backend.modules.review.dto.request.CreateReviewRequest;
+import com.dabana.backend.modules.review.dto.request.ReplyReviewRequest;
 import com.dabana.backend.modules.review.dto.response.ReviewResponse;
 import com.dabana.backend.modules.review.mapper.ReviewMapper;
 import com.dabana.backend.modules.review.util.ReviewErrorCode;
@@ -39,18 +40,18 @@ public class ReviewService implements IReviewService {
         Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new BusinessException(ReviewErrorCode.BOOKING_NOT_FOUND));
 
-        // BR01: chi hoa don (don dat ban) da hoan tat (COMPLETED) moi duoc danh gia
+        // BR01: chỉ hóa đơn (đơn đặt bàn) đã hoàn tất (COMPLETED) mới được đánh giá
         if (booking.getStatus() != BookingStatus.COMPLETED) {
             throw new BusinessException(ReviewErrorCode.BOOKING_NOT_COMPLETED);
         }
 
-        // Chi chinh chu don moi duoc danh gia
+        // Chỉ chính chủ đơn mới được đánh giá
         if (!booking.getCustomer().getId().equals(currentUser.getId())) {
             throw new BusinessException(ReviewErrorCode.FORBIDDEN);
         }
 
-        // Moi don chi duoc danh gia 1 lan (rang buoc unique booking_id o tang DB cung
-        // da bao ve dieu nay, kiem tra som o day de tra loi loi ro rang hon cho FE).
+        // Mỗi đơn chỉ được đánh giá 1 lần (ràng buộc unique booking_id ở tầng DB cũng
+        // đã bảo vệ điều này, kiểm tra sớm ở đây để trả lời lỗi rõ ràng hơn cho FE).
         if (reviewRepository.findByBookingId(booking.getId()).isPresent()) {
             throw new BusinessException(ReviewErrorCode.ALREADY_REVIEWED);
         }
@@ -65,13 +66,30 @@ public class ReviewService implements IReviewService {
         review.setComment(request.getComment());
         review.setHidden(false);
 
+        // 🔥 TÍNH ĐIỂM TRUNG BÌNH TỔNG QUAN (Làm tròn hoặc ép kiểu int) ĐỂ TRÁNH LỖI NOT NULL TRONG DB
+        int calculatedRating = (request.getSpaceRating() + request.getServiceRating() + request.getFoodRating()) / 3;
+        review.setRating(calculatedRating);
+
         review = reviewRepository.save(review);
         return reviewMapper.toResponse(review);
     }
-
     @Override
     public Page<ReviewResponse> getByBranch(Long branchId, Pageable pageable) {
         return reviewRepository.findByBranchIdAndHiddenFalse(branchId, pageable)
                 .map(reviewMapper::toResponse);
     }
+    @Override
+    public ReviewResponse replyReview(Long reviewId, ReplyReviewRequest request, User currentUser) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new BusinessException(ReviewErrorCode.REVIEW_NOT_FOUND));
+
+        // Kiểm tra quyền: Đảm bảo user hiện tại là chủ nhà hàng hoặc nhân viên quản lý chi nhánh đó
+        // (Tùy thuộc vào phân quyền hệ thống của bạn)
+
+        review.setRestaurantReply(request.getReply());
+        Review updatedReview = reviewRepository.save(review);
+
+        return reviewMapper.toResponse(updatedReview);
+    }
+
 }

@@ -18,6 +18,7 @@ public class ReviewMapper {
                 .foodRating(review.getFoodRating())
                 .comment(review.getComment())
                 .hidden(review.getHidden())
+                .restaurantReply(review.getRestaurantReply())
                 .createdAt(review.getCreatedAt())
                 .customer(ReviewResponse.CustomerInfo.builder()
                         .id(review.getCustomer().getId())

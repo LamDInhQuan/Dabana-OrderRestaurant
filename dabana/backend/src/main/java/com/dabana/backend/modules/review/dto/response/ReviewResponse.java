@@ -24,6 +24,7 @@ public class ReviewResponse {
     private Boolean hidden;
     private LocalDateTime createdAt;
     private CustomerInfo customer;
+    private String restaurantReply ;
 
     @Data
     @Builder

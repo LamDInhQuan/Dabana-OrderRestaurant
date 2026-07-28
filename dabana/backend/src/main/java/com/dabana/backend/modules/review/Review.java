@@ -3,7 +3,6 @@ package com.dabana.backend.modules.review;
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.Booking;
-import com.dabana.backend.modules.branch.BranchOperatingStatus ;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
@@ -30,7 +29,7 @@ public class Review extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "branch_id", nullable = false)
-    private com.dabana.backend.modules.branch2.entity.Branch branch;
+    private Branch branch;
 
     @OneToOne
     @JoinColumn(name = "booking_id", nullable = false)
@@ -51,6 +50,15 @@ public class Review extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
+    @Column(columnDefinition = "TEXT")
+    private String content;         // Khớp với cột content trong DB
+
+    @Column(name = "restaurant_reply", columnDefinition = "TEXT")
+    private String restaurantReply; // Khớp với cột restaurant_reply trong DB (Dùng cho nhà hàng phản hồi)
+
+    @Column(nullable = false)
+    private Integer status = 1;     // Khớp với cột status trong DB (Mặc định = 1)
+
     /** F41: Quan tri vien kiem duyet, an danh gia ao/vi pham thay vi xoa cung. */
     @Column(nullable = false)
     private Boolean hidden = false;
@@ -58,4 +66,8 @@ public class Review extends BaseEntity {
     /** F41/F42: ly do bi an (khi quan tri vien kiem duyet) hoac bi bao cao. */
     @Column(length = 500)
     private String moderationNote;
+
+    @Min(1) @Max(5)
+    @Column(nullable = false)
+    private Integer rating;
 }

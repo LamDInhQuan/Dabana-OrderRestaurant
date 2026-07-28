@@ -51,6 +51,7 @@ public class BranchPolicyMapper {
                                 .policyCode(branchPolicy.getPolicy().getPolicyCode())
                                 .name(branchPolicy.getPolicy().getName())
                                 .description(branchPolicy.getPolicy().getDescription())
+                                .scheduleType(branchPolicy.getPolicy().getScheduleType())
                                 .build()
                 )
                 .depositRules(

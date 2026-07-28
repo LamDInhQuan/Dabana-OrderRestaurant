@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.reservation_policy.dto.response;
 
+import com.dabana.backend.modules.reservation_policy.util.PolicyScheduleType;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,5 +17,7 @@ public class ReservationPolicySummaryResponse {
     private String name;
 
     private String description;
+
+    private PolicyScheduleType scheduleType ;
 
 }

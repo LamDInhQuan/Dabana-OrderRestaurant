@@ -124,7 +124,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/waitlists/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER")
 
                         // B13: danh gia - khach hang
-                        .requestMatchers("POST", "/api/reviews/**").hasRole("CUSTOMER")
+                        .requestMatchers("POST", "/api/reviews/**").hasAnyRole("CUSTOMER","RESTAURANT_PARTNER")
 
                         // B14: ho so & lich su ca nhan - khach hang
                         .requestMatchers("/api/customers/me/**").hasRole("CUSTOMER")

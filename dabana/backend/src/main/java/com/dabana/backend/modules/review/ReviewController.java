@@ -6,6 +6,7 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.review.dto.request.CreateReviewRequest;
+import com.dabana.backend.modules.review.dto.request.ReplyReviewRequest;
 import com.dabana.backend.modules.review.dto.response.ReviewResponse;
 import com.dabana.backend.modules.review.service.IReviewService;
 import jakarta.validation.Valid;
@@ -49,5 +50,14 @@ public class ReviewController extends BaseController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
                 reviewService.getByBranch(branchId, pageable)));
+    }
+
+    @PostMapping("/{reviewId}/reply")
+    public ResponseEntity<ApiResponse<ReviewResponse>> replyReview(
+            @PathVariable Long reviewId,
+            @Valid @RequestBody ReplyReviewRequest request) {
+        User currentUser = getCurrentUser();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
+                reviewService.replyReview(reviewId, request, currentUser)));
     }
 }

@@ -5,6 +5,7 @@ import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.branch2.dto.request.BranchRequest;
+import com.dabana.backend.modules.branch2.dto.request.BranchUpdateRequest;
 import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
 
 import java.util.List;
@@ -18,4 +19,5 @@ public interface IBranchService {
     List<BranchResponse> findBranchesByManager(Long managerId) ;
 //    BranchResponse update(Long id, BranchResponse branch); // Hàm xử lý merge đè
     void delete(Long id);
+    BranchResponse update(Long id, BranchUpdateRequest branch);
 }

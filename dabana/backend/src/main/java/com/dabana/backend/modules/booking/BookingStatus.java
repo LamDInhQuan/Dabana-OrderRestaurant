@@ -14,5 +14,7 @@ public enum BookingStatus {
     COMPLETED,           // Hoan tat (B12 buoc 4-5)
     CANCELLED_BY_CUSTOMER,
     CANCELLED_BY_RESTAURANT,
-    EXPIRED              // Het thoi gian giu ban ma chua thanh toan (B01 EF04)
+    EXPIRED ,
+    REFUNDING,           // Đang trong tiến trình hoàn tiền (chờ cổng thanh toán xử lý)
+    REFUNDED             // Đã hoàn tiền thành công (hoặc gộp chung là CANCELLED nếu bạn muốn đơn giản)// Het thoi gian giu ban ma chua thanh toan (B01 EF04)
 }

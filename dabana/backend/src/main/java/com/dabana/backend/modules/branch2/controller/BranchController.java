@@ -12,6 +12,7 @@ import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
 import com.dabana.backend.modules.branch2.dto.request.BranchRequest;
+import com.dabana.backend.modules.branch2.dto.request.BranchUpdateRequest;
 import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.service.BranchService;
@@ -79,17 +80,16 @@ public class BranchController extends BaseController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, branchResponse));
     }
 
-//    // 4. CẬP NHẬT (MERGE ĐÈ HOÀN TOÀN)
-//    @PutMapping("/{id}")
-//    public ResponseEntity<BranchResponse> updateBranch(
-//            @PathVariable Long id,
-//            @Valid @RequestBody BranchRequest request) {
-//
-//        Branch newBranchData = convertToEntity(request);
-//        Branch updatedBranch = branchService.update(id, newBranchData);
-//        return ResponseEntity.ok(convertToResponse(updatedBranch));
-//    }
-//
+    // 4. CẬP NHẬT (MERGE ĐÈ HOÀN TOÀN)
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<BranchResponse>> updateBranch(
+            @PathVariable Long id,
+            @Valid @RequestBody BranchUpdateRequest request) {
+
+        BranchResponse branchResponse = branchService.update(id ,request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, branchResponse));
+    }
+
 //    // 5. XÓA CHI NHÁNH
 //    @DeleteMapping("/{id}")
 //    public ResponseEntity<Void> deleteBranch(@PathVariable Long id) {

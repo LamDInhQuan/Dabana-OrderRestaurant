@@ -10,18 +10,18 @@ public interface IBranchPolicyScheduleService {
 
     BranchPolicyScheduleResponse create(
             Long branchId,
-            Long policyId,
+            Long branchPolicyId,
             CreateBranchPolicyScheduleRequest request
     );
 
     BranchPolicyScheduleResponse update(
             Long branchId,
-            Long policyId,
+            Long branchPolicyId,
             Long scheduleId,
             UpdateBranchPolicyScheduleRequest request
     );
 
-    void delete(Long branchId, Long policyId, Long scheduleId);
+    void delete(Long branchId, Long branchPolicyId, Long scheduleId);
 
     BranchPolicyScheduleResponse getDetail(Long branchId, Long policyId, Long scheduleId);
 

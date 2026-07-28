@@ -37,6 +37,8 @@ import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
 import com.dabana.backend.modules.reservation_policy.util.DepositType;
+import com.dabana.backend.modules.review.ReviewRepository;
+import com.dabana.backend.modules.review.service.IReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -45,7 +47,10 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -70,7 +75,7 @@ public class BookingService implements IBookingService {
     private final UserRepository userRepository;
     private final BranchCancellationPolicyService branchCancellationPolicyService;
     private final IInvoiceService invoiceService;
-
+    private final ReviewRepository reviewRepository ;
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va
     // broadcast.
@@ -202,9 +207,17 @@ public class BookingService implements IBookingService {
         booking.setContactEmail(contactEmail);
         booking.setNote(req.getNote());
         // 6. Snapshot policy
-        BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
-        booking.setPolicySnapshot(
-                branchPolicy != null ? toPolicySnapShotDto(branchPolicy, cancellationPolicy) : new PolicySnapshotDto());
+// 6. Snapshot policy
+        PolicySnapshotDto policySnapshot = new PolicySnapshotDto();
+        try {
+            BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
+            if (branchPolicy != null) {
+                policySnapshot = toPolicySnapShotDto(branchPolicy, cancellationPolicy);
+            }
+        } catch (Exception e) {
+            // Ghi log cảnh báo nhưng vẫn cho phép tiếp tục tạo booking với snapshot rỗng
+        }
+        booking.setPolicySnapshot(policySnapshot);
         booking = bookingRepository.save(booking);
         // 7. Lưu bàn
         bookingTableService.saveBookingTables(booking, tables);
@@ -344,29 +357,52 @@ public class BookingService implements IBookingService {
     public List<BookingResponse> getMyBookings(User user) {
         // 1. Tìm tất cả các booking thuộc về user hiện tại
         List<Booking> bookings = bookingRepository.findByCustomerIdOrderByCreatedAtDesc(user.getId());
-        return bookings.stream()
-                .map(bookingMapper::toResponse)
-                .collect(Collectors.toList());
-    }
 
+        if (bookings.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Lấy danh sách các booking_id mà user này đã đánh giá (Chỉ 1 câu query duy nhất)
+        List<Long> reviewedBookingIds = reviewRepository.findReviewedBookingIdsByCustomerId(user.getId());
+        // Đưa vào Set để tối ưu hóa tốc độ kiểm tra (O(1) thay vì O(N))
+        Set<Long> reviewedSet = new HashSet<>(reviewedBookingIds);
+        // 3. Map sang BookingResponse và gán giá trị cho isReviewed
+        return bookings.stream().map(booking -> {
+            BookingResponse response = bookingMapper.toResponse(booking);
+            // Kiểm tra xem booking này đã có trong bảng review chưa
+            response.setIsReviewed(reviewedSet.contains(booking.getId()));
+            return response;
+        }).collect(Collectors.toList());
+    }
     @Override
     public BookingResponse getBookingDetail(Long bookingId, User user) {
-        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ
-        // ResourceNotFoundException
+        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ ResourceNotFoundException
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
+
         // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ
         if (user != null && !booking.getCustomer().getId().equals(user.getId())) {
             throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
         }
+
         // 3. Map dữ liệu sang BookingResponse DTO
         BookingResponse response = bookingMapper.toResponse(booking);
-        // 4. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt,
-        // remainSeconds, paymentAvailable)
+
+        // 4. Kiểm tra trạng thái đánh giá (isReviewed) cho riêng booking này
+        if (user != null) {
+            boolean isReviewed = reviewRepository.existsByBookingId(bookingId);
+            // Hoặc nếu bạn muốn tận dụng lại câu query tập hợp hoặc viết query check tồn tại, ví dụ:
+            // boolean isReviewed = reviewRepository.existsByBookingId(bookingId);
+            response.setIsReviewed(isReviewed);
+        } else {
+            response.setIsReviewed(false);
+        }
+
+        // 5. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
         if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn
-            // giữ bàn
+            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn giữ bàn
+
             if (expiresAt != null && expiresAt.isAfter(now)) {
                 // Tính số giây còn lại: holdExpiresAt - bây giờ
                 long remainSeconds = java.time.Duration.between(now, expiresAt).toSeconds();
@@ -380,9 +416,9 @@ public class BookingService implements IBookingService {
             response.setRemainSeconds(0L);
             response.setPaymentAvailable(false);
         }
+
         return response;
     }
-
     public List<BookingResponse> getBookingsByEmail(String email) {
         // Truy vấn DB lấy các booking theo email của khách
         var bookings = bookingRepository.findByContactEmailOrderByCreatedAtDesc(email);

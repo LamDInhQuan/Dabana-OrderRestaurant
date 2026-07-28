@@ -86,6 +86,7 @@ public class BookingDtos {
         private Boolean editable;
         private PolicySnapshotDto policySnapshotDto ;
         private LocalDateTime createdAt ;
+        private Boolean isReviewed ;
     }
 
     @Data
@@ -101,5 +102,8 @@ public class BookingDtos {
     public static class CancelRequest {
         private String reason;
         private Boolean cancelledByRestaurant = false; // B11 buoc 4 vs buoc 3
+        private String toBin;           // Mã BIN ngân hàng (VD: "970436" của Vietcombank)
+        private String toAccountNumber; // Số tài khoản nhận tiền
+        private String toAccountName;   // Tên chủ tài khoản
     }
 }
