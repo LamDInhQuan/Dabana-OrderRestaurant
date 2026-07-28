@@ -11,14 +11,15 @@ const DEFAULT_POLICY = {
 export default function PolicyForm({
   policy = DEFAULT_POLICY,
   isBranchMode = false, // Flag nhận diện nếu xem ở Chi nhánh
-  isReadOnly = false,   // 🟢 Bổ sung prop isReadOnly
+  isReadOnly = false,   // Bổ sung prop isReadOnly
   onChange,
   onSubmit,
   onCancel,
 }) {
+  // Chuẩn hóa p để tránh null
   const p = policy || DEFAULT_POLICY;
   
-  // 🟢 Khóa chỉnh sửa nếu là Branch Mode HOẶC là Read Only
+  // Khóa chỉnh sửa nếu là Branch Mode HOẶC là Read Only
   const isDisabled = isBranchMode || isReadOnly;
 
   const set = (patch) => !isDisabled && onChange && onChange({ ...p, ...patch });
@@ -52,7 +53,7 @@ export default function PolicyForm({
           <label style={S.label}>Mã chính sách</label>
           <input
             style={{ ...S.input, ...(isDisabled ? { background: "#F3F4F6", cursor: "not-allowed" } : {}) }}
-            value={p.policyCode || ""}
+            value={p.policyCode ?? ""}
             onChange={(e) => set({ policyCode: e.target.value })}
             disabled={isDisabled}
             required
@@ -65,7 +66,7 @@ export default function PolicyForm({
           <textarea
             rows={2}
             style={{ ...S.input, ...(isDisabled ? { background: "#F3F4F6", cursor: "not-allowed" } : {}) }}
-            value={p.name || p.policyName || ""}
+            value={p.name ?? p.policyName ?? ""} 
             onChange={(e) => set({ name: e.target.value })}
             disabled={isDisabled}
             required
@@ -129,7 +130,7 @@ export default function PolicyForm({
           <textarea
             rows={3}
             style={{ ...S.input, ...(isDisabled ? { background: "#F3F4F6", cursor: "not-allowed" } : {}) }}
-            value={p.termsAndConditions || p.terms || ""}
+            value={p.termsAndConditions ?? p.terms ?? ""} 
             onChange={(e) => set({ termsAndConditions: e.target.value })}
             disabled={isDisabled}
             placeholder="Điều khoản chi tiết hiển thị cho khách khi đặt bàn..."
