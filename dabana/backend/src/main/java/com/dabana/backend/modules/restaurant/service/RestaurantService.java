@@ -25,6 +25,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
 
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
 import com.dabana.backend.modules.booking.Booking;
@@ -41,6 +42,7 @@ import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
+import com.dabana.backend.modules.restaurant.RestaurantErrorCode;
 import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
 import com.dabana.backend.modules.restaurant.Dto.report.DetailExcelReport;
 import com.dabana.backend.modules.restaurant.Dto.report.PerDayReport;
@@ -71,6 +73,15 @@ public class RestaurantService {
 
         private final RestaurantMapper restaurantMapper;
         private final BookingMapper bookingMapper;
+        public List<RestaurantResponse> findAll() {
+                List<Restaurant> restaurants = restaurantRepos.findAll();
+                if (restaurants.isEmpty()) {
+                throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
+                }
+                return restaurants.stream()
+                        .map(restaurantMapper::toResponse)
+                        .toList();
+        }
 
         public RestaurantResponse findByOwnerId(Long ownerId) {
                 return restaurantMapper.toResponse(restaurantRepos.findByOwnerUserId(ownerId)
@@ -433,6 +444,9 @@ public Restaurant findByRestaurantName(String name) {
                 BigDecimal bd = new BigDecimal(d).setScale(2, RoundingMode.HALF_UP);
                 return bd.doubleValue();
         }
+
+
+ 
 
 
 }

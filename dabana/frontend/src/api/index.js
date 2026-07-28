@@ -217,6 +217,7 @@ export const subscriptionApi = {
 // ===== Restaurant brand API (B03) =====
 export const restaurantApi = {
   getMine: () => api.get('/restaurants/me'),
+  getAll: () => api.get('/restaurants/all'),
   register: (data) => api.post('/restaurants/me', data),
   update: (data) => api.put('/restaurants/me', data),
   // cancelPendingUpdate: () => api.post('/restaurants/cancel-pending-update'),
