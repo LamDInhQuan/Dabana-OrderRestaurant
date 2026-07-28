@@ -68,4 +68,12 @@ public class SubscriptionInvoice extends BaseEntity {
 
     @Column(name = "qr_code", columnDefinition = "TEXT")
     private String qrCode;
+
+    /**
+     * true neu day la hoa don RENEWAL nhung ap dung goi DA DAT LICH HA CAP
+     * (khong phai gia han binh thuong len dung gia goi cu) - chi de HIEN THI
+     * ro rang hon cho nha hang, khong anh huong logic tinh tien/ky han.
+     */
+    @Column(name = "is_downgrade_renewal", nullable = false)
+    private Boolean downgradeRenewal = false;
 }

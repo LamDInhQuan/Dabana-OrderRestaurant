@@ -105,6 +105,7 @@ public class SubscriptionBillingScheduler {
             invoice.setPeriodEnd(periodEnd);
             invoice.setDueDate(subscription.getCurrentPeriodEnd());
             invoice.setStatus(InvoiceStatus.PENDING);
+            invoice.setDowngradeRenewal(subscription.getPendingDowngradePlan() != null);
             invoice = invoiceRepository.save(invoice);
 
             // Tu dong tao link thanh toan ngay (khac voi INITIAL/UPGRADE - nha hang chu dong bam

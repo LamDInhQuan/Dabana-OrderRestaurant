@@ -41,6 +41,12 @@ const INVOICE_STATUS = {
 }
 const INVOICE_TYPE_LABEL = { INITIAL: 'Đăng ký lần đầu', RENEWAL: 'Gia hạn', UPGRADE: 'Nâng cấp' }
 
+/** Gia hạn nhưng áp dụng gói đã đặt lịch hạ cấp trước đó - ghi rõ để tránh nhầm là lỗi. */
+function labelInvoiceType(inv) {
+  if (inv.invoiceType === 'RENEWAL' && inv.downgradeRenewal) return 'Gia hạn (hạ cấp)'
+  return INVOICE_TYPE_LABEL[inv.invoiceType] || inv.invoiceType
+}
+
 function fmtVnd(n) {
   return Number(n || 0).toLocaleString('vi-VN') + ' đ'
 }
@@ -445,7 +451,7 @@ export default function BillingTab() {
               <tbody>
                 {invoices.map(inv => (
                   <tr key={inv.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td style={{ padding: '.6rem .5rem' }}>{INVOICE_TYPE_LABEL[inv.invoiceType] || inv.invoiceType}</td>
+                    <td style={{ padding: '.6rem .5rem' }}>{labelInvoiceType(inv)}</td>
                     <td style={{ padding: '.6rem .5rem' }}>{inv.planSnapshotName}</td>
                     <td style={{ padding: '.6rem .5rem', fontWeight: 600 }}>{fmtVnd(inv.amount)}</td>
                     <td style={{ padding: '.6rem .5rem', color: C.muted }}>{fmtDate(inv.periodStart)} → {fmtDate(inv.periodEnd)}</td>

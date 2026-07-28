@@ -6,6 +6,12 @@ import { subscriptionApi } from '../../api'
 const INVOICE_STATUS_LABEL = { PENDING: 'Chờ thanh toán', PAID: 'Đã thanh toán', OVERDUE: 'Quá hạn', CANCELLED: 'Đã hủy' }
 const INVOICE_STATUS_BADGE = { PENDING: 'badge-yellow', PAID: 'badge-green', OVERDUE: 'badge-red', CANCELLED: 'badge-gray' }
 const INVOICE_TYPE_LABEL = { INITIAL: 'Đăng ký lần đầu', RENEWAL: 'Gia hạn', UPGRADE: 'Nâng cấp' }
+
+/** Gia hạn nhưng áp dụng gói đã đặt lịch hạ cấp trước đó - ghi rõ để Admin không nhầm là lỗi. */
+function labelInvoiceType(inv) {
+  if (inv.invoiceType === 'RENEWAL' && inv.downgradeRenewal) return 'Gia hạn (hạ cấp)'
+  return INVOICE_TYPE_LABEL[inv.invoiceType] || inv.invoiceType
+}
 const SUB_STATUS_LABEL = {
   PENDING_PAYMENT: 'Chờ thanh toán lần đầu', ACTIVE: 'Đang hoạt động',
   PAST_DUE: 'Quá hạn - đang ân hạn', EXPIRED: 'Đã hết hạn', CANCELLED: 'Đã hủy',
@@ -45,7 +51,7 @@ export default function SubscriptionInvoiceApproval() {
 
   const confirmPaid = async (invoice) => {
     if (!window.confirm(
-      `Xác nhận ĐÃ NHẬN được ${fmtVnd(invoice.amount)} từ "${invoice.restaurantName}" cho hóa đơn ${INVOICE_TYPE_LABEL[invoice.invoiceType] || invoice.invoiceType} gói "${invoice.planSnapshotName}"?\n\n` +
+      `Xác nhận ĐÃ NHẬN được ${fmtVnd(invoice.amount)} từ "${invoice.restaurantName}" cho hóa đơn ${labelInvoiceType(invoice)} gói "${invoice.planSnapshotName}"?\n\n` +
       `Hành động này sẽ kích hoạt/gia hạn gói ngay lập tức và không thể hoàn tác.`
     )) return
 
@@ -103,7 +109,7 @@ export default function SubscriptionInvoiceApproval() {
                 ) : invoices.map(inv => (
                   <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '.6rem .5rem', fontWeight: 600 }}>{inv.restaurantName}</td>
-                    <td style={{ padding: '.6rem .5rem' }}>{INVOICE_TYPE_LABEL[inv.invoiceType] || inv.invoiceType}</td>
+                    <td style={{ padding: '.6rem .5rem' }}>{labelInvoiceType(inv)}</td>
                     <td style={{ padding: '.6rem .5rem' }}>{inv.planSnapshotName}</td>
                     <td style={{ padding: '.6rem .5rem', fontWeight: 600 }}>{fmtVnd(inv.amount)}</td>
                     <td style={{ padding: '.6rem .5rem', color: 'var(--text-muted)' }}>{fmtDate(inv.periodStart)} → {fmtDate(inv.periodEnd)}</td>

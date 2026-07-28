@@ -25,4 +25,6 @@ public class SubscriptionInvoiceResponse {
     private LocalDate dueDate;
     private InvoiceStatus status;
     private LocalDateTime paidAt;
+    /** true = day la hoa don gia han nhung ap dung goi da dat lich ha cap (khong phai gia han binh thuong). */
+    private Boolean downgradeRenewal;
 }
