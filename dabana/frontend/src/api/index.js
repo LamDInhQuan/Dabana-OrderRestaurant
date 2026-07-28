@@ -193,6 +193,8 @@ export const subscriptionApi = {
   cancelScheduledDowngrade: () => api.delete('/subscriptions/me/schedule-downgrade'),
   checkBranchLimit: () => api.get('/subscriptions/me/branch-limit-check'),
   listInvoices: () => api.get('/subscriptions/me/invoices'),
+  createInvoicePaymentLink: (invoiceId) => api.post(`/subscriptions/me/invoices/${invoiceId}/payment-link`),
+  getInvoicePaymentInfo: (invoiceId) => api.get(`/subscriptions/me/invoices/${invoiceId}/payment`),
 
   // Admin - CRUD gói
   adminListAllPlans: () => api.get('/admin/subscription-plans'),
@@ -204,6 +206,10 @@ export const subscriptionApi = {
     params: statuses?.length ? { status: statuses.join(',') } : undefined
   }),
   adminMarkInvoicePaid: (invoiceId) => api.post(`/admin/subscriptions/invoices/${invoiceId}/mark-paid`),
+
+  // Admin - cấu hình payOS cấp nền tảng cho thu phí subscription
+  adminGetPayosConfig: () => api.get('/admin/subscriptions/payos-config'),
+  adminSavePayosConfig: (data) => api.put('/admin/subscriptions/payos-config', data),
 }
 
 // ===== Restaurant brand API (B03) =====

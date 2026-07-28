@@ -11,6 +11,7 @@ import com.dabana.backend.modules.subscription.dto.request.ScheduleDowngradeRequ
 import com.dabana.backend.modules.subscription.dto.request.SubscribeInitialPlanRequest;
 import com.dabana.backend.modules.subscription.dto.request.UpgradePlanRequest;
 import com.dabana.backend.modules.subscription.dto.response.BranchLimitCheckResponse;
+import com.dabana.backend.modules.subscription.dto.response.InvoicePaymentInfoResponse;
 import com.dabana.backend.modules.subscription.dto.response.RestaurantSubscriptionResponse;
 import com.dabana.backend.modules.subscription.dto.response.SubscriptionInvoiceResponse;
 import com.dabana.backend.modules.subscription.service.ISubscriptionService;
@@ -98,6 +99,31 @@ public class RestaurantSubscriptionController extends BaseController {
         Long restaurantId = resolveCurrentRestaurantId();
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
                 subscriptionService.listInvoices(restaurantId)));
+    }
+
+    /**
+     * Tao link thanh toan payOS cho 1 hoa don cua chinh nha hang. Neu da co link
+     * con hieu luc, tra ve link CU (idempotent) - khop dung buoc "create-link"
+     * trong luong dat coc (paymentApi.createPaymentLink).
+     */
+    @PostMapping("/invoices/{invoiceId}/payment-link")
+    public ResponseEntity<ApiResponse<InvoicePaymentInfoResponse>> createPaymentLink(@PathVariable Long invoiceId) {
+        Long restaurantId = resolveCurrentRestaurantId();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED,
+                subscriptionService.createPaymentLinkForInvoice(restaurantId, invoiceId)));
+    }
+
+    /**
+     * Xem thong tin thanh toan hien tai (dong bo song voi payOS). Nem loi
+     * PAYMENT_LINK_NOT_FOUND neu hoa don chua tung tao link - FE catch loi nay
+     * va tu goi sang createPaymentLink, khop dung buoc "info" trong luong dat coc
+     * (paymentApi.getDetail tra 400 PAYMENT_NOT_FOUND khi chua co).
+     */
+    @GetMapping("/invoices/{invoiceId}/payment")
+    public ResponseEntity<ApiResponse<InvoicePaymentInfoResponse>> getPaymentInfo(@PathVariable Long invoiceId) {
+        Long restaurantId = resolveCurrentRestaurantId();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS,
+                subscriptionService.getPaymentInfo(restaurantId, invoiceId)));
     }
 
     private Long resolveCurrentRestaurantId() {

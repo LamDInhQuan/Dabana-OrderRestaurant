@@ -15,6 +15,7 @@ import com.dabana.backend.modules.subscription.repository.BranchSuspensionReposi
 import com.dabana.backend.modules.subscription.repository.RestaurantSubscriptionRepository;
 import com.dabana.backend.modules.subscription.repository.SubscriptionInvoiceRepository;
 import com.dabana.backend.modules.subscription.repository.SubscriptionPlanRepository;
+import com.dabana.backend.modules.subscription.service.ISubscriptionService;
 import com.dabana.backend.modules.subscription.util.BillingCycleUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +65,7 @@ public class SubscriptionBillingScheduler {
     private final BranchRepository branchRepository;
     private final BranchSuspensionRepository branchSuspensionRepository;
     private final NotificationService notificationService;
+    private final ISubscriptionService subscriptionService;
 
     @Scheduled(cron = "0 0 1 * * *")
     @Transactional
@@ -103,7 +105,17 @@ public class SubscriptionBillingScheduler {
             invoice.setPeriodEnd(periodEnd);
             invoice.setDueDate(subscription.getCurrentPeriodEnd());
             invoice.setStatus(InvoiceStatus.PENDING);
-            invoiceRepository.save(invoice);
+            invoice = invoiceRepository.save(invoice);
+
+            // Tu dong tao link thanh toan ngay (khac voi INITIAL/UPGRADE - nha hang chu dong bam
+            // dang ky/nang cap nen tao link ngay luc do; con RENEWAL phat sinh tu cron nen can co
+            // san link truoc de gui kem trong thong bao, khong bat nha hang phai vao app roi moi tao).
+            try {
+                subscriptionService.createPaymentLinkForInvoice(subscription.getRestaurant().getId(), invoice.getId());
+            } catch (Exception e) {
+                log.error("Khong the tu dong tao link thanh toan cho hoa don gia han invoiceId={}",
+                        invoice.getId(), e);
+            }
 
             notificationService.sendImmediate(
                     subscription.getRestaurant().getOwner(),

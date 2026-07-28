@@ -64,7 +64,7 @@ export default function SubscriptionInvoiceApproval() {
   return (
     <AdminLayout
       title="Xác nhận thanh toán phí nền tảng"
-      subtitle="Hệ thống chưa tích hợp cổng thanh toán online cho phí subscription — xác nhận thủ công sau khi nhận được chuyển khoản từ nhà hàng."
+      subtitle="Hóa đơn thường được tự động xác nhận qua webhook payOS. Dùng trang này để xác nhận thủ công khi webhook bị lỗi/chậm, hoặc khi nhà hàng chuyển khoản trực tiếp ngoài payOS."
     >
       <div className="flex gap-2" style={{ marginBottom: '1.5rem' }}>
         {FILTERS.map(f => (

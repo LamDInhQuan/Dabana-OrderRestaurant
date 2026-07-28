@@ -62,6 +62,34 @@ public enum SubscriptionErrorCode implements ErrorCode {
     INVOICE_ALREADY_CANCELLED(
             "SUB_203",
             "Hóa đơn này đã bị hủy, không thể xác nhận thanh toán."
+    ),
+    INVOICE_NOT_PAYABLE(
+            "SUB_204",
+            "Hóa đơn này không ở trạng thái chờ thanh toán."
+    ),
+
+    // ==========================
+    // payOS (thanh toán phí nền tảng)
+    // ==========================
+    PAYOS_CONFIG_MISSING(
+            "SUB_301",
+            "Nền tảng chưa cấu hình tài khoản payOS để thu phí. Vui lòng liên hệ quản trị viên."
+    ),
+    PAYOS_CREATE_PAYMENT_LINK_FAILED(
+            "SUB_302",
+            "Không thể tạo link thanh toán payOS."
+    ),
+    PAYOS_SYNC_PAYMENT_FAILED(
+            "SUB_303",
+            "Không thể đồng bộ trạng thái thanh toán từ payOS."
+    ),
+    PAYMENT_LINK_NOT_FOUND(
+            "SUB_304",
+            "Hóa đơn này chưa được tạo link thanh toán."
+    ),
+    WEBHOOK_SIGNATURE_INVALID(
+            "SUB_305",
+            "Chữ ký webhook không hợp lệ."
     );
 
     private final String code;

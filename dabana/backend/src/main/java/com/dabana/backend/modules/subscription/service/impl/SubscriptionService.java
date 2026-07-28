@@ -13,6 +13,7 @@ import com.dabana.backend.modules.subscription.dto.request.SubscribeInitialPlanR
 import com.dabana.backend.modules.subscription.dto.request.UpgradePlanRequest;
 import com.dabana.backend.modules.subscription.dto.response.AdminSubscriptionInvoiceResponse;
 import com.dabana.backend.modules.subscription.dto.response.BranchLimitCheckResponse;
+import com.dabana.backend.modules.subscription.dto.response.InvoicePaymentInfoResponse;
 import com.dabana.backend.modules.subscription.dto.response.RestaurantSubscriptionResponse;
 import com.dabana.backend.modules.subscription.dto.response.SubscriptionInvoiceResponse;
 import com.dabana.backend.modules.subscription.entity.BranchSuspension;
@@ -31,11 +32,19 @@ import com.dabana.backend.modules.subscription.repository.RestaurantSubscription
 import com.dabana.backend.modules.subscription.repository.SubscriptionInvoiceRepository;
 import com.dabana.backend.modules.subscription.repository.SubscriptionPlanRepository;
 import com.dabana.backend.modules.subscription.service.ISubscriptionService;
+import com.dabana.backend.modules.subscription.service.SubscriptionPayosClientProvider;
 import com.dabana.backend.modules.subscription.util.BillingCycleUtils;
 import com.dabana.backend.modules.subscription.util.SubscriptionErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.payos.PayOS;
+import vn.payos.exception.PayOSException;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,11 +53,15 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class SubscriptionService implements ISubscriptionService {
 
-    /** Trang thai duoc coi la "dang hieu luc" khi tim subscription hien tai cua 1 restaurant. */
-    private static final List<SubscriptionStatus> LIVE_STATUSES =
-            List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE);
+    /**
+     * Trang thai duoc coi la "dang hieu luc" khi tim subscription hien tai cua 1
+     * restaurant.
+     */
+    private static final List<SubscriptionStatus> LIVE_STATUSES = List.of(SubscriptionStatus.ACTIVE,
+            SubscriptionStatus.PAST_DUE);
 
     private final SubscriptionPlanRepository planRepository;
     private final RestaurantSubscriptionRepository subscriptionRepository;
@@ -58,9 +71,27 @@ public class SubscriptionService implements ISubscriptionService {
     private final RestaurantRepository restaurantRepository;
     private final BranchRepository branchRepository;
     private final NotificationService notificationService;
+    private final SubscriptionPayosClientProvider payosClientProvider;
 
     private final RestaurantSubscriptionMapper subscriptionMapper;
     private final SubscriptionInvoiceMapper invoiceMapper;
+
+    /**
+     * Mac dinh tro ve trang Billing cua FE, dung {invoiceId} de thay the.
+     * Nen override qua application.yml khi trien khai domain that:
+     * app:
+     * subscription:
+     * payment:
+     * return-url-template:
+     * https://dabana.dpdns.org/partner/billing?invoiceId={invoiceId}&status=success
+     * cancel-url-template:
+     * https://dabana.dpdns.org/partner/billing?invoiceId={invoiceId}&status=cancel
+     */
+    @Value("${app.subscription.payment.return-url-template:http://localhost:5173/partner/billing?invoiceId={invoiceId}&status=success}")
+    private String returnUrlTemplate;
+
+    @Value("${app.subscription.payment.cancel-url-template:http://localhost:5173/partner/billing?invoiceId={invoiceId}&status=cancel}")
+    private String cancelUrlTemplate;
 
     // ---------------------------------------------------------------------
     // Doc du lieu
@@ -83,8 +114,8 @@ public class SubscriptionService implements ISubscriptionService {
                     String message = allowed
                             ? "Còn được thêm chi nhánh"
                             : "Đã đạt giới hạn " + sub.getMaxBranchesSnapshot()
-                              + " chi nhánh của gói " + sub.getPlanNameSnapshot()
-                              + ". Vui lòng nâng cấp gói để thêm chi nhánh.";
+                                    + " chi nhánh của gói " + sub.getPlanNameSnapshot()
+                                    + ". Vui lòng nâng cấp gói để thêm chi nhánh.";
                     return BranchLimitCheckResponse.builder()
                             .allowed(allowed)
                             .currentBranchCount(currentCount)
@@ -127,6 +158,86 @@ public class SubscriptionService implements ISubscriptionService {
         return invoices.stream()
                 .map(invoiceMapper::toAdminResponse)
                 .toList();
+    }
+
+    // ---------------------------------------------------------------------
+    // payOS - tao link thanh toan / xem thong tin thanh toan
+    // ---------------------------------------------------------------------
+
+    @Override
+    public InvoicePaymentInfoResponse createPaymentLinkForInvoice(Long restaurantId, Long invoiceId) {
+        SubscriptionInvoice invoice = getOwnedInvoiceOrThrow(restaurantId, invoiceId);
+
+        if (invoice.getStatus() != InvoiceStatus.PENDING && invoice.getStatus() != InvoiceStatus.OVERDUE) {
+            throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_PAYABLE);
+        }
+
+        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai (orderCode
+        // = invoiceId,
+        // khong the doi, goi create() lan 2 voi cung orderCode co the bi payOS tu
+        // choi).
+        if (invoice.getCheckoutUrl() != null) {
+            return toPaymentInfoResponse(invoice, null);
+        }
+
+        PayOS client = payosClientProvider.getClient();
+        Long orderCode = invoice.getId();
+        String description = "TT - " + invoice.getPlanSnapshotName();
+        String returnUrl = returnUrlTemplate.replace("{invoiceId}", String.valueOf(invoiceId));
+        String cancelUrl = cancelUrlTemplate.replace("{invoiceId}", String.valueOf(invoiceId));
+
+        CreatePaymentLinkRequest payload = CreatePaymentLinkRequest.builder()
+                .orderCode(orderCode)
+                .amount(invoice.getAmount().longValue())
+                .description(description)
+                .returnUrl(returnUrl)
+                .cancelUrl(cancelUrl)
+                .build();
+
+        CreatePaymentLinkResponse payosResponse;
+        try {
+            payosResponse = client.paymentRequests().create(payload);
+        } catch (PayOSException e) {
+            log.error("Tao link thanh toan payOS that bai cho invoiceId={}", invoiceId, e);
+            throw new BusinessException(SubscriptionErrorCode.PAYOS_CREATE_PAYMENT_LINK_FAILED);
+        }
+
+        invoice.setCheckoutUrl(payosResponse.getCheckoutUrl());
+        invoice.setQrCode(payosResponse.getQrCode());
+        invoiceRepository.save(invoice);
+
+        return toPaymentInfoResponse(invoice, null);
+    }
+
+    @Override
+    @Transactional
+    public InvoicePaymentInfoResponse getPaymentInfo(Long restaurantId, Long invoiceId) {
+        SubscriptionInvoice invoice = getOwnedInvoiceOrThrow(restaurantId, invoiceId);
+
+        if (invoice.getCheckoutUrl() == null) {
+            throw new BusinessException(SubscriptionErrorCode.PAYMENT_LINK_NOT_FOUND);
+        }
+
+        PaymentLink liveInfo;
+        try {
+            liveInfo = payosClientProvider.getClient().paymentRequests().get(invoice.getId());
+        } catch (PayOSException e) {
+            log.error("Dong bo thong tin thanh toan tu payOS that bai cho invoiceId={}", invoiceId, e);
+            throw new BusinessException(SubscriptionErrorCode.PAYOS_SYNC_PAYMENT_FAILED);
+        }
+
+        // Luoi an toan: neu payOS bao da PAID nhung webhook chua kip xu ly (cham
+        // tre/loi mang) thi
+        // chu dong kich hoat luon o day, tranh nha hang thay "da thanh toan" tren payOS
+        // ma he thong
+        // Dabana van hien PENDING.
+        if ("PAID".equalsIgnoreCase(String.valueOf(liveInfo.getStatus()))
+                && (invoice.getStatus() == InvoiceStatus.PENDING || invoice.getStatus() == InvoiceStatus.OVERDUE)) {
+            markInvoicePaidManually(invoiceId);
+            invoice = invoiceRepository.findById(invoiceId).orElse(invoice);
+        }
+
+        return toPaymentInfoResponse(invoice, liveInfo);
     }
 
     // ---------------------------------------------------------------------
@@ -195,7 +306,8 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.INVALID_PLAN_CHANGE);
         }
 
-        // Khong doi snapshot ngay - chi ap dung vao ky gia han tiep theo (xem scheduler).
+        // Khong doi snapshot ngay - chi ap dung vao ky gia han tiep theo (xem
+        // scheduler).
         subscription.setPendingDowngradePlan(targetPlan);
         return subscriptionMapper.toResponse(subscriptionRepository.save(subscription));
     }
@@ -236,7 +348,8 @@ public class SubscriptionService implements ISubscriptionService {
         subscription.setPlanNameSnapshot(invoice.getPlanSnapshotName());
         subscription.setPriceSnapshot(invoice.getAmount());
         subscription.setMaxBranchesSnapshot(invoice.getMaxBranchesSnapshot());
-        // billingCycleSnapshot khong luu rieng trong hoa don - lay tu Plan tuong ung de dam bao nhat quan.
+        // billingCycleSnapshot khong luu rieng trong hoa don - lay tu Plan tuong ung de
+        // dam bao nhat quan.
         subscription.setBillingCycleSnapshot(invoice.getPlan().getBillingCycle());
         subscription.setCurrentPeriodStart(invoice.getPeriodStart());
         subscription.setCurrentPeriodEnd(invoice.getPeriodEnd());
@@ -270,6 +383,54 @@ public class SubscriptionService implements ISubscriptionService {
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
     }
 
+    /**
+     * Tim hoa don theo id VA xac minh dung la thuoc ve restaurant nay (khong lo
+     * IDOR).
+     */
+    private SubscriptionInvoice getOwnedInvoiceOrThrow(Long restaurantId, Long invoiceId) {
+        SubscriptionInvoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.INVOICE_NOT_FOUND));
+        if (!invoice.getSubscription().getRestaurant().getId().equals(restaurantId)) {
+            // Co tinh KHONG dung ma loi rieng "khong co quyen" - tra ve y het loi "khong
+            // tim thay"
+            // de khong lo cho ke tan cong biet invoiceId nay co ton tai hay khong (giong
+            // thong le IDOR).
+            throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_FOUND);
+        }
+        return invoice;
+    }
+
+    /**
+     * @param liveInfo null neu chi vua tao link (chua can goi song payOS lay lai
+     *                 ngay).
+     *
+     *                 LUU Y: gia dinh
+     *                 PaymentLink.getAmountPaid()/getAmountRemaining() tra ve kieu
+     *                 Long
+     *                 (nullable, giong cach DepositPaymentService da ghi chu san).
+     *                 Neu ban doi chieu
+     *                 javadoc.io/doc/vn.payos/payos-java thay day la kieu long
+     *                 (primitive) thi bo dieu
+     *                 kien "!= null" va goi BigDecimal.valueOf(...) truc tiep.
+     */
+    private InvoicePaymentInfoResponse toPaymentInfoResponse(SubscriptionInvoice invoice, PaymentLink liveInfo) {
+        return InvoicePaymentInfoResponse.builder()
+                .invoiceId(invoice.getId())
+                .orderCode(invoice.getId())
+                .amount(invoice.getAmount())
+                .amountPaid(liveInfo != null && liveInfo.getAmountPaid() != null
+                        ? java.math.BigDecimal.valueOf(liveInfo.getAmountPaid())
+                        : null)
+                .amountRemaining(liveInfo != null && liveInfo.getAmountRemaining() != null
+                        ? java.math.BigDecimal.valueOf(liveInfo.getAmountRemaining())
+                        : null)
+                .payosStatus(liveInfo != null ? String.valueOf(liveInfo.getStatus()) : null)
+                .checkoutUrl(invoice.getCheckoutUrl())
+                .qrCode(invoice.getQrCode())
+                .invoiceStatus(invoice.getStatus())
+                .build();
+    }
+
     private SubscriptionPlan getActivePlanOrThrow(Long planId) {
         SubscriptionPlan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.PLAN_NOT_FOUND));
@@ -280,7 +441,7 @@ public class SubscriptionService implements ISubscriptionService {
     }
 
     private SubscriptionInvoice buildInvoice(RestaurantSubscription subscription, SubscriptionPlan plan,
-                                              InvoiceType type, LocalDate periodStart, LocalDate periodEnd) {
+            InvoiceType type, LocalDate periodStart, LocalDate periodEnd) {
         SubscriptionInvoice invoice = new SubscriptionInvoice();
         invoice.setSubscription(subscription);
         invoice.setPlan(plan);
@@ -297,8 +458,10 @@ public class SubscriptionService implements ISubscriptionService {
 
     /**
      * Khoi phuc chi nhanh da bi tam ngung do thieu phi, theo thu tu NGUOC LAI
-     * (chi nhanh bi ngung SAU CUNG duoc khoi phuc TRUOC), cho den khi dat han muc moi.
-     * Chi goi tu markInvoicePaidManually khi subscription vua chuyen tu EXPIRED sang ACTIVE.
+     * (chi nhanh bi ngung SAU CUNG duoc khoi phuc TRUOC), cho den khi dat han muc
+     * moi.
+     * Chi goi tu markInvoicePaidManually khi subscription vua chuyen tu EXPIRED
+     * sang ACTIVE.
      */
     private void restoreBranchesUpToLimit(RestaurantSubscription subscription) {
         Long restaurantId = subscription.getRestaurant().getId();
