@@ -55,7 +55,7 @@ const formatDateRangeDisplay = (dateFrom, dateTo) => {
   return `${d1}/${m1}/${y1} - ${d2}/${m2}/${y2}`;
 };
 
-// Custom Time Select Component
+// Custom Time Select Component (Đã sửa logic ánh xạ 12h / 24h chính xác)
 function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disabled = false }) {
   const parseVal = (valStr) => {
     if (!valStr) return { hour: "", minute: "00", session: "SA" };
@@ -66,15 +66,21 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disable
     let session = "SA";
     let h12 = hNum;
 
-    if (hNum >= 18) {
-      session = "TOI";
-      h12 = hNum === 18 ? 6 : hNum - 12;
-    } else if (hNum >= 12) {
-      session = "CHIEU";
-      h12 = hNum === 12 ? 12 : hNum - 12;
-    } else {
+    if (hNum === 0) {
+      h12 = 12;
       session = "SA";
-      h12 = hNum === 0 ? 12 : hNum;
+    } else if (hNum === 12) {
+      h12 = 12;
+      session = "CHIEU";
+    } else if (hNum > 12 && hNum < 18) {
+      h12 = hNum - 12;
+      session = "CHIEU";
+    } else if (hNum >= 18) {
+      h12 = hNum - 12;
+      session = "TOI";
+    } else {
+      h12 = hNum;
+      session = "SA";
     }
 
     return {
@@ -93,7 +99,9 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disable
 
     if (sStr === "SA") {
       if (h === 12) h = 0;
-    } else if (sStr === "CHIEU" || sStr === "TOI") {
+    } else if (sStr === "CHIEU") {
+      if (h < 12) h += 12; // 12h chiều giữ nguyên 12, từ 1-11 cộng 12 thành 13-23
+    } else if (sStr === "TOI") {
       if (h < 12) h += 12;
     }
 
@@ -164,8 +172,10 @@ function PolicyDateSchedules({
   scheduleType = "ALWAYS",
   schedules = [],
   onRefresh,
-  readOnly = false, // 👈 Thêm prop readOnly ở đây (mặc định = false)
+  readOnly = false,
 }) {
+  console.log("scheduleType", scheduleType);
+
   const [items, setItems] = useState(schedules);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -186,7 +196,6 @@ function PolicyDateSchedules({
   const isAlwaysFull = scheduleType === "ALWAYS" && items.length >= 1;
   const shouldHideForm = readOnly || (!isEditing && isAlwaysFull);
 
-  // Group theo Năm nếu là DATE_RANGE
   const groupedSchedules = useMemo(() => {
     if (scheduleType !== "DATE_RANGE") return null;
 
@@ -265,14 +274,23 @@ function PolicyDateSchedules({
       }
     }
 
+    // ✅ ĐOẠN CODE MỚI (CHUẨN XÁC THEO SỐ PHÚT)
     if ((form.timeFrom && !form.timeTo) || (!form.timeFrom && form.timeTo)) {
       toast.error("Vui lòng chọn đầy đủ cả Giờ mở và Giờ đóng");
       return;
     }
 
-    if (form.timeFrom && form.timeTo && form.timeFrom >= form.timeTo) {
-      toast.error("Giờ mở phải nhỏ hơn giờ đóng");
-      return;
+    if (form.timeFrom && form.timeTo) {
+      const [hFrom, mFrom] = form.timeFrom.split(":").map(Number);
+      const [hTo, mTo] = form.timeTo.split(":").map(Number);
+
+      const totalMinutesFrom = hFrom * 60 + mFrom;
+      const totalMinutesTo = hTo * 60 + mTo;
+
+      if (totalMinutesFrom >= totalMinutesTo) {
+        toast.error("Giờ mở phải nhỏ hơn giờ đóng");
+        return;
+      }
     }
 
     const payload = {
@@ -359,7 +377,6 @@ function PolicyDateSchedules({
             {s.status === "ACTIVE" ? "Đang bật" : "Tắt"}
           </span>
 
-          {/* CHỈ HIỂN THỊ NÚT KHI KHÔNG PHẢI READONLY */}
           {!readOnly && (
             <>
               <button type="button" onClick={() => handleEditClick(s)} style={ui.editBtn}>
@@ -392,7 +409,6 @@ function PolicyDateSchedules({
         </div>
       </header>
 
-      {/* RENDER DỮ LIỆU */}
       {items.length === 0 ? (
         <div style={ui.emptyState}>Chưa có lịch nào được thiết lập.</div>
       ) : scheduleType === "DATE_RANGE" ? (
@@ -412,7 +428,6 @@ function PolicyDateSchedules({
         </div>
       )}
 
-      {/* FORM NHẬP LỊCH - CHỈ RENDER KHI KHÔNG PHẢI READONLY VÀ CHƯA ĐẦY */}
       {!readOnly && (
         <>
           {shouldHideForm ? (
@@ -520,7 +535,6 @@ function PolicyDateSchedules({
         </>
       )}
 
-      {/* MODAL XÁC NHẬN XÓA */}
       {!readOnly && deleteId && (
         <div style={ui.modalOverlay}>
           <div style={ui.modalCard}>

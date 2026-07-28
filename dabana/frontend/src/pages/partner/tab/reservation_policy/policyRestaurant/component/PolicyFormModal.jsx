@@ -20,28 +20,24 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
     policyScheduleType: "ALWAYS",
   });
 
-  // 🟢 State quản lý thông báo thành công
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (initialData) {
       setFormData({
         ...initialData,
-        policyScheduleType: initialData.policyScheduleType || "ALWAYS",
+        policyScheduleType: initialData.scheduleType || "ALWAYS",
       });
     }
   }, [initialData]);
-
+  console.log("formdata",formData);
+  
   const handleSubmitForm = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (onSave) {
       try {
-        await onSave(formData); // Gọi hàm lưu từ component cha (hỗ trợ cả hàm async)
-        
-        // 🟢 Hiển thị thông báo thành công thay vì alert
+        await onSave(formData);
         setSuccessMessage("Lưu chính sách thành công!");
-        
-        // Tự động ẩn thông báo sau 3 giây
         setTimeout(() => {
           setSuccessMessage("");
         }, 3000);
@@ -51,11 +47,27 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
     }
   };
 
+  // Kiểm tra xem đang ở chế độ chỉnh sửa (đã có ID) hay tạo mới
+  const isEditing = Boolean(formData?.id);
+
+  const handleScheduleTypeChange = (newType) => {
+    if (isEditing) {
+      // 🟢 Cảnh báo khi cố tình thay đổi loại lịch của chính sách đã tồn tại
+      const confirmChange = window.confirm(
+        "⚠️ CẢNH BÁO QUAN TRỌNG:\n\n" +
+        "Thay đổi loại lịch áp dụng sẽ làm ảnh hưởng và có thể xóa/làm lại toàn bộ các thiết lập lịch và quy tắc cọc hiện tại của các chi nhánh đang áp dụng chính sách này.\n\n" +
+        "Bạn có chắc chắn muốn đổi không? Nếu cần thiết, hãy xóa chính sách cũ và tạo mới từ đầu."
+      );
+      if (!confirmChange) return;
+    }
+    setFormData({ ...formData, policyScheduleType: newType });
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
       <div style={{ background: "#fff", width: "80%", maxWidth: "1000px", maxHeight: "90vh", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
 
-        {/* 🟢 Banner Thông báo thành công (Toast/Alert tùy biến) */}
+        {/* Banner Thông báo thành công */}
         {successMessage && (
           <div style={{
             position: "absolute",
@@ -80,7 +92,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
         {/* Modal Header */}
         <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid #ECE4D3", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ margin: 0 }}>
-            {formData?.id ? `Chỉnh sửa: ${formData.name || ""}` : "Tạo mới chính sách khung"}
+            {isEditing ? `Chỉnh sửa: ${formData.name || ""}` : "Tạo mới chính sách khung"}
           </h3>
           <button onClick={onClose} style={{ border: "none", background: "none", fontSize: "1.5rem", cursor: "pointer" }}>✕</button>
         </div>
@@ -94,16 +106,16 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
             1. Thông tin chung
           </button>
           <button
-            disabled={!formData?.id}
+            disabled={!isEditing}
             onClick={() => setActiveTab("schedule")}
-            style={{ padding: ".8rem 1.2rem", border: "none", background: "none", borderBottom: activeTab === "schedule" ? "2px solid #C9A24B" : "none", fontWeight: activeTab === "schedule" ? "bold" : "normal", cursor: "pointer", opacity: !formData?.id ? 0.5 : 1 }}
+            style={{ padding: ".8rem 1.2rem", border: "none", background: "none", borderBottom: activeTab === "schedule" ? "2px solid #C9A24B" : "none", fontWeight: activeTab === "schedule" ? "bold" : "normal", cursor: "pointer", opacity: !isEditing ? 0.5 : 1 }}
           >
             2. Lịch áp dụng
           </button>
           <button
-            disabled={!formData?.id}
+            disabled={!isEditing}
             onClick={() => setActiveTab("rules")}
-            style={{ padding: ".8rem 1.2rem", border: "none", background: "none", borderBottom: activeTab === "rules" ? "2px solid #C9A24B" : "none", fontWeight: activeTab === "rules" ? "bold" : "normal", cursor: "pointer", opacity: !formData?.id ? 0.5 : 1 }}
+            style={{ padding: ".8rem 1.2rem", border: "none", background: "none", borderBottom: activeTab === "rules" ? "2px solid #C9A24B" : "none", fontWeight: activeTab === "rules" ? "bold" : "normal", cursor: "pointer", opacity: !isEditing ? 0.5 : 1 }}
           >
             3. Quy tắc cọc
           </button>
@@ -118,14 +130,23 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
               {activeTab === "general" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                   
-                  {/* Khu vực chọn Loại lịch */}
-                  <div style={{ padding: "1rem", border: "1px solid #ECE4D3", borderRadius: 8, background: "#FCFAF6" }}>
-                    <label style={{ display: "block", fontWeight: 600, marginBottom: ".5rem", color: "#1F2937" }}>
-                      📅 Loại lịch áp dụng
-                    </label>
+                  {/* Khu vực chọn Loại lịch (Khóa khi sửa, cho chọn khi tạo) */}
+                  <div style={{ padding: "1rem", border: "1px solid #ECE4D3", borderRadius: 8, background: isEditing ? "#F3F4F6" : "#FCFAF6" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".5rem" }}>
+                      <label style={{ fontWeight: 600, color: "#1F2937" }}>
+                        📅 Loại lịch áp dụng {isEditing && "🔒"}
+                      </label>
+                      {isEditing && (
+                        <span style={{ fontSize: "0.75rem", color: "#B45309", background: "#FEF3C7", padding: "0.2rem 0.5rem", borderRadius: 4, fontWeight: 500 }}>
+                          Không thể thay đổi khi đang sửa (Cần xóa đi tạo mới nếu muốn đổi loại)
+                        </span>
+                      )}
+                    </div>
+
                     <select
-                      value={formData.policyScheduleType ?? "ALWAYS"}
-                      onChange={(e) => setFormData({ ...formData, policyScheduleType: e.target.value })}
+                      value={formData.scheduleType ?? "ALWAYS"}
+                      disabled={isEditing} // 🟢 Khóa chọn nếu đang ở chế độ chỉnh sửa
+                      onChange={(e) => handleScheduleTypeChange(e.target.value)}
                       style={{
                         width: "100%",
                         padding: ".6rem .8rem",
@@ -133,7 +154,8 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
                         border: "1px solid #D1D5DB",
                         outline: "none",
                         fontSize: ".95rem",
-                        background: "#fff"
+                        background: isEditing ? "#E5E7EB" : "#fff",
+                        cursor: isEditing ? "not-allowed" : "pointer"
                       }}
                     >
                       {SCHEDULE_TYPE_OPTIONS.map((opt) => (
@@ -159,7 +181,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
                   restaurantId={formData?.restaurantId}
                   policyId={formData?.id}
                   schedules={formData?.schedules || []}
-                  scheduleType={formData?.policyScheduleType} 
+                  scheduleType={formData?.scheduleType} 
                   onRefresh={onRefresh}
                 />
               )} 
