@@ -335,94 +335,140 @@ export default function BookingFlow() {
   }
 
   const goBack = () => setStep(s => Math.max(0, s - 1))
-
+  const coverImage = branch?.branchImageDtos?.find(img => img.isCover === 1)?.imageUrl
+    || branch?.branchImageDtos?.[0]?.imageUrl
+    || null;
   return (
-    <>
-      <Navbar />
-      <div className="page-container page-with-navbar" style={{ padding: '1.5rem 1rem 6rem', maxWidth: 760 }}>
-        <h1 style={{ fontWeight: 700, fontSize: '1.4rem', marginBottom: '.35rem' }}>
-          Đặt bàn tại {branch?.name || '...'}
-        </h1>
-        {branch?.address && (
-          <p style={{ color: 'var(--text-muted)', fontSize: '.85rem', marginBottom: '1.25rem' }}>📍 {branch.address}</p>
-        )}
+    <div style={{ position: 'relative', minHeight: '100vh', backgroundColor: '#faf9f6' }}>
 
-        {confirmedBooking ? (
-          <BookingSuccess
-            booking={confirmedBooking}
-            branchId={id}
-            zones={zones}
-            onGoToBookings={() => navigate('/my-bookings')}
-            onGoHome={() => navigate('/')}
-          />
-        ) : (
-          <>
-            <StepIndicator step={step} />
+      {/* 1. BANNER ẢNH BÌA CỐ ĐỊNH TRÙM TOÀN MÀN HÌNH (FIXED BACKGROUND) */}
+      {/* 1. BANNER ẢNH BÌA CỐ ĐỊNH TRÙM TOÀN MÀN HÌNH (SÁNG RÕ VÀ SẮC NÉT) */}
+      {coverImage && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}>
+          {/* Giữ nguyên độ sáng cao (0.85) và giảm blur xuống (8px) để nhìn rõ hoa văn, hình ảnh của banner */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${coverImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(8px) brightness(0.85)',
+            transform: 'scale(1.1)',
+          }} />
+          {/* Lớp phủ cực mỏng để tách biệt chữ với ảnh nền, hoàn toàn không bị đục */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(250, 249, 246, 0.25)'
+          }} />
+        </div>
+      )}
 
-            {step === 0 && (
-              <StepTimeAndTable
-                date={date} setDate={setDate}
-                timeSlot={timeSlot} setTimeSlot={setTimeSlot}
-                slotGroups={slotGroups} isClosedThatDay={isClosedThatDay}
-                usingFallbackHours={slotsError}
-                guestCount={guestCount} setGuestCount={setGuestCount}
-                method={method} setMethod={setMethod}
-                zones={zones} zonesLoading={zonesLoading}
-                activeZoneId={activeZoneId} setActiveZoneId={setActiveZoneId}
-                tableAvailability={tableAvailability} tablesLoading={tablesLoading}
-                selectedTables={selectedTables} onToggleTable={toggleSelectTable}
-                onSubmit={goToContactStep}
-                policy={policy} policyLoading={policyLoading}
-              />
+      {/* 2. NAVBAR VÀ NỘI DUNG CHÍNH NẰM TRÊN CÙNG */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <Navbar />
+
+        <div className="page-container page-with-navbar" style={{ padding: '1.5rem 1rem 6rem', maxWidth: 760 }}>
+          {/* Tiêu đề hoặc thông tin chi nhánh */}
+          <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 600, color: 'var(--brand)' }}>
+              ✦ Hệ thống đặt bàn trực tuyến
+            </span>
+            <h1 style={{ fontWeight: 800, fontSize: '1.8rem', marginBottom: '.35rem', color: '#111827' }}>
+              Đặt bàn tại {branch?.name || '...'}
+            </h1>
+            {branch?.address && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}>📍 {branch.address}</p>
             )}
+          </div>
 
-            {step === 1 && (
-              <StepContact
-                contactName={contactName} setContactName={setContactName}
-                contactPhone={contactPhone} setContactPhone={setContactPhone}
-                note={note} setNote={setNote}
-                onBack={goBack} onSubmit={goToMenuStep}
-                date={date} timeSlot={timeSlot} guestCount={guestCount}
-                method={method} selectedTables={selectedTables}
-                activeZoneId={activeZoneId} setActiveZoneId={setActiveZoneId} zones={zones}
-                tableAvailability={tableAvailability} tablesLoading={tablesLoading}
-                contactEmail={contactEmail}
-                setContactEmail={setContactEmail}
-                otpCode={otpCode}
-                setOtpCode={setOtpCode}
-                onSendOtp={handleSendOtp}
-                isGuest={!auth}
-              />
-            )}
+          {confirmedBooking ? (
+            <BookingSuccess
+              booking={confirmedBooking}
+              branchId={id}
+              zones={zones}
+              onGoToBookings={() => navigate('/my-bookings')}
+              onGoHome={() => navigate('/')}
+            />
+          ) : (
+            <>
+              <StepIndicator step={step} />
 
-            {step === 2 && (
-              <StepMenu
-                categories={categories} menuLoading={menuLoading}
-                activeCategory={activeCategory} setActiveCategory={setActiveCategory}
-                cart={cart} toggleCart={toggleCart} preOrderTotal={preOrderTotal} itemsInCart={itemsInCart}
-                onBack={goBack} onSubmit={goToConfirmStep}
-              />
-            )}
+              {step === 0 && (
+                <StepTimeAndTable
+                  date={date} setDate={setDate}
+                  timeSlot={timeSlot} setTimeSlot={setTimeSlot}
+                  slotGroups={slotGroups} isClosedThatDay={isClosedThatDay}
+                  usingFallbackHours={slotsError}
+                  guestCount={guestCount} setGuestCount={setGuestCount}
+                  method={method} setMethod={setMethod}
+                  zones={zones} zonesLoading={zonesLoading}
+                  activeZoneId={activeZoneId} setActiveZoneId={setActiveZoneId}
+                  tableAvailability={tableAvailability} tablesLoading={tablesLoading}
+                  selectedTables={selectedTables} onToggleTable={toggleSelectTable}
+                  onSubmit={goToContactStep}
+                  policy={policy} policyLoading={policyLoading}
+                />
+              )}
 
-            {step === 3 && (
-              <StepConfirm
-                date={date} timeSlot={timeSlot} guestCount={guestCount}
-                method={method} selectedTables={selectedTables}
-                contactName={contactName} contactPhone={contactPhone} note={note}
-                allMenuItems={allMenuItems} cart={cart} itemsInCart={itemsInCart} preOrderTotal={preOrderTotal}
-                policy={policy} zones={zones}
-                loading={loading}
-                depositAmount={depositAmount}
-                onBack={goBack} onSubmit={confirm}
-              />
-            )}
-          </>
-        )}
+              {step === 1 && (
+                <StepContact
+                  contactName={contactName} setContactName={setContactName}
+                  contactPhone={contactPhone} setContactPhone={setContactPhone}
+                  note={note} setNote={setNote}
+                  onBack={goBack} onSubmit={goToMenuStep}
+                  date={date} timeSlot={timeSlot} guestCount={guestCount}
+                  method={method} selectedTables={selectedTables}
+                  activeZoneId={activeZoneId} setActiveZoneId={setActiveZoneId} zones={zones}
+                  tableAvailability={tableAvailability} tablesLoading={tablesLoading}
+                  contactEmail={contactEmail}
+                  setContactEmail={setContactEmail}
+                  otpCode={otpCode}
+                  setOtpCode={setOtpCode}
+                  onSendOtp={handleSendOtp}
+                  isGuest={!auth}
+                />
+              )}
+
+              {step === 2 && (
+                <StepMenu
+                  categories={categories} menuLoading={menuLoading}
+                  activeCategory={activeCategory} setActiveCategory={setActiveCategory}
+                  cart={cart} toggleCart={toggleCart} preOrderTotal={preOrderTotal} itemsInCart={itemsInCart}
+                  onBack={goBack} onSubmit={goToConfirmStep}
+                />
+              )}
+
+              {step === 3 && (
+                <StepConfirm
+                  date={date} timeSlot={timeSlot} guestCount={guestCount}
+                  method={method} selectedTables={selectedTables}
+                  contactName={contactName} contactPhone={contactPhone} note={note}
+                  allMenuItems={allMenuItems} cart={cart} itemsInCart={itemsInCart} preOrderTotal={preOrderTotal}
+                  policy={policy} zones={zones}
+                  loading={loading}
+                  depositAmount={depositAmount}
+                  onBack={goBack} onSubmit={confirm}
+                />
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   )
 }
-
 function StepIndicator({ step }) {
   return (
     <div className="flex items-center gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -1502,6 +1548,7 @@ function BookingSuccess({ booking, branchId, zones, onGoToBookings, onGoHome }) 
         </div>
       </div>
     </div>
+
   )
 }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
-import { reservationPolicyApi } from "../../../../../api";
+// Import cả 2 api service để phân tách logic chi nhánh và template
+import { reservationPolicyApi, branchPolicyApi } from "../../../../../api";
 
 const EMPTY_FORM = {
   id: null,
@@ -55,7 +56,7 @@ const formatDateRangeDisplay = (dateFrom, dateTo) => {
   return `${d1}/${m1}/${y1} - ${d2}/${m2}/${y2}`;
 };
 
-// Custom Time Select Component (Đã sửa logic ánh xạ 12h / 24h chính xác)
+// Custom Time Select Component (Đã fix lỗi chuẩn hóa mốc 12h)
 function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disabled = false }) {
   const parseVal = (valStr) => {
     if (!valStr) return { hour: "", minute: "00", session: "SA" };
@@ -69,18 +70,18 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disable
     if (hNum === 0) {
       h12 = 12;
       session = "SA";
+    } else if (hNum > 0 && hNum < 12) {
+      h12 = hNum;
+      session = "SA";
     } else if (hNum === 12) {
       h12 = 12;
       session = "CHIEU";
     } else if (hNum > 12 && hNum < 18) {
       h12 = hNum - 12;
       session = "CHIEU";
-    } else if (hNum >= 18) {
+    } else {
       h12 = hNum - 12;
       session = "TOI";
-    } else {
-      h12 = hNum;
-      session = "SA";
     }
 
     return {
@@ -96,18 +97,22 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disable
       return;
     }
     let h = parseInt(h12Str, 10);
+    const m = parseInt(mStr || "0", 10);
 
     if (sStr === "SA") {
       if (h === 12) h = 0;
     } else if (sStr === "CHIEU") {
-      if (h < 12) h += 12; // 12h chiều giữ nguyên 12, từ 1-11 cộng 12 thành 13-23
+      if (h !== 12) h += 12;
     } else if (sStr === "TOI") {
-      if (h < 12) h += 12;
+      if (h !== 12) h += 12;
+      else h = 0;
     }
 
     const formattedH = String(h).padStart(2, "0");
-    const formattedM = String(mStr || "00").padStart(2, "0");
-    onChange(`${formattedH}:${formattedM}`);
+    const formattedM = String(m).padStart(2, "0");
+    const finalTimeString = `${formattedH}:${formattedM}`;
+
+    onChange(finalTimeString);
   };
 
   const { hour, minute, session } = parseVal(value);
@@ -168,14 +173,14 @@ function CustomTimeSelect({ value, onChange, placeholder = "Cả ngày", disable
 // MAIN COMPONENT
 function PolicyDateSchedules({
   restaurantId,
+  branchId,
+  isBranchMode = false,
   policyId,
   scheduleType = "ALWAYS",
   schedules = [],
   onRefresh,
   readOnly = false,
 }) {
-  console.log("scheduleType", scheduleType);
-
   const [items, setItems] = useState(schedules);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -274,7 +279,6 @@ function PolicyDateSchedules({
       }
     }
 
-    // ✅ ĐOẠN CODE MỚI (CHUẨN XÁC THEO SỐ PHÚT)
     if ((form.timeFrom && !form.timeTo) || (!form.timeFrom && form.timeTo)) {
       toast.error("Vui lòng chọn đầy đủ cả Giờ mở và Giờ đóng");
       return;
@@ -287,6 +291,7 @@ function PolicyDateSchedules({
       const totalMinutesFrom = hFrom * 60 + mFrom;
       const totalMinutesTo = hTo * 60 + mTo;
 
+      // Nếu hệ thống cho phép qua đêm, có thể đổi logic ở đây tương tự hướng dẫn trước
       if (totalMinutesFrom >= totalMinutesTo) {
         toast.error("Giờ mở phải nhỏ hơn giờ đóng");
         return;
@@ -304,12 +309,24 @@ function PolicyDateSchedules({
 
     try {
       setSaving(true);
-      if (isEditing) {
-        await reservationPolicyApi.updateSchedule(restaurantId, policyId, form.id, payload);
-        toast.success("Đã cập nhật lịch áp dụng");
+
+      // PHÂN TÁCH API CALL: BRANCH VS TEMPLATE
+      if (isBranchMode) {
+        if (isEditing) {
+          await branchPolicyApi.updateSchedule(branchId, policyId, form.id, payload);
+          toast.success("Đã cập nhật lịch áp dụng chi nhánh");
+        } else {
+          await branchPolicyApi.createSchedule(branchId, policyId, payload);
+          toast.success("Đã thêm lịch áp dụng chi nhánh");
+        }
       } else {
-        await reservationPolicyApi.createSchedule(restaurantId, policyId, payload);
-        toast.success("Đã thêm lịch áp dụng");
+        if (isEditing) {
+          await reservationPolicyApi.updateSchedule(restaurantId, policyId, form.id, payload);
+          toast.success("Đã cập nhật lịch áp dụng");
+        } else {
+          await reservationPolicyApi.createSchedule(restaurantId, policyId, payload);
+          toast.success("Đã thêm lịch áp dụng");
+        }
       }
 
       handleResetForm();
@@ -327,7 +344,14 @@ function PolicyDateSchedules({
 
     try {
       setDeleting(true);
-      await reservationPolicyApi.deleteSchedule(restaurantId, policyId, deleteId);
+
+      // PHÂN TÁCH API XÓA: BRANCH VS TEMPLATE
+      if (isBranchMode) {
+        await branchPolicyApi.deleteSchedule(restaurantId, branchId, policyId, deleteId);
+      } else {
+        await reservationPolicyApi.deleteSchedule(restaurantId, policyId, deleteId);
+      }
+
       toast.success("Đã xoá lịch áp dụng");
       if (form.id === deleteId) handleResetForm();
       if (onRefresh) await onRefresh();
@@ -451,8 +475,12 @@ function PolicyDateSchedules({
                     <label style={ui.label}>Chọn Thứ *</label>
                     <select
                       value={form.dayOfWeek}
+                      disabled={isEditing} // <-- KHÓA LẠI KHI ĐANG SỬA
                       onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: e.target.value }))}
-                      style={ui.input}
+                      style={{
+                        ...ui.input,
+                        ...(isEditing ? { backgroundColor: "#F3F4F6", cursor: "not-allowed", color: "#6B7280" } : {})
+                      }}
                     >
                       <option value="">-- Chọn Thứ --</option>
                       {availableDayOptions.map((opt) => (
@@ -462,6 +490,38 @@ function PolicyDateSchedules({
                       ))}
                     </select>
                   </div>
+                )}
+
+                {scheduleType === "DATE_RANGE" && (
+                  <>
+                    <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
+                      <label style={ui.label}>Từ ngày *</label>
+                      <input
+                        type="date"
+                        value={form.dateFrom}
+                        disabled={isEditing} // <-- KHÓA LẠI KHI ĐANG SỬA
+                        onChange={(e) => setForm((f) => ({ ...f, dateFrom: e.target.value }))}
+                        style={{
+                          ...ui.input,
+                          ...(isEditing ? { backgroundColor: "#F3F4F6", cursor: "not-allowed", color: "#6B7280" } : {})
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
+                      <label style={ui.label}>Đến ngày *</label>
+                      <input
+                        type="date"
+                        value={form.dateTo}
+                        disabled={isEditing} // <-- KHÓA LẠI KHI ĐANG SỬA
+                        onChange={(e) => setForm((f) => ({ ...f, dateTo: e.target.value }))}
+                        style={{
+                          ...ui.input,
+                          ...(isEditing ? { backgroundColor: "#F3F4F6", cursor: "not-allowed", color: "#6B7280" } : {})
+                        }}
+                      />
+                    </div>
+                  </>
                 )}
 
                 {scheduleType === "DATE_RANGE" && (

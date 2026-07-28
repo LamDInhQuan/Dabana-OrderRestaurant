@@ -18,7 +18,7 @@ export default function PolicyFormWithExtras({
 }) {
   const [activeTab, setActiveTab] = useState("general"); // 'general' | 'schedule' | 'rules'
   const [loading, setLoading] = useState(false);
-
+  
   if (!policy) return null;
 
   // Fallback lấy thông tin policy chuẩn
@@ -213,10 +213,12 @@ export default function PolicyFormWithExtras({
                 />
               )}
 
-              {/* Tab 2: Lịch áp dụng */}
+              {/* Tab 2: Lịch áp dụng - Truyền thêm branchId và isBranchMode */}
               {activeTab === "schedule" && (
                 <PolicyDateSchedules
                   restaurantId={restaurantId}
+                  branchId={branchId}
+                  isBranchMode={isBranchMode}
                   policyId={targetPolicyId}
                   scheduleType={scheduleType}
                   schedules={dateSchedules}
@@ -225,10 +227,12 @@ export default function PolicyFormWithExtras({
                 />
               )}
 
-              {/* Tab 3: Quy tắc đặt cọc */}
+              {/* Tab 3: Quy tắc đặt cọc - Truyền thêm branchId và isBranchMode */}
               {activeTab === "rules" && (
                 <PolicyDepositRules
                   restaurantId={restaurantId}
+                  branchId={branchId}
+                  isBranchMode={isBranchMode}
                   policyId={targetPolicyId}
                   rules={depositRules}
                   onRefresh={onRefresh}

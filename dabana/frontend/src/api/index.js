@@ -79,7 +79,7 @@ export const branchApi = {
   getById: (id) => api.get(`/branchs/${id}`),
   getMyList: () => api.get('/branchs/me'),
   create: (data) => api.post('/branchs', data),
-  update: (id, d) => api.put(`/branchs/me/${id}`, d),
+  update: (id, d) => api.put(`/branchs/${id}`, d),
   getByRestaurant: (restaurantId) => api.get(`/branchs/by-restaurant/${restaurantId}`)
 }
 
@@ -172,7 +172,8 @@ export const waitlistApi = {
 // ===== Review API (B13) =====
 export const reviewApi = {
   create: (data) => api.post('/reviews', data),
-  getByBranch: (bid, p) => api.get(`/reviews/branch/${bid}`, { params: p }),
+  getByBranch: (bid, p) => api.get(`/reviews/branch/${bid}`, { params: p }), 
+  reply: (reviewId, data) => api.post(`/reviews/${reviewId}/reply`, data),
 }
 
 // ===== Notification API (B09) =====
@@ -423,7 +424,8 @@ export const paymentApi = {
   getStatus: (bookingId) => api.get(`/api/v1/payment/${bookingId}/status`),
 
   // 🌟 ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
-  mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`)
+  mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`),
+  refund: (bookingId, data) => api.post(`/payment/${bookingId}/cancel-refund`, data),
 };
 
 export const branchCancellationPolicyApi = {

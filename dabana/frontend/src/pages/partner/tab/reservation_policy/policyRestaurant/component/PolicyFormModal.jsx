@@ -192,6 +192,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
                   restaurantId={formData?.restaurantId} 
                   rules={formData?.depositRules || []}
                   onRefresh={onRefresh}
+                  isBranchMode={false}
                 />
               )}
             </>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import toast from "react-hot-toast";
-import { reservationPolicyApi } from "../../../../../api";
+import { branchPolicyApi, reservationPolicyApi } from "../../../../../api";
 
 const EMPTY_RULE = {
   id: null,
@@ -40,9 +40,16 @@ const fmtGuestRange = (r) => {
   return "Mọi số lượng khách";
 };
 
-function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh, readOnly = false }) {
-  console.log("readOnly",readOnly);
-  
+function PolicyDepositRules({
+  restaurantId,
+  branchId,              // Thêm branchId
+  isBranchMode = false,  // Thêm cờ phân biệt chế độ Chi nhánh hay Template
+  policyId,
+  rules = [],
+  onRefresh,
+  readOnly = false }) {
+  console.log("isBranchMode", isBranchMode);
+
   const [form, setForm] = useState(EMPTY_RULE);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -119,18 +126,23 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh, rea
         preorderDepositPercent: form.preorderDepositPercent !== "" ? Number(form.preorderDepositPercent) : null,
       };
 
-      if (isEditing) {
-        // Gọi API cập nhật
-        if (typeof reservationPolicyApi.updateDepositRule === "function") {
-          await reservationPolicyApi.updateDepositRule(restaurantId, policyId, form.id, payload);
+      // Phân tách API call theo chế độ Chi nhánh hay Template giống như PolicyDateSchedules
+      if (isBranchMode) {
+        if (isEditing) {
+          await branchPolicyApi.updateDepositRule(branchId, policyId, form.id, payload);
+          toast.success("Đã cập nhật quy tắc cọc chi nhánh!");
         } else {
-          await reservationPolicyApi.updateRule(restaurantId, policyId, form.id, payload);
+          await branchPolicyApi.createDepositRule(branchId, policyId, payload);
+          toast.success("Đã thêm quy tắc cọc chi nhánh!");
         }
-        toast.success("Cập nhật quy tắc cọc thành công!");
       } else {
-        // Gọi API thêm mới
-        await reservationPolicyApi.createDepositRule(restaurantId, policyId, payload);
-        toast.success("Thêm quy tắc đặt cọc thành công!");
+        if (isEditing) {
+          await reservationPolicyApi.updateDepositRule(restaurantId, policyId, form.id, payload);
+          toast.success("Cập nhật quy tắc cọc thành công!");
+        } else {
+          await reservationPolicyApi.createDepositRule(restaurantId, policyId, payload);
+          toast.success("Thêm quy tắc đặt cọc thành công!");
+        }
       }
 
       setForm(EMPTY_RULE);
@@ -155,17 +167,15 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh, rea
     try {
       setIsDeleting(true);
 
-      if (typeof reservationPolicyApi.deleteDepositRule === "function") {
-        await reservationPolicyApi.deleteDepositRule(restaurantId, policyId, deletingId);
-      } else if (typeof reservationPolicyApi.removeDepositRule === "function") {
-        await reservationPolicyApi.removeDepositRule(restaurantId, policyId, deletingId);
+      // Phân tách API call khi xóa theo chế độ Chi nhánh hay Template
+      if (isBranchMode) {
+        await branchPolicyApi.deleteDepositRule(branchId, policyId, deletingId);
+        toast.success("Đã xoá quy tắc cọc chi nhánh thành công!");
       } else {
-        await reservationPolicyApi.deleteRule(restaurantId, policyId, deletingId);
+        await reservationPolicyApi.deleteDepositRule(restaurantId, policyId, deletingId);
+        toast.success("Đã xoá quy tắc thành công!");
       }
 
-      toast.success("Đã xoá quy tắc thành công!");
-
-      // Nếu đang mở đúng id xóa trên form thì reset form
       if (form.id === deletingId) {
         setForm(EMPTY_RULE);
       }
@@ -456,8 +466,8 @@ function PolicyDepositRules({ restaurantId, policyId, rules = [], onRefresh, rea
               {saving
                 ? "Đang lưu..."
                 : isEditing
-                ? "Lưu thay đổi"
-                : "+ Thêm quy tắc này"}
+                  ? "Lưu thay đổi"
+                  : "+ Thêm quy tắc này"}
             </button>
           </div>
         </form>

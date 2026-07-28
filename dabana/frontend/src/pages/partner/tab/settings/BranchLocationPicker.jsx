@@ -208,16 +208,16 @@ export function BranchLocationPicker({ value, onChange }) {
         <div style={
           isExpanded
             ? {
-                position: "fixed",
-                inset: "20px",
-                zIndex: 99999,
-                background: "#fff",
-                borderRadius: 8,
-                boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
-                display: "flex",
-                flexDirection: "column",
-                padding: "10px",
-              }
+              position: "fixed",
+              inset: "20px",
+              zIndex: 99999,
+              background: "#fff",
+              borderRadius: 8,
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
+              display: "flex",
+              flexDirection: "column",
+              padding: "10px",
+            }
             : { position: "relative", width: "100%" }
         }>
           {isExpanded && (
@@ -261,8 +261,105 @@ export function BranchLocationPicker({ value, onChange }) {
     </div>
   );
 }
+// ─── Component Quản lý danh sách ảnh chi nhánh ───────────────────
+function BranchImageManager({ images = [], onChange }) {
+  const [urlInput, setUrlInput] = useState("");
 
+  const handleAddImage = () => {
+    if (!urlInput.trim()) return;
+    const newImage = {
+      id: null,
+      imageUrl: urlInput.trim(),
+      // Nếu là ảnh đầu tiên thì mặc định làm ảnh bìa (isCover = 1), còn lại là 0
+      isCover: images.length === 0 ? 1 : 0,
+      displayOrder: images.length + 1,
+    };
+    onChange([...images, newImage]);
+    setUrlInput("");
+  };
+
+  const handleRemove = (index) => {
+    const updated = images.filter((_, i) => i !== index);
+    // Tự động sắp xếp lại displayOrder và đảm bảo luôn có ít nhất 1 ảnh làm cover nếu còn ảnh
+    const reordered = updated.map((img, i) => ({
+      ...img,
+      displayOrder: i + 1,
+      isCover: i === 0 ? 1 : 0 // Lấy ảnh đầu tiên làm cover mặc định nếu xóa ảnh cũ
+    }));
+    onChange(reordered);
+  };
+
+  const handleSetCover = (index) => {
+    const updated = images.map((img, i) => ({
+      ...img,
+      isCover: i === index ? 1 : 0 // Đổi cờ isCover cho đúng ảnh được chọn
+    }));
+    onChange(updated);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <label style={S.label}>Hình ảnh chi nhánh & Banner</label>
+
+      {/* Input thêm URL ảnh */}
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <input
+          style={{ ...S.input, flex: 1 }}
+          placeholder="Dán đường dẫn URL hình ảnh vào đây..."
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddImage(); } }}
+        />
+        <button type="button" onClick={handleAddImage} style={S.btnGold}>
+          + Thêm ảnh
+        </button>
+      </div>
+
+      {/* Danh sách ảnh đã thêm */}
+      {images.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "200px", overflowY: "auto", paddingRight: "4px" }}>
+          {images.map((img, index) => (
+            <div key={index} style={{
+              display: "flex", alignItems: "center", gap: "0.75rem",
+              background: C.bg, padding: "8px", borderRadius: 6, border: `1px solid ${C.border}`
+            }}>
+              {/* Xem trước ảnh nhỏ */}
+              <img src={img.imageUrl} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.border}` }}
+                onError={(e) => { e.target.src = "https://via.placeholder.com/40?text=Lỗi"; }} />
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: ".8rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#333" }}>
+                  {img.imageUrl}
+                </div>
+                <div style={{ fontSize: ".72rem", color: C.muted }}>
+                  Thứ tự: #{img.displayOrder} {img.isCover === 1 ? "• ⭐ Ảnh Bìa (Banner)" : ""}
+                </div>
+              </div>
+
+              {/* Nút chọn làm Cover */}
+              {img.isCover !== 1 && (
+                <button type="button" onClick={() => handleSetCover(index)} style={{ ...S.btnOut, fontSize: ".75rem", padding: "4px 8px" }}>
+                  Đặt làm bìa
+                </button>
+              )}
+
+              {/* Nút xóa */}
+              <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize: ".75rem", color: C.muted, fontStyle: "italic", margin: 0 }}>
+          Chưa có hình ảnh nào được thêm. (Khuyến nghị thêm ít nhất 1 ảnh làm banner chi nhánh).
+        </p>
+      )}
+    </div>
+  );
+}
 // ─── Modal Thêm Chi Nhánh (Cấu trúc Layout Chuẩn) ───────────────
+// ─── Modal Thêm Chi Nhánh (Đã tích hợp quản lý List Ảnh) ───────────────
 export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch, newBranchForm, setNewBranchForm, creatingBranch }) {
   if (!newBranchModal) return null;
 
@@ -272,8 +369,8 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
       display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem"
     }}>
       <div style={{
-        background: C.white, borderRadius: 8, width: "100%", maxWidth: 580,
-        maxHeight: "85vh", // Giới hạn chiều cao Modal
+        background: C.white, borderRadius: 8, width: "100%", maxWidth: 620,
+        maxHeight: "90vh", // Giới hạn chiều cao Modal
         display: "flex", flexDirection: "column", overflow: "hidden",
         boxShadow: "0 10px 30px rgba(0,0,0,.3)"
       }}>
@@ -285,8 +382,8 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
         {/* 2. Body LƯỚT ĐƯỢC (overflowY: auto) */}
         <form onSubmit={createBranch} style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto", flex: 1 }}>
           <div>
-            <label style={S.label}>Tên chi nhánh *</label>
-            <input style={S.input} value={newBranchForm.name} required
+            <label style={S.label}>Tên chi nhánh * (Tối đa 150 ký tự)</label>
+            <input style={S.input} value={newBranchForm.name} required maxLength={150}
               onChange={e => setNewBranchForm(p => ({ ...p, name: e.target.value }))} />
           </div>
 
@@ -299,14 +396,24 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
               <label style={S.label}>Tỉnh/Thành phố</label>
-              <input style={S.input} value={newBranchForm.province || ""}
+              <input style={S.input} value={newBranchForm.province || ""} maxLength={100}
                 onChange={e => setNewBranchForm(p => ({ ...p, province: e.target.value }))} />
             </div>
             <div>
               <label style={S.label}>Số điện thoại</label>
-              <input style={S.input} value={newBranchForm.phone || ""}
+              <input style={S.input} value={newBranchForm.phone || ""} maxLength={20}
                 onChange={e => setNewBranchForm(p => ({ ...p, phone: e.target.value }))} />
             </div>
+          </div>
+
+          {/* Component Quản lý danh sách ảnh & cấu hình Banner chuẩn DTO */}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1rem" }}>
+            <BranchImageManager
+              images={newBranchForm.branchImages || []}
+              onChange={(updatedImages) =>
+                setNewBranchForm(p => ({ ...p, branchImages: updatedImages }))
+              }
+            />
           </div>
 
           {/* Component Bản đồ độc lập 100% width */}
