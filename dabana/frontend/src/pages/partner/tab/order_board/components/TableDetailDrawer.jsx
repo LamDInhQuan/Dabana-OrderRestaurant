@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { bookingApi, tableApi, extraOrderApi, preorderItemApi } from '../../../../../api'
 import { TABLE_STATUS_META, DEFAULT_TABLE_STATUS_META, BOOKING_STATUS_LABEL, formatMoney, formatTime } from './statusMeta'
 import MenuPickerModal from './MenuPickerModal'
+import PaymentConfirmModal from './PaymentConfirmModal'
 
 const MANUAL_STATUS_OPTIONS = [
   { status: 1, label: 'Trống' },
@@ -19,6 +20,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
   const [walkInGuestCount, setWalkInGuestCount] = useState(1)
   const [creatingWalkIn, setCreatingWalkIn] = useState(false)
   const [menuPickerOpen, setMenuPickerOpen] = useState(false)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
   const booking = table?.activeBooking || null
   const orders = table?.orders || []
@@ -139,20 +141,14 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
     }
   }
 
-  const handleCheckOut = async () => {
-    if (!window.confirm(`Xác nhận thanh toán & check-out ${table.tableName}?`)) return
+  const handleOpenPayment = () => setPaymentModalOpen(true)
+
+  const handlePaymentConfirmed = () => {
     printInvoice()
-    setChecking(true)
-    try {
-      await bookingApi.checkOut(booking.bookingId)
-      toast.success('Đã check-out, bàn chuyển sang Dọn dẹp')
-      onChanged?.()
-      onClose?.()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Check-out thất bại')
-    } finally {
-      setChecking(false)
-    }
+    setPaymentModalOpen(false)
+    toast.success('Đã thanh toán & check-out, bàn chuyển sang Dọn dẹp')
+    onChanged?.()
+    onClose?.()
   }
 
   const handleChangeStatus = async (status) => {
@@ -451,8 +447,8 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
               </button>
             )}
             {canCheckOut && (
-              <button className="btn-primary" style={{ width: '100%' }} disabled={checking} onClick={handleCheckOut}>
-                {checking ? 'Đang xử lý...' : `🚪 Thanh toán & Check-out · ${formatMoney(table.estimatedTotal)}`}
+              <button className="btn-primary" style={{ width: '100%' }} disabled={checking} onClick={handleOpenPayment}>
+                {`🚪 Thanh toán & Check-out · ${formatMoney(table.estimatedTotal)}`}
               </button>
             )}
           </div>
@@ -466,6 +462,14 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
       tableName={table.tableName}
       onClose={() => setMenuPickerOpen(false)}
       onConfirm={handleConfirmAddItems}
+    />
+
+    <PaymentConfirmModal
+      open={paymentModalOpen}
+      bookingId={booking?.bookingId}
+      tableName={table.tableName}
+      onClose={() => setPaymentModalOpen(false)}
+      onConfirmed={handlePaymentConfirmed}
     />
     </>
   )

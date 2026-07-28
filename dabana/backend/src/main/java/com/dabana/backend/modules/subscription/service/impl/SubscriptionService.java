@@ -48,6 +48,7 @@ import vn.payos.model.v2.paymentRequests.PaymentLink;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -363,7 +364,17 @@ public class SubscriptionService implements ISubscriptionService {
         // Doi soat lai han muc chi nhanh SAU MOI lan xac nhan thanh toan (khong chi rieng truong hop
         // EXPIRED) - vi ha cap xuong goi co han muc thap hon so chi nhanh dang co CUNG can xu ly y het,
         // chu khong chi mien "vua het han quay lai".
-        reconcileBranchLimitAfterPlanChange(subscription);
+        //
+        // QUAN TRONG: boc try-catch rieng o day - day la tinh nang PHU (tam ngung/khoi phuc chi nhanh),
+        // TUYET DOI khong duoc de loi o day lam rollback mat luon viec xac nhan thanh toan (INVOICE da
+        // PAID, subscription da ACTIVE o tren) - neu loi thi log lai de xu ly thu cong sau, khong throw.
+        try {
+            reconcileBranchLimitAfterPlanChange(subscription);
+        } catch (Exception e) {
+            log.error("Doi soat han muc chi nhanh that bai sau khi xac nhan thanh toan invoiceId={} "
+                    + "(thanh toan VAN DA duoc ghi nhan thanh cong, chi phan tam ngung/khoi phuc chi nhanh "
+                    + "can kiem tra thu cong)", invoice.getId(), e);
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -484,9 +495,13 @@ public class SubscriptionService implements ISubscriptionService {
         }
 
         // ---- Chieu 2: neu VAN CON vuot han muc (truong hop ha cap) - tam ngung bot ----
+        // Dung Comparator.nullsFirst de tranh NPE neu co branch nao bi thieu createdAt (du hiem,
+        // vi du du lieu cu tao truoc khi bat JPA Auditing) - branch thieu createdAt se bi coi la
+        // "cu nhat", uu tien GIU LAI thay vi tam ngung nham.
         List<Branch> stillActiveBranches = branchRepository.findByRestaurantId(restaurantId).stream()
                 .filter(b -> !BranchStatus.SUSPENDED.getStatus().equals(b.getStatus()))
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())) // moi tao truoc
+                .sorted(Comparator.comparing(Branch::getCreatedAt,
+                        Comparator.nullsFirst(Comparator.naturalOrder())).reversed())
                 .toList();
 
         long overLimitCount = stillActiveBranches.size() - maxBranches;

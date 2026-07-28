@@ -13,6 +13,8 @@ import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
 import com.dabana.backend.modules.booking.service.BookingService;
+import com.dabana.backend.modules.invoice.dto.request.ConfirmCheckoutRequest;
+import com.dabana.backend.modules.invoice.dto.response.InvoicePreviewResponse;
 import com.dabana.backend.security.CurrentUserProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,9 +63,19 @@ public class BookingController extends BaseController {
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.checkIn(id)));
     }
 
+    /** Xem truoc breakdown hoa don (khong ghi DB) truoc khi nhan vien xac nhan thanh toan. */
+    @GetMapping("/{id}/invoice/preview")
+    public ResponseEntity<ApiResponse<InvoicePreviewResponse>> previewInvoice(@PathVariable Long id) {
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookingService.previewInvoice(id)));
+    }
+
+    /** Xac nhan da thu tien (tao hoa don rs_invoices) roi check-out, chuyen ban sang Don dep. */
     @PostMapping("/{id}/check-out")
-    public ResponseEntity<ApiResponse<BookingResponse>> checkOut(@PathVariable Long id) {
-        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED, bookingService.checkOut(id)));
+    public ResponseEntity<ApiResponse<BookingResponse>> checkOut(
+            @PathVariable Long id, @Valid @RequestBody ConfirmCheckoutRequest request) {
+        User staff = getCurrentUser();
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.UPDATED,
+                bookingService.checkOut(id, request, staff)));
     }
 
     @PostMapping("/{id}/no-show")

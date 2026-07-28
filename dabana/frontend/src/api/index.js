@@ -123,7 +123,9 @@ export const bookingApi = {
   getById: (id) => api.get(`/bookings/${id}`),
   cancel: (id, d) => api.post(`/bookings/${id}/cancel`, d),
   checkIn: (id) => api.post(`/bookings/${id}/check-in`),
-  checkOut: (id) => api.post(`/bookings/${id}/check-out`),
+  // payment: { paymentMethod: 'CASH' | 'TRANSFER', surcharge?: number }
+  checkOut: (id, payment) => api.post(`/bookings/${id}/check-out`, payment),
+  previewInvoice: (id) => api.get(`/bookings/${id}/invoice/preview`),
   createWalkIn: (payload) => api.post('/bookings/walk-in', payload),
   guestLookup: (data) => api.post('/bookings/guest-lookup', data),
 }
@@ -423,5 +425,16 @@ export const paymentApi = {
   // 🌟 ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
   mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`)
 };
+
+export const branchBankAccountApi = {
+  // Danh mục ngân hàng (dùng cho dropdown chọn ngân hàng)
+  listBanks: () => api.get('/payment/banks'),
+
+  // Tài khoản ngân hàng + credential payOS (kênh Thu / kênh Chi) của 1 branch.
+  // 404 nếu branch chưa cấu hình gì cả -> FE hiển thị form "Thêm tài khoản".
+  getByBranch: (branchId) => api.get(`/payment/branch-bank-accounts/${branchId}`),
+  create: (payload) => api.post('/payment/branch-bank-accounts', payload),
+  update: (id, payload) => api.patch(`/payment/branch-bank-accounts/${id}`, payload),
+}
 
 export default api

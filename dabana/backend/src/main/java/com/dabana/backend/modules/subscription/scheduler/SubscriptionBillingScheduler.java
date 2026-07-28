@@ -67,7 +67,7 @@ public class SubscriptionBillingScheduler {
     private final NotificationService notificationService;
     private final ISubscriptionService subscriptionService;
 
-    @Scheduled(cron = "0 0 1 * * *")
+    @Scheduled(cron = "0 56 13 * * *")
     @Transactional
     public void generateRenewalInvoices() {
         LocalDate targetPeriodEnd = LocalDate.now().plusDays(renewalLeadDays);
