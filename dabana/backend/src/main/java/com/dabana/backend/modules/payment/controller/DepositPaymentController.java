@@ -27,6 +27,14 @@ public class DepositPaymentController {
         return depositPaymentService.getActiveByReservation(reservationId);
     }
 
+    // Dung rieng cho FE poll trang thai thanh toan - tra ve du moi status
+    // (PENDING/PROCESSING/PAID/CANCELLED/EXPIRED), khac /reservation/{id} o tren
+    // chi tra PENDING/PROCESSING nen se 404 ngay khi vua PAID.
+    @GetMapping("/reservation/{reservationId}/latest")
+    public DepositPaymentResponse getLatest(@PathVariable Long reservationId) {
+        return depositPaymentService.getLatestByReservation(reservationId);
+    }
+
     @PostMapping("/reservation/{reservationId}/cancel")
     public DepositPaymentResponse cancel(@PathVariable Long reservationId,
                                           @Valid @RequestBody CancelDepositPaymentRequest request) {

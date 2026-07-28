@@ -142,6 +142,20 @@ public class DepositPaymentService {
         return depositPaymentMapper.toResponse(entity);
     }
 
+    /**
+     * Lay lenh thu coc MOI NHAT cua 1 reservation, KHONG loc theo status (khac
+     * getActiveByReservation chi tra PENDING/PROCESSING). Dung de FE poll trang
+     * thai thanh toan - neu poll bang getActiveByReservation thi ngay deposit
+     * chuyen PAID se bi 404 (PAID khong nam trong ACTIVE_STATUSES) khien FE
+     * tuong nham la "chua thanh toan".
+     */
+    public DepositPaymentResponse getLatestByReservation(Long reservationId) {
+        DepositPayment entity = depositPaymentRepository
+                .findFirstByReservation_IdOrderByIdDesc(reservationId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.DEPOSIT_NOT_FOUND));
+        return depositPaymentMapper.toResponse(entity);
+    }
+
     @Transactional
     public DepositPaymentResponse cancelDepositPayment(Long reservationId, CancelDepositPaymentRequest request) {
         DepositPayment entity = depositPaymentRepository

@@ -41,21 +41,27 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
         try {
             let res;
             try {
-                res = await paymentApi.getDetail(booking.id);
+                // Đã có lệnh thu cọc PENDING/PROCESSING cho booking này -> dùng lại (idempotent).
+                res = await paymentApi.getActiveDeposit(booking.id);
             } catch {
-                res = await paymentApi.createPaymentLink(booking.id);
+                // Chưa có -> tạo lệnh thu cọc mới, ghi vào pm_deposit_payments.
+                // amount lấy từ estimatedTotal - đúng số tiền cọc đang hiển thị cho khách ở màn này.
+                res = await paymentApi.createDeposit(booking.id, booking.estimatedTotal);
             }
 
-            const data = res.data?.data || res.data?.result || res.data || {};
-            const rawQr = data.qrCode || data.qrImageUrl || data.qrCodeQuery || '';
+            // DepositPaymentController trả về DepositPaymentResponse trực tiếp (không bọc { data }).
+            const data = res.data?.data || res.data || {};
+            const rawQr = data.qrCode || '';
 
             setPaymentInfo({
                 qrCodeString: rawQr.startsWith('000201') ? rawQr : null,
                 qrImageUrl: rawQr.startsWith('http') ? rawQr : null,
-                bankName: data.accountName || data.bankName || 'MB Bank',
+                bankName: data.accountName || 'MB Bank',
                 accountNumber: data.accountNumber || '',
-                accountHolder: data.accountHolder || '',
-                transferContent: data.description || `BK${booking.id}`,
+                accountHolder: data.accountName || '',
+                transferContent: data.description || `Coc dat ban ${booking.id}`,
+                checkoutUrl: data.checkoutUrl || '',
+                status: data.status || 'PENDING',
             });
         } catch (err) {
             console.error("Lỗi lấy thông tin QR:", err);
@@ -83,16 +89,23 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
         const checkStatusTimer = setInterval(async () => {
             try {
-                const res = await bookingApi.getById(booking.id);
-                const currentBooking = res.data?.data || res.data?.result || res.data;
+                // Webhook payOS (PayosWebhookService) đã cập nhật pm_deposit_payments.status=PAID
+                // VÀ rs_reservations.status=CONFIRMED ở phía BE khi thanh toán thành công.
+                // getLatestDeposit tra ve du moi status (PENDING/PROCESSING/PAID/...),
+                // KHONG dung getActiveDeposit de poll vi no chi tra PENDING/PROCESSING
+                // -> vua PAID la 404 ngay, FE tuong nham "chua thanh toan" (bug da gap).
+                const depositRes = await paymentApi.getLatestDeposit(booking.id);
+                const deposit = depositRes.data?.data || depositRes.data;
 
-                if (currentBooking && (currentBooking.status === 'CONFIRMED' || currentBooking.status === 'PAID')) {
+                if (deposit?.status === 'PAID') {
                     clearInterval(checkStatusTimer);
-                    setConfirmedBooking(currentBooking);
                     setIsPaidSuccess(true);
                     toast.success("🎉 Thanh toán thành công! Đơn giữ bàn đã được xác nhận.");
+                    // Không tự chuyển hướng nữa - card hóa đơn hiện ra và ở lại,
+                    // khách tự bấm nút "📋 Danh sách đơn đặt" khi nào muốn rời trang.
                 }
             } catch (err) {
+                // 404 (chưa có lệnh cọc active, hoặc lệnh cũ đã CANCELLED/EXPIRED) - bỏ qua, đợi lượt poll sau.
                 console.error("Lỗi kiểm tra trạng thái thanh toán:", err);
             }
         }, 3000);

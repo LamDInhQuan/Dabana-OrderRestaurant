@@ -1,5 +1,8 @@
 package com.dabana.backend.modules.payment.service;
 
+import com.dabana.backend.modules.booking.Booking;
+import com.dabana.backend.modules.booking.BookingRepository;
+import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.payment.entity.DepositPayment;
 import com.dabana.backend.modules.payment.entity.PayosWebhookLog;
 import com.dabana.backend.modules.payment.repository.DepositPaymentRepository;
@@ -30,13 +33,16 @@ public class PayosWebhookService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final DepositPaymentRepository depositPaymentRepository;
     private final PayosWebhookLogRepository payosWebhookLogRepository;
+    private final BookingRepository bookingRepository;
     private final AesEncryptionUtil aesEncryptionUtil;
 
     public PayosWebhookService(DepositPaymentRepository depositPaymentRepository,
                                 PayosWebhookLogRepository payosWebhookLogRepository,
+                                BookingRepository bookingRepository,
                                 AesEncryptionUtil aesEncryptionUtil) {
         this.depositPaymentRepository = depositPaymentRepository;
         this.payosWebhookLogRepository = payosWebhookLogRepository;
+        this.bookingRepository = bookingRepository;
         this.aesEncryptionUtil = aesEncryptionUtil;
     }
 
@@ -105,6 +111,20 @@ public class PayosWebhookService {
             deposit.setStatus(DepositPaymentStatus.PAID);
             deposit.setPaidAt(LocalDateTime.now());
             depositPaymentRepository.save(deposit);
+
+            // Dong bo rs_reservations: coc PAID -> xac nhan booking, tuong duong
+            // logic cu tung nam o PaymentWebhookController.handlePayosWebhook().
+            // Chi chuyen tu HOLDING/AWAITING_PAYMENT, khong dam len cac trang thai
+            // khac (vd da CANCELLED/CHECKED_IN...) de tranh ghi de sai nghiep vu.
+            Booking booking = deposit.getReservation();
+            if (booking != null
+                    && (booking.getStatus() == BookingStatus.HOLDING
+                        || booking.getStatus() == BookingStatus.AWAITING_PAYMENT)) {
+                booking.setStatus(BookingStatus.CONFIRMED);
+                bookingRepository.save(booking);
+                log.info("Webhook payOS: Booking id={} da CONFIRMED sau khi coc PAID (orderCode={})",
+                        booking.getId(), orderCode);
+            }
         }
 
         logEntry.setProcessed(true);
