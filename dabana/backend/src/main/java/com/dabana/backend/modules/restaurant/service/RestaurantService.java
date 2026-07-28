@@ -73,14 +73,15 @@ public class RestaurantService {
 
         private final RestaurantMapper restaurantMapper;
         private final BookingMapper bookingMapper;
+
         public List<RestaurantResponse> findAll() {
                 List<Restaurant> restaurants = restaurantRepos.findAll();
                 if (restaurants.isEmpty()) {
-                throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
+                        throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
                 }
                 return restaurants.stream()
-                        .map(restaurantMapper::toResponse)
-                        .toList();
+                                .map(restaurantMapper::toResponse)
+                                .toList();
         }
 
         public RestaurantResponse findByOwnerId(Long ownerId) {
@@ -149,8 +150,6 @@ public class RestaurantService {
                                                 TreeMap::new,
                                                 Collectors.toList()));
 
-
-
                 Sheet sheet = workbook.createSheet(branch.getName());
 
                 CellStyle headerStyle = workbook.createCellStyle();
@@ -176,7 +175,7 @@ public class RestaurantService {
                 sheet.setColumnWidth(5, 20 * 256);
 
                 int rowIdx = 1;
-                for (LocalDate date: bookingsByDay.keySet()) {
+                for (LocalDate date : bookingsByDay.keySet()) {
                         List<Booking> dayBookings = bookingsByDay.get(date);
                         DetailExcelReport detail = buildDetailExcelReport(date, dayBookings, branch);
                         Row row = sheet.createRow(rowIdx++);
@@ -206,27 +205,24 @@ public class RestaurantService {
                                 .filter(booking -> booking.getEstimatedTotal() != null && isFinishedStatus(booking.getStatus()))
                                 .mapToDouble(booking -> booking.getEstimatedTotal().doubleValue())
                                 .sum();
-                // long totalTables =
-                // long occupiedTables = dayBookings.stream().filter(booking-> booking.getStatus())     
-                // double fillRate = totalTables == 0
-                //                 ? 0.0
-                //                 : roundUp(occupiedTables * 100.0 / totalTables);
-                //-1 nghĩa là chưa làm
+                long totalTables = diningTableRepository.countByZone_Branch_Id(branch.getId());
+                long occupiedTables = dayBookings.stream().filter(booking-> isOccupied(booking.getStatus())).count();
+                double fillRate = totalTables == 0
+                                ? 0.0
+                                : roundUp(occupiedTables * 100.0 / totalTables);
+
                 return DetailExcelReport.builder()
                                 .dailyServing(totalServing)
                                 .dailyBooked(totalBooked)
                                 .reportedDate(day)
-                                .fillrate(-1d)
+                                .fillrate(fillRate)
                                 .finished(finished)
                                 .noShow(noShow)
                                 .revenue(roundUp(revenue))
                                 .build();
         }
 
-
-
-
-public Restaurant findByRestaurantName(String name) {
+        public Restaurant findByRestaurantName(String name) {
                 return restaurantRepos.findByRestaurantName(name)
                                 .orElseThrow(() -> new RuntimeException("Restaurant not found for name: " + name));
         }
@@ -321,7 +317,8 @@ public Restaurant findByRestaurantName(String name) {
                                 ? 0.0
                                 : noShow30day * 100.0 / finished30day;
 
-                Double reviewScore = reviewRepository.calculateAverageRating(branchId) == null ? 0.0 : reviewRepository.calculateAverageRating(branchId);
+                Double reviewScore = reviewRepository.calculateAverageRating(branchId) == null ? 0.0
+                                : reviewRepository.calculateAverageRating(branchId);
 
                 // reviewScore = reviewRepository.calculateAverageRating(branchId);
 
@@ -421,6 +418,9 @@ public Restaurant findByRestaurantName(String name) {
         private boolean isFinishedStatus(BookingStatus status) {
                 return status == BookingStatus.COMPLETED || status == BookingStatus.CHECKED_IN;
         }
+        private boolean isOccupied(BookingStatus status) {
+                return status == BookingStatus.COMPLETED || status == BookingStatus.CHECKED_IN || status == BookingStatus.CONFIRMED;
+        }
 
         public RestaurantResponse Register(RestaurantRegisterRequest request, Long ownerId) {
                 Restaurant restaurant = new Restaurant();
@@ -444,9 +444,5 @@ public Restaurant findByRestaurantName(String name) {
                 BigDecimal bd = new BigDecimal(d).setScale(2, RoundingMode.HALF_UP);
                 return bd.doubleValue();
         }
-
-
- 
-
 
 }

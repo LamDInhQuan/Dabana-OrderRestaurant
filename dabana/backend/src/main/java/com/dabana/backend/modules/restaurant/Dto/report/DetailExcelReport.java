@@ -21,6 +21,6 @@ public class DetailExcelReport {
     private Long finished;
     
     public String getNoShowRate() {
-        return finished.toString() + '/' + noShow.toString();
+        return noShow.toString() + '/' + finished.toString();
     }
 }
