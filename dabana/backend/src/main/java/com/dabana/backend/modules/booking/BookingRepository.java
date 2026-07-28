@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.dabana.backend.modules.branch2.entity.Branch;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -151,9 +153,13 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         where b.branch.id = :branchId
         and date(b.createdAt) >= :from
     """)
-    List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId,@Param("from") LocalDate from);
+    List<Booking> findByBranchIdAndCreatedAtAfter(@Param("branchId") Long branchId, @Param("from") LocalDate from);
+    
+    List<Booking> findByBranchIdAndCreatedAtBetween( Branch branch, LocalDate from,LocalDate to);
 
     List<Booking> findByContactEmailOrderByCreatedAtDesc(String email);
+
+    long countByBookingTables_Id(Long id);
 
 
 }

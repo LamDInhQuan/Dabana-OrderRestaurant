@@ -21,6 +21,7 @@ import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
 import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
 import BranchBankAccountSettings from './tab/settings/BranchBankAccountSettings'
 import BillingTab from './tab/subscription/BillingTab'
+import ExportExcelBar from './exportBar'
 import ManageBookings from './ManageBookings'
 
 // ── Google Font ─────────────────────────────────────────────────
@@ -113,6 +114,9 @@ function StatCard({ icon, label, value, sub, color, trend }) {
     </div>
   )
 }
+async function exportExcel(branchid) {
+  const blob = restaurantApi.exportExcel(branchApi)
+}
 
 // ── Countdown for waitlist invite ────────────────────────────────
 function WaitCountdown({ expiresAt }) {
@@ -128,6 +132,8 @@ function WaitCountdown({ expiresAt }) {
     {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
   </span>
 }
+
+
 
 // ══════════════════════════════════════════════════════════════════
 export default function PartnerDashboard() {
@@ -154,6 +160,15 @@ export default function PartnerDashboard() {
   const orderBoard = useOrderBoardState(activeBranch?.id)
   const menuState = useMenuState(activeBranch?.id)
   const [allTables, setTables] = useState([])
+  const [exportBranchId, setExportBranchId] = useState(activeBranch?.id || "");
+  const [exportFromDate, setExportFromDate] = useState("");
+  const [exportToDate, setExportToDate] = useState("");
+
+  useEffect(() => {
+    if (activeBranch?.id) {
+      setExportBranchId(activeBranch.id)
+    }
+  }, [activeBranch?.id])
 
   // ── modal states ───────────────────────────────────
   const [policyModal, setPolicyModal] = useState(false)
@@ -186,7 +201,6 @@ export default function PartnerDashboard() {
   // ── Load data ──────────────────────────────────────
 
   //dining table status
-
 
 
   useEffect(() => {
@@ -328,7 +342,7 @@ export default function PartnerDashboard() {
       .catch(() => setTables([]))
   }, [activeBranch?.id])
 
-  
+
   const tablesByStatus = {
     1: [],
     2: [],
@@ -754,6 +768,7 @@ export default function PartnerDashboard() {
                 fontSize: '.62rem', fontWeight: 800, borderRadius: 99, padding: '.05rem .35rem'
               }}>{unreadCount}</span>}
             </button>
+
             <button onClick={() => navigate('/')} style={{ ...S.btnOut, padding: '.45rem 1rem', fontSize: '.78rem' }}>
               🌐 Về trang chủ
             </button>
@@ -762,9 +777,11 @@ export default function PartnerDashboard() {
 
         <div style={{ padding: '2rem' }}>
 
+
           {/* ══════ DASHBOARD ══════ */}
           {activeTab === 'dashboard' && (
             <div>
+              <ExportExcelBar branches={branches} />
               <div style={{ ...S.eyebrow, marginBottom: '1.5rem' }}>Tổng quan hôm nay</div>
 
               {/* Stats */}
@@ -834,7 +851,7 @@ export default function PartnerDashboard() {
                       <div style={{ flex: 1 }}>
                         <p style={{ fontWeight: 600, fontSize: '.87rem', color: C.text }}>{b.contactName}</p>
                         <p style={{ fontSize: '.75rem', color: C.muted }}>
-                           Bàn: {b.tables.map((table, index) => (
+                          Bàn: {b.tables.map((table, index) => (
                             <strong key={table.id || index}>
                               {table.tableName}
                               {index < b.tables.length - 1 ? ', ' : ''}
@@ -877,7 +894,7 @@ export default function PartnerDashboard() {
 
           {/* ══════ TAB BRANCH BOOKINGS LIST══════ */}
           {activeTab === 'bookings' && (
-            <ManageBookings bookings={branchBookingList}/>
+            <ManageBookings bookings={branchBookingList} />
           )}
 
           {/* ══════ GỌI MÓN (TAB GỌI MÓN - realtime bàn) ══════ */}
@@ -1119,7 +1136,7 @@ export default function PartnerDashboard() {
                     {menuByCategory.length === 0 && <p style={{ color: C.muted, fontSize: '.85rem' }}>Chưa có dữ liệu</p>}
                   </div>
                 </div>
-                  {/* doanh thu tiền cọc */ }
+                {/* doanh thu tiền cọc */}
                 <div style={{ ...S.card, gridColumn: '1/-1' }}>
                   <div style={{ ...S.eyebrow, marginBottom: '1.25rem' }}>Doanh thu tiền cọc 7 ngày gần nhất</div>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '.625rem', height: 120 }}>

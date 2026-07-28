@@ -224,7 +224,10 @@ export const restaurantApi = {
   Dashboard: () => api.get('/restaurants/me/dashboard'),
   GetTablesByBranch: (branchid) => api.get(`/restaurants/me/tables/${branchid}`),
   UpcomingBooking: (branchid) => api.get(`/restaurants/me/bookings/${branchid}`),
-  getAll: () => api.get('/restaurants/all')
+  export: (branchIds,from,to) => api.get(`/restaurants/me/export`, {
+    responseType: "blob",
+    params:{branchIds,from ,to }
+  })
 }
 
 // ===== BỔ SUNG: Operating Hour API =====

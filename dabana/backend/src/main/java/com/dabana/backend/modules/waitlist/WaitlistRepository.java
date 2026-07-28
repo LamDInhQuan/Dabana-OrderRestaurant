@@ -32,4 +32,6 @@ public interface WaitlistRepository extends JpaRepository<WaitlistEntry, Long> {
     List<WaitlistEntry> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 
     Long countByBranchIdAndStatus(Long branchId, WaitlistStatus waiting);
+
+    List<WaitlistEntry> findByBranchIdAndStatusAndCreatedAtBetween(Long branchId, WaitlistStatus status, LocalDateTime from, LocalDateTime to);
 }
