@@ -56,12 +56,9 @@ import java.util.List;
 @Slf4j
 public class SubscriptionService implements ISubscriptionService {
 
-    /**
-     * Trang thai duoc coi la "dang hieu luc" khi tim subscription hien tai cua 1
-     * restaurant.
-     */
-    private static final List<SubscriptionStatus> LIVE_STATUSES = List.of(SubscriptionStatus.ACTIVE,
-            SubscriptionStatus.PAST_DUE);
+    /** Trang thai duoc coi la "dang hieu luc" khi tim subscription hien tai cua 1 restaurant. */
+    private static final List<SubscriptionStatus> LIVE_STATUSES =
+            List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE);
 
     private final SubscriptionPlanRepository planRepository;
     private final RestaurantSubscriptionRepository subscriptionRepository;
@@ -79,13 +76,11 @@ public class SubscriptionService implements ISubscriptionService {
     /**
      * Mac dinh tro ve trang Billing cua FE, dung {invoiceId} de thay the.
      * Nen override qua application.yml khi trien khai domain that:
-     * app:
-     * subscription:
-     * payment:
-     * return-url-template:
-     * https://dabana.dpdns.org/partner/billing?invoiceId={invoiceId}&status=success
-     * cancel-url-template:
-     * https://dabana.dpdns.org/partner/billing?invoiceId={invoiceId}&status=cancel
+     *   app:
+     *     subscription:
+     *       payment:
+     *         return-url-template: https://dabana.dpdns.org/partner/billing?invoiceId={invoiceId}&status=success
+     *         cancel-url-template: https://dabana.dpdns.org/partner/billing?invoiceId={invoiceId}&status=cancel
      */
     @Value("${app.subscription.payment.return-url-template:http://localhost:5173/partner/billing?invoiceId={invoiceId}&status=success}")
     private String returnUrlTemplate;
@@ -114,8 +109,8 @@ public class SubscriptionService implements ISubscriptionService {
                     String message = allowed
                             ? "Còn được thêm chi nhánh"
                             : "Đã đạt giới hạn " + sub.getMaxBranchesSnapshot()
-                                    + " chi nhánh của gói " + sub.getPlanNameSnapshot()
-                                    + ". Vui lòng nâng cấp gói để thêm chi nhánh.";
+                              + " chi nhánh của gói " + sub.getPlanNameSnapshot()
+                              + ". Vui lòng nâng cấp gói để thêm chi nhánh.";
                     return BranchLimitCheckResponse.builder()
                             .allowed(allowed)
                             .currentBranchCount(currentCount)
@@ -172,17 +167,17 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_PAYABLE);
         }
 
-        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai (orderCode
-        // = invoiceId,
-        // khong the doi, goi create() lan 2 voi cung orderCode co the bi payOS tu
-        // choi).
+        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai (orderCode = invoiceId,
+        // khong the doi, goi create() lan 2 voi cung orderCode co the bi payOS tu choi).
         if (invoice.getCheckoutUrl() != null) {
             return toPaymentInfoResponse(invoice, null);
         }
 
         PayOS client = payosClientProvider.getClient();
         Long orderCode = invoice.getId();
-        String description = "TT - " + invoice.getPlanSnapshotName();
+        // payOS gioi han description TOI DA 25 KY TU - khong duoc ghep ten goi vao
+        // (ten goi co the dai bat ky, se lam vuot gioi han va bi APIException tu choi).
+        String description = "Phi DV #" + invoice.getId();
         String returnUrl = returnUrlTemplate.replace("{invoiceId}", String.valueOf(invoiceId));
         String cancelUrl = cancelUrlTemplate.replace("{invoiceId}", String.valueOf(invoiceId));
 
@@ -226,11 +221,11 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.PAYOS_SYNC_PAYMENT_FAILED);
         }
 
-        // Luoi an toan: neu payOS bao da PAID nhung webhook chua kip xu ly (cham
-        // tre/loi mang) thi
-        // chu dong kich hoat luon o day, tranh nha hang thay "da thanh toan" tren payOS
-        // ma he thong
+        // Luoi an toan: neu payOS bao da PAID nhung webhook chua kip xu ly (cham tre/loi mang) thi
+        // chu dong kich hoat luon o day, tranh nha hang thay "da thanh toan" tren payOS ma he thong
         // Dabana van hien PENDING.
+        // getStatus() tra ve enum PaymentLinkStatus (khong phai String) - dung String.valueOf()
+        // de so sanh an toan du SDK tra ve kieu gi.
         if ("PAID".equalsIgnoreCase(String.valueOf(liveInfo.getStatus()))
                 && (invoice.getStatus() == InvoiceStatus.PENDING || invoice.getStatus() == InvoiceStatus.OVERDUE)) {
             markInvoicePaidManually(invoiceId);
@@ -306,8 +301,7 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.INVALID_PLAN_CHANGE);
         }
 
-        // Khong doi snapshot ngay - chi ap dung vao ky gia han tiep theo (xem
-        // scheduler).
+        // Khong doi snapshot ngay - chi ap dung vao ky gia han tiep theo (xem scheduler).
         subscription.setPendingDowngradePlan(targetPlan);
         return subscriptionMapper.toResponse(subscriptionRepository.save(subscription));
     }
@@ -341,15 +335,13 @@ public class SubscriptionService implements ISubscriptionService {
         invoiceRepository.save(invoice);
 
         RestaurantSubscription subscription = invoice.getSubscription();
-        boolean wasExpired = subscription.getStatus() == SubscriptionStatus.EXPIRED;
 
         // Ap dung dung snapshot cua HOA DON (khong doc lai SubscriptionPlan hien hanh).
         subscription.setPlan(invoice.getPlan());
         subscription.setPlanNameSnapshot(invoice.getPlanSnapshotName());
         subscription.setPriceSnapshot(invoice.getAmount());
         subscription.setMaxBranchesSnapshot(invoice.getMaxBranchesSnapshot());
-        // billingCycleSnapshot khong luu rieng trong hoa don - lay tu Plan tuong ung de
-        // dam bao nhat quan.
+        // billingCycleSnapshot khong luu rieng trong hoa don - lay tu Plan tuong ung de dam bao nhat quan.
         subscription.setBillingCycleSnapshot(invoice.getPlan().getBillingCycle());
         subscription.setCurrentPeriodStart(invoice.getPeriodStart());
         subscription.setCurrentPeriodEnd(invoice.getPeriodEnd());
@@ -368,9 +360,10 @@ public class SubscriptionService implements ISubscriptionService {
                 "Thanh toan hoa don goi " + invoice.getPlanSnapshotName() + " thanh cong.",
                 "IN_APP");
 
-        if (wasExpired) {
-            restoreBranchesUpToLimit(subscription);
-        }
+        // Doi soat lai han muc chi nhanh SAU MOI lan xac nhan thanh toan (khong chi rieng truong hop
+        // EXPIRED) - vi ha cap xuong goi co han muc thap hon so chi nhanh dang co CUNG can xu ly y het,
+        // chu khong chi mien "vua het han quay lai".
+        reconcileBranchLimitAfterPlanChange(subscription);
     }
 
     // ---------------------------------------------------------------------
@@ -383,35 +376,25 @@ public class SubscriptionService implements ISubscriptionService {
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
     }
 
-    /**
-     * Tim hoa don theo id VA xac minh dung la thuoc ve restaurant nay (khong lo
-     * IDOR).
-     */
+    /** Tim hoa don theo id VA xac minh dung la thuoc ve restaurant nay (khong lo IDOR). */
     private SubscriptionInvoice getOwnedInvoiceOrThrow(Long restaurantId, Long invoiceId) {
         SubscriptionInvoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.INVOICE_NOT_FOUND));
         if (!invoice.getSubscription().getRestaurant().getId().equals(restaurantId)) {
-            // Co tinh KHONG dung ma loi rieng "khong co quyen" - tra ve y het loi "khong
-            // tim thay"
-            // de khong lo cho ke tan cong biet invoiceId nay co ton tai hay khong (giong
-            // thong le IDOR).
+            // Co tinh KHONG dung ma loi rieng "khong co quyen" - tra ve y het loi "khong tim thay"
+            // de khong lo cho ke tan cong biet invoiceId nay co ton tai hay khong (giong thong le IDOR).
             throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_FOUND);
         }
         return invoice;
     }
 
     /**
-     * @param liveInfo null neu chi vua tao link (chua can goi song payOS lay lai
-     *                 ngay).
+     * @param liveInfo null neu chi vua tao link (chua can goi song payOS lay lai ngay).
      *
-     *                 LUU Y: gia dinh
-     *                 PaymentLink.getAmountPaid()/getAmountRemaining() tra ve kieu
-     *                 Long
-     *                 (nullable, giong cach DepositPaymentService da ghi chu san).
-     *                 Neu ban doi chieu
-     *                 javadoc.io/doc/vn.payos/payos-java thay day la kieu long
-     *                 (primitive) thi bo dieu
-     *                 kien "!= null" va goi BigDecimal.valueOf(...) truc tiep.
+     * LUU Y: gia dinh PaymentLink.getAmountPaid()/getAmountRemaining() tra ve kieu Long
+     * (nullable, giong cach DepositPaymentService da ghi chu san). Neu ban doi chieu
+     * javadoc.io/doc/vn.payos/payos-java thay day la kieu long (primitive) thi bo dieu
+     * kien "!= null" va goi BigDecimal.valueOf(...) truc tiep.
      */
     private InvoicePaymentInfoResponse toPaymentInfoResponse(SubscriptionInvoice invoice, PaymentLink liveInfo) {
         return InvoicePaymentInfoResponse.builder()
@@ -419,11 +402,9 @@ public class SubscriptionService implements ISubscriptionService {
                 .orderCode(invoice.getId())
                 .amount(invoice.getAmount())
                 .amountPaid(liveInfo != null && liveInfo.getAmountPaid() != null
-                        ? java.math.BigDecimal.valueOf(liveInfo.getAmountPaid())
-                        : null)
+                        ? java.math.BigDecimal.valueOf(liveInfo.getAmountPaid()) : null)
                 .amountRemaining(liveInfo != null && liveInfo.getAmountRemaining() != null
-                        ? java.math.BigDecimal.valueOf(liveInfo.getAmountRemaining())
-                        : null)
+                        ? java.math.BigDecimal.valueOf(liveInfo.getAmountRemaining()) : null)
                 .payosStatus(liveInfo != null ? String.valueOf(liveInfo.getStatus()) : null)
                 .checkoutUrl(invoice.getCheckoutUrl())
                 .qrCode(invoice.getQrCode())
@@ -441,7 +422,7 @@ public class SubscriptionService implements ISubscriptionService {
     }
 
     private SubscriptionInvoice buildInvoice(RestaurantSubscription subscription, SubscriptionPlan plan,
-            InvoiceType type, LocalDate periodStart, LocalDate periodEnd) {
+                                              InvoiceType type, LocalDate periodStart, LocalDate periodEnd) {
         SubscriptionInvoice invoice = new SubscriptionInvoice();
         invoice.setSubscription(subscription);
         invoice.setPlan(plan);
@@ -457,40 +438,81 @@ public class SubscriptionService implements ISubscriptionService {
     }
 
     /**
-     * Khoi phuc chi nhanh da bi tam ngung do thieu phi, theo thu tu NGUOC LAI
-     * (chi nhanh bi ngung SAU CUNG duoc khoi phuc TRUOC), cho den khi dat han muc
-     * moi.
-     * Chi goi tu markInvoicePaidManually khi subscription vua chuyen tu EXPIRED
-     * sang ACTIVE.
+     * Doi soat lai han muc chi nhanh sau MOI lan snapshot cua subscription thay doi
+     * (ap dung hoa don da thanh toan - INITIAL/RENEWAL/UPGRADE deu goi qua day).
+     * Xu ly CA 2 CHIEU trong cung 1 lan:
+     *
+     *   1) Khoi phuc chi nhanh dang bi tam ngung (du ly do la EXPIRED truoc do hay
+     *      DA TUNG bi tam ngung vi ha cap) - uu tien khoi phuc chi nhanh bi ngung
+     *      SAU CUNG truoc, cho den khi dat han muc moi.
+     *   2) Neu sau buoc 1 van CON VUOT han muc (truong hop ha cap xuong thap hon
+     *      so chi nhanh dang hoat dong that su) - tam ngung bot chi nhanh, uu tien
+     *      tam ngung chi nhanh TAO GAN NHAT truoc (dung BR03 da quy dinh o B18),
+     *      ghi log voi ly do rieng de phan biet voi truong hop EXPIRED.
+     *
+     * Truoc day ham nay (ten cu: restoreBranchesUpToLimit) CHI xu ly chieu (1) va
+     * CHI goi khi subscription vua tu EXPIRED chuyen ve - bo sot hoan toan truong
+     * hop ha cap lam vuot han muc chi nhanh dang hoat dong.
      */
-    private void restoreBranchesUpToLimit(RestaurantSubscription subscription) {
+    private void reconcileBranchLimitAfterPlanChange(RestaurantSubscription subscription) {
         Long restaurantId = subscription.getRestaurant().getId();
         List<Branch> allBranches = branchRepository.findByRestaurantId(restaurantId);
+        int maxBranches = subscription.getMaxBranchesSnapshot();
 
-        long currentActiveCount = allBranches.stream()
+        // ---- Chieu 1: khoi phuc chi nhanh dang tam ngung, neu con cho trong ----
+        long activeCount = allBranches.stream()
                 .filter(b -> !BranchStatus.SUSPENDED.getStatus().equals(b.getStatus()))
                 .count();
-        long slotsAvailable = subscription.getMaxBranchesSnapshot() - currentActiveCount;
-        if (slotsAvailable <= 0) {
+        long slotsToRestore = maxBranches - activeCount;
+
+        if (slotsToRestore > 0) {
+            List<BranchSuspension> suspendedBranches = branchSuspensionRepository
+                    .findBySubscription_IdAndStatusOrderBySuspendedAtDesc(subscription.getId(), SuspensionStatus.ACTIVE);
+
+            int restored = 0;
+            for (BranchSuspension suspension : suspendedBranches) {
+                if (restored >= slotsToRestore) break;
+                Branch branch = suspension.getBranch();
+                branch.setStatus(BranchStatus.ACTIVE.getStatus());
+                branchRepository.save(branch);
+
+                suspension.setStatus(SuspensionStatus.RESTORED);
+                suspension.setRestoredAt(LocalDateTime.now());
+                branchSuspensionRepository.save(suspension);
+                restored++;
+            }
+        }
+
+        // ---- Chieu 2: neu VAN CON vuot han muc (truong hop ha cap) - tam ngung bot ----
+        List<Branch> stillActiveBranches = branchRepository.findByRestaurantId(restaurantId).stream()
+                .filter(b -> !BranchStatus.SUSPENDED.getStatus().equals(b.getStatus()))
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt())) // moi tao truoc
+                .toList();
+
+        long overLimitCount = stillActiveBranches.size() - maxBranches;
+        if (overLimitCount <= 0) {
             return;
         }
 
-        List<BranchSuspension> suspendedBranches = branchSuspensionRepository
-                .findBySubscription_IdAndStatusOrderBySuspendedAtDesc(subscription.getId(), SuspensionStatus.ACTIVE);
+        stillActiveBranches.stream()
+                .limit(overLimitCount)
+                .forEach(branch -> {
+                    branch.setStatus(BranchStatus.SUSPENDED.getStatus());
+                    branchRepository.save(branch);
 
-        int restored = 0;
-        for (BranchSuspension suspension : suspendedBranches) {
-            if (restored >= slotsAvailable) {
-                break;
-            }
-            Branch branch = suspension.getBranch();
-            branch.setStatus(BranchStatus.ACTIVE.getStatus());
-            branchRepository.save(branch);
+                    BranchSuspension suspension = new BranchSuspension();
+                    suspension.setBranch(branch);
+                    suspension.setSubscription(subscription);
+                    suspension.setReason("OVER_BRANCH_LIMIT_AFTER_DOWNGRADE");
+                    branchSuspensionRepository.save(suspension);
+                });
 
-            suspension.setStatus(SuspensionStatus.RESTORED);
-            suspension.setRestoredAt(LocalDateTime.now());
-            branchSuspensionRepository.save(suspension);
-            restored++;
-        }
+        notificationService.sendImmediate(
+                subscription.getRestaurant().getOwner(),
+                "SUBSCRIPTION_BRANCH_SUSPENDED_AFTER_DOWNGRADE",
+                "Goi dich vu vua chuyen sang han muc " + maxBranches + " chi nhanh, thap hon so chi nhanh "
+                        + "dang hoat dong. He thong da tu dong tam ngung " + overLimitCount
+                        + " chi nhanh tao gan day nhat.",
+                "IN_APP");
     }
 }
