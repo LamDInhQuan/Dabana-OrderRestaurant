@@ -88,7 +88,7 @@ public class DepositPaymentService {
         PayOS client = payosClientProvider.getPaymentClientForBranch(booking.getBranch().getId());
 
         long orderCode = System.currentTimeMillis(); // don gian, du duy nhat o quy mo hien tai
-        String description = "Coc dat ban " + booking.getId();
+        String description = "Thanh toan BK" + booking.getId();
         String cancelUrl = cancelUrlTemplate.replace("{reservationId}", String.valueOf(booking.getId()));
         String returnUrl = returnUrlTemplate.replace("{reservationId}", String.valueOf(booking.getId()));
         String buyerEmail = booking.getCustomer() != null ? booking.getCustomer().getEmail() : null;

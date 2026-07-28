@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
-import { bookingApi } from '../../../../../api'
+import { bookingApi, invoicePaymentApi } from '../../../../../api'
 import { formatMoney } from './statusMeta'
 
 const PAYMENT_METHODS = [
@@ -8,12 +8,15 @@ const PAYMENT_METHODS = [
   { value: 'TRANSFER', label: '🏦 Chuyển khoản / QR' },
 ]
 
+const POLL_INTERVAL_MS = 3000
+
 /**
- * Modal "Thanh toan hoa don" - thay the window.confirm() truoc day.
- * Goi GET /bookings/{id}/invoice/preview de lay breakdown tu server (khong
- * ghi DB), cho nhan vien chon phuong thuc thanh toan + nhap phu thu (neu co),
- * roi moi goi bookingApi.checkOut(id, { paymentMethod, surcharge }) - luc
- * nay BE moi thuc su tao rs_invoices va chuyen ban sang Don dep.
+ * Modal "Thanh toan hoa don".
+ * - CASH: chon phuong thuc -> bam xac nhan -> goi thang bookingApi.checkOut().
+ * - TRANSFER: bam "Tao ma QR" -> BE tao link payOS (khong luu DB, xem
+ *   InvoicePaymentService) -> hien QR -> FE tu poll status moi 3s bang cach
+ *   hoi THANG payOS (khong qua webhook/DB) -> khi thay PAID moi bat nut
+ *   "Xac nhan & Check-out" -> goi bookingApi.checkOut() nhu CASH.
  *
  * onConfirmed(bookingResponse) do component cha (TableDetailDrawer) xu ly:
  * in hoa don, toast, reload board, dong drawer - giu nguyen quy uoc dang co.
@@ -25,11 +28,16 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
   const [surchargeInput, setSurchargeInput] = useState('0')
   const [submitting, setSubmitting] = useState(false)
 
+  const [qr, setQr] = useState(null) // { orderCode, qrCode, checkoutUrl, amount, status }
+  const [qrCreating, setQrCreating] = useState(false)
+  const pollRef = useRef(null)
+
   useEffect(() => {
     if (!open || !bookingId) return
     setLoading(true)
     setPaymentMethod('CASH')
     setSurchargeInput('0')
+    setQr(null)
     bookingApi.previewInvoice(bookingId)
       .then((res) => setPreview(res.data?.data ?? res.data))
       .catch((err) => {
@@ -37,6 +45,11 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
         onClose?.()
       })
       .finally(() => setLoading(false))
+  }, [open, bookingId])
+
+  // Dung poll khi modal dong / doi bookingId
+  useEffect(() => {
+    return () => stopPolling()
   }, [open, bookingId])
 
   if (!open) return null
@@ -47,10 +60,53 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
   const grandTotal = subtotal + surcharge
   const amountDue = grandTotal - depositPaid
 
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }
+
+  const handleSelectMethod = (value) => {
+    setPaymentMethod(value)
+    if (value === 'CASH') {
+      stopPolling()
+      setQr(null)
+    }
+  }
+
+  const handleCreateQr = async () => {
+    setQrCreating(true)
+    try {
+      const res = await invoicePaymentApi.create(bookingId, surcharge)
+      const data = res.data?.data ?? res.data
+      setQr(data)
+      // bat dau poll trang thai moi 3s
+      pollRef.current = setInterval(async () => {
+        try {
+          const statusRes = await invoicePaymentApi.getStatus(bookingId, data.orderCode)
+          const statusData = statusRes.data?.data ?? statusRes.data
+          setQr((prev) => prev ? { ...prev, status: statusData.status, amountPaid: statusData.amountPaid } : prev)
+          if (statusData.status === 'PAID') {
+            stopPolling()
+            toast.success('Đã nhận được thanh toán!')
+          }
+        } catch {
+          // bo qua loi 1 lan poll, thu lai lan sau
+        }
+      }, POLL_INTERVAL_MS)
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không tạo được mã QR')
+    } finally {
+      setQrCreating(false)
+    }
+  }
+
   const handleConfirm = async () => {
     setSubmitting(true)
     try {
       const res = await bookingApi.checkOut(bookingId, { paymentMethod, surcharge })
+      stopPolling()
       onConfirmed?.(res.data?.data ?? res.data, { paymentMethod, surcharge, grandTotal, depositPaid, amountDue, preview })
     } catch (err) {
       toast.error(err.response?.data?.message || 'Thanh toán thất bại')
@@ -60,6 +116,11 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
   }
 
   const lines = [...(preview?.preorderItems || []), ...(preview?.extraOrderItems || [])]
+
+  const isTransfer = paymentMethod === 'TRANSFER'
+  const qrPaid = qr?.status === 'PAID'
+  // Amount da "khoa" theo QR da tao - khoa luon input phu thu de tranh lech voi so tien QR
+  const surchargeLocked = isTransfer && !!qr
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 450, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }} onClick={onClose}>
@@ -111,6 +172,7 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
                     type="number"
                     min="0"
                     value={surchargeInput}
+                    disabled={surchargeLocked}
                     onChange={(e) => setSurchargeInput(e.target.value)}
                     style={{ width: 140, textAlign: 'right' }}
                   />
@@ -121,28 +183,57 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
               </div>
 
               <div style={{ marginBottom: '.25rem', fontWeight: 700, fontSize: '.85rem' }}>Phương thức thanh toán</div>
-              <div style={{ display: 'flex', gap: '.6rem' }}>
+              <div style={{ display: 'flex', gap: '.6rem', marginBottom: isTransfer ? '1rem' : 0 }}>
                 {PAYMENT_METHODS.map((m) => (
                   <button
                     key={m.value}
                     type="button"
                     className={paymentMethod === m.value ? 'btn-primary btn-sm' : 'btn-outline btn-sm'}
                     style={{ flex: 1 }}
-                    onClick={() => setPaymentMethod(m.value)}
+                    disabled={surchargeLocked}
+                    onClick={() => handleSelectMethod(m.value)}
                   >
                     {m.label}
                   </button>
                 ))}
               </div>
+
+              {isTransfer && (
+                <div style={{ border: '1px solid #E8DECE', borderRadius: 8, padding: '1rem', textAlign: 'center' }}>
+                  {!qr ? (
+                    <button className="btn-primary" style={{ width: '100%' }} disabled={qrCreating} onClick={handleCreateQr}>
+                      {qrCreating ? 'Đang tạo mã QR...' : `Tạo mã QR · ${formatMoney(amountDue)}`}
+                    </button>
+                  ) : (
+                    <>
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qr.qrCode)}`}
+                        alt="QR thanh toán"
+                        style={{ width: 220, height: 220, margin: '0 auto', display: 'block' }}
+                      />
+                      <p style={{ fontSize: '.8rem', color: '#8A6E57', marginTop: '.6rem' }}>
+                        {qr.accountName ? `${qr.accountName} · ${qr.accountNumber}` : 'Quét mã để chuyển khoản'}
+                      </p>
+                      {qrPaid ? (
+                        <p style={{ color: '#1E8E3E', fontWeight: 700, marginTop: '.5rem' }}>✅ Đã nhận được thanh toán</p>
+                      ) : (
+                        <p style={{ color: '#8A6E57', marginTop: '.5rem' }}>⏳ Đang chờ khách quét mã...</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
 
         <div style={{ padding: '1rem 1.4rem', borderTop: '1px solid #E8DECE', flexShrink: 0, display: 'flex', gap: '.6rem' }}>
           <button className="btn-outline" style={{ flex: 1 }} onClick={onClose} disabled={submitting}>Huỷ</button>
-          <button className="btn-primary" style={{ flex: 2 }} onClick={handleConfirm} disabled={loading || submitting}>
-            {submitting ? 'Đang xử lý...' : `Xác nhận đã thu ${formatMoney(amountDue)}`}
-          </button>
+          {(!isTransfer || qrPaid) && (
+            <button className="btn-primary" style={{ flex: 2 }} onClick={handleConfirm} disabled={loading || submitting}>
+              {submitting ? 'Đang xử lý...' : `Xác nhận đã thu ${formatMoney(amountDue)}`}
+            </button>
+          )}
         </div>
       </div>
     </div>

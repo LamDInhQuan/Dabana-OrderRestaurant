@@ -451,6 +451,22 @@ export const paymentApi = {
   refund: (bookingId, data) => api.post(`/payment/${bookingId}/cancel-refund`, data),
 };
 
+export const invoicePaymentApi = {
+  // Tạo QR mới. reservationId là field bắt buộc duy nhất - amount do BE tự
+  // tính lại từ InvoiceService.preview() (không tin số FE gửi). surcharge tuỳ chọn.
+  // KHÔNG lưu DB (không như deposits) - trả thẳng orderCode/qrCode, FE giữ
+  // orderCode trong state của modal để poll status.
+  create: (reservationId, surcharge) => api.post('/payment/invoice-payments', {
+    reservationId: Number(reservationId),
+    surcharge: Number(surcharge) || 0,
+  }),
+
+  // Poll trạng thái - BE hỏi THẲNG payOS (không qua DB), cần truyền lại
+  // orderCode đã nhận từ create() ở trên. Gọi lại mỗi ~3s.
+  getStatus: (reservationId, orderCode) =>
+    api.get(`/payment/invoice-payments/reservation/${reservationId}/status/${orderCode}`),
+};
+
 export const branchCancellationPolicyApi = {
   // GET: Lấy chính sách hủy cọc của chi nhánh
   getByBranch: (branchId) =>
