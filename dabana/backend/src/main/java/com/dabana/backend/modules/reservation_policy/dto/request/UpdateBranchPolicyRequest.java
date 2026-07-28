@@ -9,8 +9,6 @@ import lombok.Setter;
 @Setter
 public class UpdateBranchPolicyRequest {
 
-    private Integer priority;
-
     @NotNull
     private PolicyStatus status;
 }

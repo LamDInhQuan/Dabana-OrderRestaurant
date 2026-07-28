@@ -16,8 +16,6 @@ public class BranchPolicyDetailResponse {
 
     private Long branchId;
 
-    private Integer priority;
-
     private PolicyStatus status;
 
     private ReservationPolicySummaryResponse policy;

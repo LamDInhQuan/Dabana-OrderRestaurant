@@ -25,8 +25,6 @@ public class BranchPolicyResponse {
 
     private String policyName;
 
-    private Integer priority;
-
     private PolicyStatus status;
 
     private Boolean hasDepositOverride;

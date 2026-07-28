@@ -18,6 +18,8 @@ public enum PolicyErrorCode implements ErrorCode {
             "POLICY_NOT_FOUND",
             "Khong tim thay chinh sach dat ban"
     ),
+    POLICY_NOT_ACTIVE("POLICY_002", "Chính sách mẫu đang bị vô hiệu hóa!"),
+
 
     POLICY_ALREADY_EXISTS(
             "POLICY_ALREADY_EXISTS",
@@ -76,7 +78,7 @@ public enum PolicyErrorCode implements ErrorCode {
 
     INVALID_POLICY_ASSIGNMENT(
             "POLICY_ASSIGNMENT_INVALID",
-            "Chinh sach khong thuoc nha hang cua chi nhanh"
+            "Chính sách không thuộc sở hữu của nhà hàng này!"
     ),
 
     DEPOSIT_RULE_NOT_FOUND(
@@ -126,12 +128,15 @@ public enum PolicyErrorCode implements ErrorCode {
             "BRANCH_POLICY_003",
             "Khoảng ngày áp dụng bị chồng chéo với một lịch đã tồn tại."
     ),
+    BRANCH_POLICY_TYPE_ALREADY_ACTIVE("BRANCH_POLICY_004", "Chi nhánh đã có chính sách đang hoạt động cho loại thời gian này! Vui lòng hủy hoặc tắt chính sách cũ trước khi áp dụng."),
     POLICY_RULE_GUEST_RANGE_OVERLAP("RESERVATION_POLICY_001", "Khoảng số lượng khách bị trùng lấn với quy tắc đã tồn tại!"),
     INVALID_GUEST_RANGE("RESERVATION_POLICY_001", "Số lượng khách tối thiểu không được lớn hơn số lượng khách tối đa!"),
     GUEST_COUNT_OUT_OF_POLICY_RANGE(
             "BRANCH_POLICY_004",
             "Số lượng khách vượt quá hoặc nằm ngoài phạm vi quy định của chính sách đặt bàn"
-    );;
+    ),
+    POLICY_SCHEDULE_EMPTY("POLICY_400_04", "Chính sách mẫu chưa được cấu hình lịch áp dụng. Vui lòng thiết lập lịch trước khi gán cho chi nhánh."),
+    POLICY_DEPOSIT_RULE_EMPTY("POLICY_400_05", "Chính sách mẫu chưa được cấu hình quy tắc đặt cọc. Vui lòng thiết lập quy tắc cọc trước khi gán cho chi nhánh.");;;
 
     private final String code;
     private final String message;

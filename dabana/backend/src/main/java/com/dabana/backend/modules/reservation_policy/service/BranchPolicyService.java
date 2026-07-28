@@ -40,63 +40,74 @@ public class BranchPolicyService implements IBranchPolicyService {
         ReservationPolicy policy = reservationPolicyRepository.findById(request.getPolicyId())
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
 
+        if (policy.getStatus() != PolicyStatus.ACTIVE) {
+            throw new BusinessException(PolicyErrorCode.POLICY_NOT_ACTIVE);
+        }
+
         if (!branch.getRestaurant().getId().equals(policy.getRestaurant().getId())) {
             throw new BusinessException(PolicyErrorCode.INVALID_POLICY_ASSIGNMENT);
         }
 
-        boolean exists = branchPolicyRepository.existsByBranchIdAndPolicyId(branchId, policy.getId());
-        if (exists) {
-            throw new BusinessException(PolicyErrorCode.BRANCH_POLICY_ALREADY_EXISTS);
+        // 🔴 CHECK BỔ SUNG: Template bắt buộc phải có ít nhất 1 Schedule và 1 Deposit Rule
+        if (policy.getSchedules() == null || policy.getSchedules().isEmpty()) {
+            throw new BusinessException(PolicyErrorCode.POLICY_SCHEDULE_EMPTY);
+            // Báo lỗi: "Chính sách mẫu chưa được cấu hình lịch áp dụng. Vui lòng thiết lập lịch trước khi gán."
         }
 
+        if (policy.getDepositRules() == null || policy.getDepositRules().isEmpty()) {
+            throw new BusinessException(PolicyErrorCode.POLICY_DEPOSIT_RULE_EMPTY);
+            // Báo lỗi: "Chính sách mẫu chưa được cấu hình quy tắc đặt cọc. Vui lòng thiết lập quy tắc cọc trước khi gán."
+        }
+
+        // --- Check xem Chi nhánh đã có Policy ACTIVE nào cùng loại ScheduleType chưa ---
+        boolean existsActiveSameType = branchPolicyRepository.existsByBranchIdAndPolicyScheduleTypeAndStatus(
+                branchId,
+                policy.getScheduleType(),
+                PolicyStatus.ACTIVE
+        );
+
+        if (existsActiveSameType) {
+            throw new BusinessException(PolicyErrorCode.BRANCH_POLICY_TYPE_ALREADY_ACTIVE);
+        }
+
+        // Map Entity
         BranchPolicy branchPolicy = branchPolicyMapper.toEntity(request, branch, policy);
         branchPolicy.setStatus(PolicyStatus.ACTIVE);
-        // 3. Clone Deposit Rules từ Policy mẫu sang Branch Policy
-        // 3. Clone Deposit Rules mẫu sang Set của BranchPolicy
-        if (policy.getDepositRules() != null && !policy.getDepositRules().isEmpty()) {
-            for (ReservationPolicyDepositRule rule : policy.getDepositRules()) {
-                BranchPolicyDepositRule branchRule = BranchPolicyDepositRule.builder()
-                        .minGuest(rule.getMinGuest()) // Lưu ý đặt tên field minGuest/minGuests cho đồng bộ
-                        .maxGuest(rule.getMaxGuest())
-                        .depositType(rule.getDepositType())
-                        .depositValue(rule.getDepositValue())
-                        .maxTables(rule.getMaxTables())
-                        .maxCapacitySlop(rule.getMaxCapacitySlop())
-                        .minPreorderAmount(rule.getMinPreorderAmount())
-                        .build();
 
-                branchPolicy.addDepositRule(branchRule); // Dùng helper method
-            }
+        // Clone Deposit Rules sang Set của BranchPolicy
+        for (ReservationPolicyDepositRule rule : policy.getDepositRules()) {
+            branchPolicy.addDepositRule(BranchPolicyDepositRule.builder()
+                    .minGuest(rule.getMinGuest())
+                    .maxGuest(rule.getMaxGuest())
+                    .depositType(rule.getDepositType())
+                    .depositValue(rule.getDepositValue())
+                    .maxTables(rule.getMaxTables())
+                    .maxCapacitySlop(rule.getMaxCapacitySlop())
+                    .minPreorderAmount(rule.getMinPreorderAmount())
+                    .build());
         }
 
-        // 4. Clone Schedules mẫu sang Set của BranchPolicy
-        if (policy.getSchedules() != null && !policy.getSchedules().isEmpty()) {
-            for (ReservationPolicySchedule schedule : policy.getSchedules()) {
-                BranchPolicySchedule branchSchedule = BranchPolicySchedule.builder()
-                        .dayOfWeek(schedule.getDayOfWeek())
-                        .dateFrom(schedule.getDateFrom())
-                        .dateTo(schedule.getDateTo())
-                        .timeFrom(schedule.getTimeFrom())
-                        .timeTo(schedule.getTimeTo())
-                        .status(schedule.getStatus())
-                        .build();
-
-                branchPolicy.addSchedule(branchSchedule); // Dùng helper method
-            }
+        // Clone Schedules sang Set của BranchPolicy
+        for (ReservationPolicySchedule schedule : policy.getSchedules()) {
+            branchPolicy.addSchedule(BranchPolicySchedule.builder()
+                    .dayOfWeek(schedule.getDayOfWeek())
+                    .dateFrom(schedule.getDateFrom())
+                    .dateTo(schedule.getDateTo())
+                    .timeFrom(schedule.getTimeFrom())
+                    .timeTo(schedule.getTimeTo())
+                    .status(schedule.getStatus())
+                    .build());
         }
+
         BranchPolicy saved = branchPolicyRepository.save(branchPolicy);
         return branchPolicyMapper.toResponse(saved);
     }
-
     @Override
     @Transactional
     public BranchPolicyResponse update(Long branchId, Long policyId, UpdateBranchPolicyRequest request) {
         BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
-        if (request.getPriority() != null) {
-            branchPolicy.setPriority(request.getPriority());
-        }
         if (request.getStatus() != null) {
             branchPolicy.setStatus(request.getStatus());
         }
@@ -132,7 +143,7 @@ public class BranchPolicyService implements IBranchPolicyService {
     @Override
     @Transactional(readOnly = true)
     public List<BranchPolicyResponse> getAll(Long branchId) {
-        return branchPolicyRepository.findAllByBranchIdOrderByPriorityDesc(branchId)
+        return branchPolicyRepository.findAllByBranchId(branchId)
                 .stream()
                 .map(branchPolicyMapper::toResponse)
                 .toList();

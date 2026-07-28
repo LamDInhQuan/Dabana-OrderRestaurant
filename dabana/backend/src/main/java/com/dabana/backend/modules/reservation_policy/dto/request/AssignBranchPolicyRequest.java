@@ -10,6 +10,5 @@ public class AssignBranchPolicyRequest {
 
     @NotNull
     private Long policyId;
-
-    private Integer priority = 0;
+    
 }

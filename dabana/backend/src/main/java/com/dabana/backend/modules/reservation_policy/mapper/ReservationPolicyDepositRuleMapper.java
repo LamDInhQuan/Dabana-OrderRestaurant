@@ -19,6 +19,7 @@ public class ReservationPolicyDepositRuleMapper {
                 .maxTables(request.getMaxTables())
                 .maxCapacitySlop(request.getMaxCapacitySlop())
                 .minPreorderAmount(request.getMinPreorderAmount())
+                .preorderDepositPercent(request.getPreorderDepositPercent())
                 .build();
     }
 
@@ -33,6 +34,7 @@ public class ReservationPolicyDepositRuleMapper {
                 .maxTables(entity.getMaxTables())
                 .maxCapacitySlop(entity.getMaxCapacitySlop())
                 .minPreorderAmount(entity.getMinPreorderAmount())
+                .preorderDepositPercent(entity.getPreorderDepositPercent())
                 .build();
     }
 }

@@ -46,7 +46,7 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
         List<BranchPolicy> policies = branchPolicyRepository.findActivePolicies(branchId, PolicyStatus.ACTIVE);
         return policies.stream()
                 .filter(policy -> match(policy, reservationTime))
-                .max(Comparator.comparingInt(BranchPolicy::getPriority))
+                .max(Comparator.comparingInt(this::getPolicyPriorityRank))
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
     }
 
@@ -60,16 +60,34 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
 
         // 2. Tìm Rule phù hợp với số lượng khách (xử lý cả trường hợp maxGuest null = vô tận)
         if (rules != null && !rules.isEmpty()) {
+            // 1. Kiểm tra trường hợp match chuẩn xác trước (min <= guestCount <= max)
+            // Lưu ý: Cần handle trường hợp maxGuest == null (tượng trưng cho vô tận)
             BranchPolicyDepositRule matchedRule = rules.stream()
-                    .filter(r -> guestCount >= r.getMinGuest() && guestCount <= r.getMaxGuest())
+                    .filter(r -> guestCount >= r.getMinGuest() && (r.getMaxGuest() == null || guestCount <= r.getMaxGuest()))
                     .findFirst()
                     .orElse(null);
 
+            // 2. Nếu không match chuẩn xác (rơi vào khoảng hở hoặc vượt quá mốc lớn nhất)
+            if (matchedRule == null) {
+                // Tìm rule có minGuest <= guestCount nhưng có minGuest LỚN NHẤT (chính là rule liền trước khoảng hở)
+                matchedRule = rules.stream()
+                        .filter(r -> r.getMinGuest() <= guestCount)
+                        .max(Comparator.comparingInt(BranchPolicyDepositRule::getMinGuest))
+                        .orElse(null);
+            }
+
+            // 3. Nếu vẫn null (nghĩa là guestCount còn NHỎ HƠN cả minGuest của rule nhỏ nhất, ví dụ đặt 1 người mà rule min = 2)
+            if (matchedRule == null) {
+                // Fallback lấy rule có minGuest nhỏ nhất hệ thống đang có
+                matchedRule = rules.stream()
+                        .min(Comparator.comparingInt(BranchPolicyDepositRule::getMinGuest))
+                        .orElse(null);
+            }
+
+            // 4. Tiến hành tính toán nếu đã tìm được rule (chính xác hoặc fallback)
             if (matchedRule != null) {
-                BigDecimal depositAmount = calculateDepositAmount(
-                        matchedRule.getDepositType(),
-                        matchedRule.getDepositValue(),
-                        matchedRule.getMinPreorderAmount(),
+                BigDecimal depositAmount = calculateTotalDeposit(
+                        matchedRule,
                         guestCount,
                         preorderAmount
                 );
@@ -139,19 +157,43 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
         return false;
     }
 
-    private BigDecimal calculateDepositAmount(DepositType depositType, BigDecimal depositValue, BigDecimal minPreorderAmount, int guestCount, BigDecimal preorderAmount) {
-        return switch (depositType) {
-            case FIXED -> depositValue;
-            case PER_PERSON -> depositValue.multiply(BigDecimal.valueOf(guestCount));
-            case PERCENTAGE -> {
-                // Kiểm tra ngưỡng món đặt trước tối thiểu
-                // yield: Trả về giá trị cho riêng biểu thức switch đó , đó, sau đó code vẫn tiếp tục chạy các dòng tiếp theo bên dưới khối switch (nếu có).
-                if (minPreorderAmount != null && preorderAmount.compareTo(minPreorderAmount) < 0) {
-                    yield BigDecimal.ZERO;
-                }
-                yield preorderAmount.multiply(depositValue).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            }
+    public BigDecimal calculateTotalDeposit(
+            BranchPolicyDepositRule rule,
+            int guestCount,
+            BigDecimal preorderAmount) {
+
+        // 1. Cọc cố định hoặc theo đầu người cho tiền bàn
+        BigDecimal tableDeposit = switch (rule.getDepositType()) {
+            case FIXED -> rule.getDepositValue();
+            case PER_PERSON -> rule.getDepositValue().multiply(BigDecimal.valueOf(guestCount));
         };
+
+        // 2. Cọc % tiền món ăn (nếu rule có quy định % và khách có chọn món)
+        BigDecimal foodDeposit = BigDecimal.ZERO;
+
+// 1. Kiểm tra nếu có cấu hình % cọc món và khách có đặt món (> 0đ)
+        if (rule.getPreorderDepositPercent() != null
+                && preorderAmount != null
+                && preorderAmount.compareTo(BigDecimal.ZERO) > 0) {
+
+            boolean isEligibleForPercentDeposit = false;
+
+            if (rule.getMinPreorderAmount() == null) {
+                // Trường hợp min null -> Luôn kích hoạt cọc % cho mọi giá trị đơn đặt món
+                isEligibleForPercentDeposit = true;
+            } else if (preorderAmount.compareTo(rule.getMinPreorderAmount()) >= 0) {
+                // Trường hợp có min -> Bill món phải >= minPreorderAmount mới kích hoạt tính cọc %
+                isEligibleForPercentDeposit = true;
+            }
+
+            // 2. Nếu thỏa mãn điều kiện kích hoạt -> Mới tính % cọc món trên tổng tiền bill đặt trước
+            if (isEligibleForPercentDeposit) {
+                foodDeposit = preorderAmount.multiply(rule.getPreorderDepositPercent())
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            }
+        }
+
+        return tableDeposit.add(foodDeposit);
     }
 
     private DepositResult createFreeDepositResult(BranchPolicy policy) {
@@ -180,5 +222,17 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
             default:
                 return false;
         }
+    }
+    private int getPolicyPriorityRank(BranchPolicy policy) {
+        if (policy == null || policy.getPolicy().getScheduleType() == null) {
+            return 0;
+        }
+
+        return switch (policy.getPolicy().getScheduleType()) {
+            case DATE_RANGE  -> 3; // Cao nhất: Áp dụng cho các dịp đặc biệt / khoảng ngày cụ thể
+            case DAY_OF_WEEK -> 2; // Trung bình: Áp dụng cho thứ 2-CN
+            case ALWAYS       -> 1; // Thấp nhất: Chính sách mặc định hàng ngày
+            default                  -> 0;
+        };
     }
 }

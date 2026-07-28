@@ -22,6 +22,7 @@ public class CreateReservationPolicyDepositRuleRequest {
     @Min(value = 1, message = "Số khách tối thiểu phải từ 1 người trở lên")
     private Integer minGuests;
 
+    @NotNull(message = "Số khách tối đa không được để trống")
     @Min(value = 1, message = "Số khách tối đa phải lớn hơn 0")
     private Integer maxGuests; // Can be null (vô tận)
 
@@ -38,4 +39,8 @@ public class CreateReservationPolicyDepositRuleRequest {
 
     @Min(value = 1, message = "Số bàn tối đa phải lớn hơn 0")
     private Integer maxTables;
+
+    @PositiveOrZero(message = "Phần trăm cọc món ăn không được là số âm")
+    @DecimalMax(value = "100.00", message = "Phần trăm cọc món ăn tối đa là 100%")
+    private BigDecimal preorderDepositPercent;
 }

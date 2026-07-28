@@ -45,4 +45,7 @@ public class ReservationPolicyDepositRule extends BaseEntity {
 
     @Column(name = "min_preorder_amount", precision = 12, scale = 2)
     private BigDecimal minPreorderAmount;
+
+    @Column(name = "preorder_deposit_percent", precision = 5, scale = 2)
+    private BigDecimal preorderDepositPercent;
 }

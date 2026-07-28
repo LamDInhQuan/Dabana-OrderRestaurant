@@ -1,7 +1,9 @@
 package com.dabana.backend.modules.reservation_policy.repository;
 
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
+import com.dabana.backend.modules.reservation_policy.util.PolicyScheduleType;
 import com.dabana.backend.modules.reservation_policy.util.PolicyStatus;
+import com.dabana.backend.modules.reservation_policy.util.ScheduleType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,7 +35,7 @@ public interface BranchPolicyRepository
             @Param("branchId") Long branchId
     );
 
-    List<BranchPolicy> findAllByBranchIdOrderByPriorityDesc(
+    List<BranchPolicy> findAllByBranchId(
             Long branchId
     );
 
@@ -57,4 +59,6 @@ public interface BranchPolicyRepository
                   and bp.status = :policyStatus
             """)
     List<BranchPolicy> findActivePolicies(Long branchId , @Param("policyStatus") PolicyStatus policyStatus);
+
+    boolean existsByBranchIdAndPolicyScheduleTypeAndStatus(Long branchId, PolicyScheduleType scheduleType, PolicyStatus status);
 }

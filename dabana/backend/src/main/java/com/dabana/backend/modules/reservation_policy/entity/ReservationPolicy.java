@@ -55,6 +55,7 @@ public class ReservationPolicy extends BaseEntity {
     @Column(nullable = false)
     private PolicyStatus status;
 
+
     @OneToMany(mappedBy = "policy", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ReservationPolicyDepositRule> depositRules = new HashSet<>();
 

@@ -34,15 +34,15 @@ public class BranchPolicyDepositRuleService implements IBranchPolicyDepositRuleS
 
     @Override
     @Transactional
-    public BranchPolicyDepositRuleResponse create(Long branchId, Long policyId, CreateBranchPolicyDepositRuleRequest request) {
+    public BranchPolicyDepositRuleResponse create(Long branchId, Long branchPolicyId, CreateBranchPolicyDepositRuleRequest request) {
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
+        BranchPolicy branchPolicy = branchPolicyRepository.findById(branchPolicyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
         validateRule(request);
-        assertNoGuestRangeOverlap(branchPolicy.getId(), request.getMinGuest(), request.getMaxGuest(), null);
+        assertNoGuestRangeOverlap(branchPolicy.getId(), request.getMinGuests(), request.getMaxGuests(), null);
 
         BranchPolicyDepositRule entity = branchPolicyDepositRuleMapper.toEntity(request, branchPolicy);
         return branchPolicyDepositRuleMapper.toResponse(branchPolicyDepositRuleRepository.save(entity));
@@ -50,12 +50,13 @@ public class BranchPolicyDepositRuleService implements IBranchPolicyDepositRuleS
 
     @Override
     @Transactional
-    public BranchPolicyDepositRuleResponse update(Long branchId, Long policyId, Long ruleId, UpdateBranchPolicyDepositRuleRequest request) {
+    public BranchPolicyDepositRuleResponse update(Long branchId, Long branchPolicyId, Long ruleId, UpdateBranchPolicyDepositRuleRequest request) {
         branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
+        BranchPolicy branchPolicy = branchPolicyRepository.findById(branchPolicyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
+
 
         BranchPolicyDepositRule entity = branchPolicyDepositRuleRepository.findByIdAndBranchPolicyId(ruleId, branchPolicy.getId())
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.DEPOSIT_RULE_NOT_FOUND));
@@ -73,11 +74,11 @@ public class BranchPolicyDepositRuleService implements IBranchPolicyDepositRuleS
 
     @Override
     @Transactional
-    public void delete(Long branchId, Long policyId, Long ruleId) {
+    public void delete(Long branchId, Long branchPolicyId, Long ruleId) {
         branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        BranchPolicy branchPolicy = branchPolicyRepository.findByBranchIdAndPolicyId(branchId, policyId)
+        BranchPolicy branchPolicy = branchPolicyRepository.findById(branchPolicyId)
                 .orElseThrow(() -> new BusinessException(PolicyErrorCode.BRANCH_POLICY_NOT_FOUND));
 
         BranchPolicyDepositRule entity = branchPolicyDepositRuleRepository.findByIdAndBranchPolicyId(ruleId, branchPolicy.getId())
@@ -117,7 +118,7 @@ public class BranchPolicyDepositRuleService implements IBranchPolicyDepositRuleS
     }
 
     private void validateRule(CreateBranchPolicyDepositRuleRequest request) {
-        validateRule(request.getMinGuest(), request.getMaxGuest(), request.getDepositValue());
+        validateRule(request.getMinGuests(), request.getMaxGuests(), request.getDepositValue());
     }
 
     private void validateRule(UpdateBranchPolicyDepositRuleRequest request) {

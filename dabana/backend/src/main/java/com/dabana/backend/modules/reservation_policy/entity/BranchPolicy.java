@@ -36,8 +36,6 @@ public class BranchPolicy extends BaseEntity {
     @JoinColumn(name = "policy_id", nullable = false)
     private ReservationPolicy policy;
 
-    @Column(nullable = false)
-    private Integer priority;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

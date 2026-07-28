@@ -30,4 +30,7 @@ public class ReservationPolicyDepositRuleResponse {
     private DepositType depositType;
 
     private BigDecimal depositValue;
+
+    private BigDecimal preorderDepositPercent ;
+
 }

@@ -10,20 +10,20 @@ public interface IBranchPolicyDepositRuleService {
 
     BranchPolicyDepositRuleResponse create(
             Long branchId,
-            Long policyId,
+            Long branchPolicyId,
             CreateBranchPolicyDepositRuleRequest request
     );
 
     BranchPolicyDepositRuleResponse update(
             Long branchId,
-            Long policyId,
+            Long branchPolicyId,
             Long ruleId,
             UpdateBranchPolicyDepositRuleRequest request
     );
 
-    void delete(Long branchId, Long policyId, Long ruleId);
+    void delete(Long branchId, Long branchPolicyId, Long ruleId);
 
-    BranchPolicyDepositRuleResponse getDetail(Long branchId, Long policyId, Long ruleId);
+    BranchPolicyDepositRuleResponse getDetail(Long branchId, Long branchPolicyId, Long ruleId);
 
     List<BranchPolicyDepositRuleResponse> getAll(Long branchId, Long policyId);
 }

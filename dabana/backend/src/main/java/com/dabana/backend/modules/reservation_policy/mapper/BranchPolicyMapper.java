@@ -22,7 +22,6 @@ public class BranchPolicyMapper {
         return BranchPolicy.builder()
                 .branch(branch)
                 .policy(policy)
-                .priority(request.getPriority() == null ? 0 : request.getPriority())
                 .status(PolicyStatus.ACTIVE)
                 .build();
     }
@@ -35,7 +34,6 @@ public class BranchPolicyMapper {
                 .policyId(branchPolicy.getPolicy().getId())
                 .policyCode(branchPolicy.getPolicy().getPolicyCode())
                 .policyName(branchPolicy.getPolicy().getName())
-                .priority(branchPolicy.getPriority())
                 .status(branchPolicy.getStatus())
                 .hasDepositOverride(!branchPolicy.getDepositRules().isEmpty())
                 .hasScheduleOverride(!branchPolicy.getSchedules().isEmpty())
@@ -46,7 +44,6 @@ public class BranchPolicyMapper {
         return BranchPolicyDetailResponse.builder()
                 .id(branchPolicy.getId())
                 .branchId(branchPolicy.getBranch().getId())
-                .priority(branchPolicy.getPriority())
                 .status(branchPolicy.getStatus())
                 .policy(
                         ReservationPolicySummaryResponse.builder()
