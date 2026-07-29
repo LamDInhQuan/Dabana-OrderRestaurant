@@ -84,6 +84,7 @@ public class BookingService implements IBookingService {
     private final DiningTableService diningTableService;
     private final UserRepository userRepository;
     private final BranchCancellationPolicyService branchCancellationPolicyService;
+    private final BranchCancellationPolicyRepository branchCancellationPolicyRepository;
     private final IInvoiceService invoiceService;
     private final DepositPaymentRepository depositPaymentRepository;
     private final ReviewRepository reviewRepository;
@@ -218,14 +219,23 @@ public class BookingService implements IBookingService {
         booking.setNote(req.getNote());
 
         // 8. Snapshot policy
+        // Luu y: KHONG duoc goi branchCancellationPolicyService.loadByBranch(...) o day.
+        // Method do nam trong 1 bean @Transactional khac; khi branch chua co
+        // BranchCancellationPolicy, no throw BusinessException (RuntimeException) ngay
+        // trong nested transaction (propagation REQUIRED = dung chung transaction vat ly
+        // voi createHold). Spring se danh dau transaction hien tai la rollback-only ngay
+        // tai thoi diem do, DU cho exception bi catch va nuot o day. Ket qua: createHold
+        // van chay tiep va return binh thuong, nhung khi commit, Spring phat hien
+        // rollback-only flag va nem UnexpectedRollbackException thay vi commit
+        // => loi 500 dù toan bo logic phia tren da chay dung.
+        // Fix: query truc tiep qua repository (tra ve Optional, khong throw) de tranh
+        // vuot qua ranh gioi @Transactional bang exception.
         PolicySnapshotDto policySnapshot = new PolicySnapshotDto();
-        try {
-            BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
-            if (branchPolicy != null) {
-                policySnapshot = toPolicySnapShotDto(branchPolicy, cancellationPolicy);
-            }
-        } catch (Exception e) {
-            // Log cảnh báo nếu cần thiết
+        if (branchPolicy != null) {
+            BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyRepository
+                    .findByBranchId(branch.getId())
+                    .orElse(null);
+            policySnapshot = toPolicySnapShotDto(branchPolicy, cancellationPolicy);
         }
         booking.setPolicySnapshot(policySnapshot);
 
