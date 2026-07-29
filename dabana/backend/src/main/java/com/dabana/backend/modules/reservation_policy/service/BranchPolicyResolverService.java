@@ -55,36 +55,41 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
         if (!isReservationTimeInActiveWindow(policy, reservationTime)) {
             return createFreeDepositResult(policy);
         }
+
         BigDecimal preorderAmount = totalPreorderAmount != null ? totalPreorderAmount : BigDecimal.ZERO;
         List<BranchPolicyDepositRule> rules = policy.getDepositRules().stream().toList();
 
-        // 2. Tìm Rule phù hợp với số lượng khách (xử lý cả trường hợp maxGuest null = vô tận)
         if (rules != null && !rules.isEmpty()) {
+            // Sắp xếp các rule tăng dần theo minGuest để dễ xử lý logic khoảng và fallback
+            List<BranchPolicyDepositRule> sortedRules = rules.stream()
+                    .sorted(Comparator.comparingInt(BranchPolicyDepositRule::getMinGuest))
+                    .toList();
+
             // 1. Kiểm tra trường hợp match chuẩn xác trước (min <= guestCount <= max)
-            // Lưu ý: Cần handle trường hợp maxGuest == null (tượng trưng cho vô tận)
-            BranchPolicyDepositRule matchedRule = rules.stream()
+            BranchPolicyDepositRule matchedRule = sortedRules.stream()
                     .filter(r -> guestCount >= r.getMinGuest() && (r.getMaxGuest() == null || guestCount <= r.getMaxGuest()))
                     .findFirst()
                     .orElse(null);
 
-            // 2. Nếu không match chuẩn xác (rơi vào khoảng hở hoặc vượt quá mốc lớn nhất)
+            // 2. Nếu vượt quá mốc lớn nhất (ví dụ: 9 khách mà mốc max chỉ là 8) -> Fallback lấy rule lớn nhất
+            if (matchedRule == null && guestCount > sortedRules.get(sortedRules.size() - 1).getMinGuest()) {
+                matchedRule = sortedRules.get(sortedRules.size() - 1);
+            }
+
+            // 3. Nếu không match chuẩn xác, tìm rule gần nhất phía dưới (minGuest <= guestCount)
             if (matchedRule == null) {
-                // Tìm rule có minGuest <= guestCount nhưng có minGuest LỚN NHẤT (chính là rule liền trước khoảng hở)
-                matchedRule = rules.stream()
+                matchedRule = sortedRules.stream()
                         .filter(r -> r.getMinGuest() <= guestCount)
                         .max(Comparator.comparingInt(BranchPolicyDepositRule::getMinGuest))
                         .orElse(null);
             }
 
-            // 3. Nếu vẫn null (nghĩa là guestCount còn NHỎ HƠN cả minGuest của rule nhỏ nhất, ví dụ đặt 1 người mà rule min = 2)
+            // 4. Nếu vẫn null (guestCount nhỏ hơn cả minGuest của rule nhỏ nhất) -> Lấy rule nhỏ nhất
             if (matchedRule == null) {
-                // Fallback lấy rule có minGuest nhỏ nhất hệ thống đang có
-                matchedRule = rules.stream()
-                        .min(Comparator.comparingInt(BranchPolicyDepositRule::getMinGuest))
-                        .orElse(null);
+                matchedRule = sortedRules.get(0);
             }
 
-            // 4. Tiến hành tính toán nếu đã tìm được rule (chính xác hoặc fallback)
+            // 5. Tính toán tiền cọc dựa trên rule đã được resolve an toàn
             if (matchedRule != null) {
                 BigDecimal depositAmount = calculateTotalDeposit(
                         matchedRule,
@@ -93,11 +98,9 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
                 );
                 return new DepositResult(matchedRule, depositAmount);
             }
-
-            // Nằm ngoài dải số khách đã cấu hình -> Ném lỗi yêu cầu liên hệ nhà hàng
-            throw new BusinessException(PolicyErrorCode.GUEST_COUNT_OUT_OF_POLICY_RANGE);
         }
-        // 3. Không tìm thấy ở đâu -> Miễn phí cọc
+
+        // Không có rule nào -> Miễn phí cọc
         return createFreeDepositResult(policy);
     }
 
@@ -223,16 +226,17 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
                 return false;
         }
     }
+
     private int getPolicyPriorityRank(BranchPolicy policy) {
         if (policy == null || policy.getPolicy().getScheduleType() == null) {
             return 0;
         }
 
         return switch (policy.getPolicy().getScheduleType()) {
-            case DATE_RANGE  -> 3; // Cao nhất: Áp dụng cho các dịp đặc biệt / khoảng ngày cụ thể
+            case DATE_RANGE -> 3; // Cao nhất: Áp dụng cho các dịp đặc biệt / khoảng ngày cụ thể
             case DAY_OF_WEEK -> 2; // Trung bình: Áp dụng cho thứ 2-CN
-            case ALWAYS       -> 1; // Thấp nhất: Chính sách mặc định hàng ngày
-            default                  -> 0;
+            case ALWAYS -> 1; // Thấp nhất: Chính sách mặc định hàng ngày
+            default -> 0;
         };
     }
 }

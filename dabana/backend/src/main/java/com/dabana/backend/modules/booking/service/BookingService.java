@@ -123,10 +123,12 @@ public class BookingService implements IBookingService {
         // 1. Validate Branch
         Branch branch = branchRepository.findById(req.getBranchId())
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
+
         // 2. Validate giờ hoạt động
         if (!availableSlotService.isReservationTimeAvailable(req.getBranchId(), req.getReservationTime())) {
             throw new BusinessException(BranchErrorCode.OPERATING_HOUR_NOT_FOUND);
         }
+
         // 3. Validate bàn
         var requestedTableIds = req.getTableIds().stream().distinct().collect(Collectors.toList());
         if (requestedTableIds.isEmpty()) {
@@ -134,30 +136,28 @@ public class BookingService implements IBookingService {
         }
         List<DiningTable> tables = bookingTableService.loadTables(req.getTableIds());
         bookingTableService.validateBookingConflict(req.getTableIds(), req.getReservationTime());
+
         // 4. Tính trước tổng tiền món ăn đặt trước (Pre-order Total) nếu có
         BigDecimal totalPreorderAmount = BigDecimal.ZERO;
         if (req.getItems() != null && !req.getItems().isEmpty()) {
             totalPreorderAmount = bookingItemService.calculateTotalPreorderAmountFromRequests(req.getItems());
         }
-        // 5. Resolve policy + tính tiền cọc
-        BranchPolicy branchPolicy = null;
-        DepositResult depositResult = new DepositResult(); // Khởi tạo mặc định để tránh null
 
-        try {
-            branchPolicy = branchPolicyResolverService.resolve(branch.getId(), req.getReservationTime());
-            if (branchPolicy != null) {
-                depositResult = branchPolicyResolverService.calculate(
-                        branchPolicy,
-                        req.getGuestCount(),
-                        req.getReservationTime(), totalPreorderAmount);
-            } else {
-                depositResult.setDepositAmount(BigDecimal.ZERO);
-            }
-        } catch (BusinessException e) {
-            // Nếu bắt được BusinessException, gán tiền cọc về 0
-            depositResult = new DepositResult();
-            depositResult.setDepositAmount(BigDecimal.ZERO);
+        // 5. Resolve policy + tính tiền cọc (Loại bỏ try-catch nuốt lỗi ngầm, dùng Optional / check an toàn)
+        BranchPolicy branchPolicy = branchPolicyResolverService.resolve(branch.getId(), req.getReservationTime());
+        DepositResult depositResult;
+
+        if (branchPolicy != null) {
+            depositResult = branchPolicyResolverService.calculate(
+                    branchPolicy,
+                    req.getGuestCount(),
+                    req.getReservationTime(),
+                    totalPreorderAmount
+            );
+        } else {
+            depositResult = new DepositResult(null, BigDecimal.ZERO);
         }
+
         // 6. Check ràng buộc Bàn dựa theo Rule thu được từ Policy
         if (depositResult.getRule() != null) {
             var rule = depositResult.getRule();
@@ -182,6 +182,7 @@ public class BookingService implements IBookingService {
             // Fallback kiểm tra capacity cơ bản nếu không khớp rule nào
             bookingTableService.validateTablesGuestCount(tables, req.getGuestCount());
         }
+
         // 7. Tạo Booking
         Booking booking = bookingMapper.toEntity(req, user, branch);
         boolean isDepositRequired = depositResult.getDepositAmount() != null
@@ -193,32 +194,30 @@ public class BookingService implements IBookingService {
             booking.setEstimatedTotal(depositResult.getDepositAmount());
         } else {
             booking.setStatus(BookingStatus.CONFIRMED);
-            booking.setHoldExpiresAt(null); // Không giới hạn giữ bàn vì đã xác nhận đơn
+            booking.setHoldExpiresAt(null);
             booking.setEstimatedTotal(BigDecimal.ZERO);
         }
+
         String contactName = StringUtils.hasText(req.getContactName())
                 ? req.getContactName()
                 : user.getFullName();
         String contactPhone = StringUtils.hasText(req.getContactPhone())
                 ? req.getContactPhone()
                 : user.getPhone();
-        // Giong het contactName/contactPhone: neu request khong gui contactEmail
-        // (thanh vien da dang nhap thuong khong bat buoc nhap lai email), fallback
-        // ve email tai khoan. Truoc day thieu fallback nay -> tao ra booking co
-        // contact_email rong, vi pham @NotBlank cua entity Booking va lam crash
-        // scheduled task expireOverdueConfirmedBookings khi Hibernate flush.
         String contactEmail = StringUtils.hasText(req.getContactEmail())
                 ? req.getContactEmail()
                 : user.getEmail();
+
         if (!StringUtils.hasText(contactEmail)) {
             throw new BusinessException(AuthErrorCode.EMAIL_NOT_NULL);
         }
+
         booking.setContactName(contactName);
         booking.setContactPhone(contactPhone);
         booking.setContactEmail(contactEmail);
         booking.setNote(req.getNote());
-        // 6. Snapshot policy
-// 6. Snapshot policy
+
+        // 8. Snapshot policy
         PolicySnapshotDto policySnapshot = new PolicySnapshotDto();
         try {
             BranchCancellationPolicy cancellationPolicy = branchCancellationPolicyService.loadByBranch(branch.getId());
@@ -226,16 +225,20 @@ public class BookingService implements IBookingService {
                 policySnapshot = toPolicySnapShotDto(branchPolicy, cancellationPolicy);
             }
         } catch (Exception e) {
-            // Ghi log cảnh báo nhưng vẫn cho phép tiếp tục tạo booking với snapshot rỗng
+            // Log cảnh báo nếu cần thiết
         }
         booking.setPolicySnapshot(policySnapshot);
+
         booking = bookingRepository.save(booking);
-        // 7. Lưu bàn
+
+        // 9. Lưu bàn
         bookingTableService.saveBookingTables(booking, tables);
-        // 8. Lưu món đặt trước (nếu có)
+
+        // 10. Lưu món đặt trước (nếu có)
         if (req.getItems() != null && !req.getItems().isEmpty()) {
             bookingItemService.saveItems(booking, req.getItems());
         }
+
         return bookingMapper.toResponse(booking);
     }
 
