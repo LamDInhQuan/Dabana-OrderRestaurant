@@ -95,7 +95,9 @@ public class AdminController {
     // F44: Quan ly tai khoan nguoi dung toan he thong
     // ======================================================
 
-    /** Danh sach tai khoan doi tac dang cho duyet (B02 buoc 4). */
+    /**
+     * Danh sach tai khoan doi tac dang cho duyet (B02 buoc 4).
+     */
     @GetMapping("/users/pending")
     public ResponseEntity<List<UserResponse>> listPendingUsers() {
         List<UserResponse> data = userRepository
@@ -105,7 +107,9 @@ public class AdminController {
         return ResponseEntity.ok(data);
     }
 
-    /** F44: tim kiem/loc tai khoan Khach hang & Nha hang doi tac toan he thong. */
+    /**
+     * F44: tim kiem/loc tai khoan Khach hang & Nha hang doi tac toan he thong.
+     */
     @GetMapping("/users")
     public ResponseEntity<Page<UserResponse>> searchUsers(
             @RequestParam(required = false) String role,
@@ -125,38 +129,58 @@ public class AdminController {
         return ResponseEntity.ok(userMapper.userResponse(user));
     }
 
-    /** B02 buoc 4-5: phe duyet/tu choi dang ky tai khoan doi tac. */
-     @PostMapping("/users/{id}/approve")
+    /**
+     * B02 buoc 4-5: phe duyet/tu choi dang ky tai khoan doi tac.
+     */
+    @PostMapping("/users/{id}/approve")
     @Transactional
     public ResponseEntity<UserResponse> approveUser(@PathVariable Long id, @RequestBody ApprovalRequest req) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AdminErrorCode.USER_NOT_FOUND));
 
-        if (!Objects.equals(user.getStatus(), AccountStatus.PENDING_ADMIN.getStatus())) {
-            throw new BusinessException(AdminErrorCode.INVALID_STATE);
-        }
+        // Kiểm tra trạng thái phù hợp nếu cần thiết (ví dụ: PENDING_ADMIN, PENDING_OTP...)
+
+        // Lấy thông tin nhà hàng liên kết trước để dùng cho việc cập nhật và gửi email
+        Restaurant restaurant = restaurantRepository.findByOwnerUserId(id).orElse(null);
+        String restaurantName = (restaurant != null) ? restaurant.getRestaurantName() : null;
 
         if (Boolean.TRUE.equals(req.getApproved())) {
             user.setStatus(AccountStatus.ACTIVE.getStatus());
             user.setStatusReason(null);
+
+            // Phê duyệt nhà hàng liên quan
+            if (restaurant != null) {
+                restaurant.setApprovalStatus(ApprovalStatus.APPROVED);
+                restaurantRepository.save(restaurant);
+            }
         } else {
             user.setStatus(AccountStatus.REJECTED.getStatus());
             user.setStatusReason(req.getReason());
+
+            // Từ chối nhà hàng liên quan
+            if (restaurant != null) {
+                restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
+                restaurantRepository.save(restaurant);
+
+                // Hoặc nếu anh muốn xóa luôn bản ghi nhà hàng khi bị từ chối thì bật dòng dưới lên:
+                // restaurantRepository.delete(restaurant);
+            }
         }
+
         User saved = userRepository.save(user);
 
-        // Gui email thong bao ket qua duyet cho chu tai khoan nha hang doi tac (B02 buoc 5).
-        // Khong lam that bai thao tac duyet neu gui email loi (MailService tu bat va log loi).
+        // Gửi email thông báo kết quả duyệt kèm tên nhà hàng
         if (Boolean.TRUE.equals(req.getApproved())) {
-            mailService.sendPartnerApprovedEmail(saved.getEmail(), saved.getFullName());
+            mailService.sendPartnerApprovedEmail(saved.getEmail(), saved.getFullName(), restaurantName);
         } else {
-            mailService.sendPartnerRejectedEmail(saved.getEmail(), saved.getFullName(), req.getReason());
+            mailService.sendPartnerRejectedEmail(saved.getEmail(), saved.getFullName(), restaurantName, req.getReason());
         }
 
         return ResponseEntity.ok(userMapper.userResponse(saved));
     }
-
-    /** F44: khoa/mo khoa tai khoan Khach hang hoac Nha hang doi tac. */
+    /**
+     * F44: khoa/mo khoa tai khoan Khach hang hoac Nha hang doi tac.
+     */
     @PostMapping("/users/{id}/lock")
     @Transactional
     public ResponseEntity<UserResponse> lockUser(@PathVariable Long id, @RequestBody LockRequest req) {
@@ -202,31 +226,31 @@ public class AdminController {
 //        return ResponseEntity.ok(result);
 //    }
 
-    @PostMapping("/restaurants/{id}/approve")
-    @Transactional
-    public ResponseEntity<Restaurant> approveRestaurant(@PathVariable Long id, @RequestBody ApprovalRequest req) {
-        Restaurant restaurant = restaurantRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(AdminErrorCode.RESTAURANT_NOT_FOUND));
-
-        if (Boolean.TRUE.equals(req.getApproved())) {
-            restaurant.setApprovalStatus(ApprovalStatus.APPROVED);
-            
-            //lúc đăng ký đã có logo với mô tả r ko cần phải update lại 
-            // if (restaurant.getLogoUrl() != null) {
-            //     restaurant.setLogoUrl(restaurant.getPendingLogoUrl());
-                
-            // }
-            // if (restaurant.getPendingDescription() != null) {
-            //     restaurant.setDescription(restaurant.getPendingDescription());
-            //     restaurant.setPendingDescription(null);
-            // }
-        } else {
-            restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
-            // restaurant.setRejectionReason(req.getReason());
-        }
-
-        return ResponseEntity.ok(restaurantRepository.save(restaurant));
-    }
+//    @PostMapping("/restaurants/{id}/approve")
+//    @Transactional
+//    public ResponseEntity<Restaurant> approveRestaurant(@PathVariable Long id, @RequestBody ApprovalRequest req) {
+//        Restaurant restaurant = restaurantRepository.findById(id)
+//                .orElseThrow(() -> new BusinessException(AdminErrorCode.RESTAURANT_NOT_FOUND));
+//
+//        if (Boolean.TRUE.equals(req.getApproved())) {
+//            restaurant.setApprovalStatus(ApprovalStatus.APPROVED);
+//
+//            //lúc đăng ký đã có logo với mô tả r ko cần phải update lại
+//            // if (restaurant.getLogoUrl() != null) {
+//            //     restaurant.setLogoUrl(restaurant.getPendingLogoUrl());
+//
+//            // }
+//            // if (restaurant.getPendingDescription() != null) {
+//            //     restaurant.setDescription(restaurant.getPendingDescription());
+//            //     restaurant.setPendingDescription(null);
+//            // }
+//        } else {
+//            restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
+//            // restaurant.setRejectionReason(req.getReason());
+//        }
+//
+//        return ResponseEntity.ok(restaurantRepository.save(restaurant));
+//    }
 
 
     // ======================================================
@@ -282,7 +306,9 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
-    /** F41: an danh gia ao/vi pham khoi hien thi cong khai. */
+    /**
+     * F41: an danh gia ao/vi pham khoi hien thi cong khai.
+     */
     @PostMapping("/reviews/{id}/hide")
     @Transactional
     public ResponseEntity<Review> hideReview(@PathVariable Long id, @RequestBody ModerationRequest req) {
@@ -303,7 +329,9 @@ public class AdminController {
         return ResponseEntity.ok(reviewRepository.save(review));
     }
 
-    /** F41: xoa hoan toan danh gia vi pham nghiem trong. */
+    /**
+     * F41: xoa hoan toan danh gia vi pham nghiem trong.
+     */
     @DeleteMapping("/reviews/{id}")
     @Transactional
     public ResponseEntity<Void> deleteReview(@PathVariable Long id) {
@@ -328,12 +356,21 @@ public class AdminController {
     @PostMapping("/categories")
     @Transactional
     public ResponseEntity<SystemCategory> createCategory(@jakarta.validation.Valid @RequestBody CategoryRequest req) {
-        if (systemCategoryRepository.existsByCategoryTypeAndCategoryNameIgnoreCase(req.getCategoryType(), req.getCategoryName())) {
+// 1. Chuẩn hóa categoryType và categoryName trước khi kiểm tra tồn tại và lưu vào DB
+        String rawType = req.getCategoryType() != null ? req.getCategoryType().trim().toUpperCase() : "";
+        String rawName = req.getCategoryName() != null ? req.getCategoryName().trim() : "";
+
+        // 2. Đảm bảo luôn có tiền tố "CUISINE_" nếu phía Client chưa gửi lên
+        final String finalType = rawType.startsWith("CUISINE_") ? rawType : "CUISINE_" + rawType;
+
+        if (systemCategoryRepository.existsByCategoryTypeAndCategoryNameIgnoreCase(finalType, rawName)) {
             throw new BusinessException(AdminErrorCode.CATEGORY_ALREADY_EXISTS);
         }
+
         SystemCategory category = new SystemCategory();
-        category.setCategoryType(req.getCategoryType().trim());
-        category.setCategoryName(req.getCategoryName().trim());
+        category.setCategoryType(finalType);
+        category.setCategoryName(rawName);
+
         return ResponseEntity.ok(systemCategoryRepository.save(category));
     }
 
@@ -411,8 +448,9 @@ public class AdminController {
 //        summary.put("totalReviews", reviewRepository.count());
 //
 //        summary.put("pendingUserApprovals", userRepository.countByStatus(AccountStatus.PENDING_ADMIN.getStatus()));
-////        summary.put("pendingRestaurantApprovals", restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
-////        summary.put("pendingBranchApprovals", branchRepository.countByApprovalStatus(ApprovalStatus.PENDING));
+
+    /// /        summary.put("pendingRestaurantApprovals", restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
+    /// /        summary.put("pendingBranchApprovals", branchRepository.countByApprovalStatus(ApprovalStatus.PENDING));
 //        summary.put("hiddenReviews", reviewRepository.countByHidden(true));
 //
 //        summary.put("completedBookings", bookingRepository.countByStatus(BookingStatus.COMPLETED));
@@ -526,7 +564,6 @@ public class AdminController {
 //        }
 //        writer.flush();
 //    }
-
     private String csvRow(Object... values) {
         return Arrays.stream(values)
                 .map(v -> v == null ? "" : v.toString().replace("\"", "\"\""))

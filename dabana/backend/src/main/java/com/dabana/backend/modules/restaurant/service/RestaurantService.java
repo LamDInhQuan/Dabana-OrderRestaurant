@@ -75,13 +75,17 @@ public class RestaurantService {
         private final BookingMapper bookingMapper;
 
         public List<RestaurantResponse> findAll() {
-                List<Restaurant> restaurants = restaurantRepos.findAll();
+                List<Restaurant> restaurants = restaurantRepos.findAll().stream()
+                        .filter(item -> item.getApprovalStatus() != ApprovalStatus.PENDING)
+                        .toList(); // Hoặc .collect(Collectors.toList()) tùy phiên bản Java
+
                 if (restaurants.isEmpty()) {
                         throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
                 }
+
                 return restaurants.stream()
-                                .map(restaurantMapper::toResponse)
-                                .toList();
+                        .map(restaurantMapper::toResponse)
+                        .toList();
         }
 
         public RestaurantResponse findByOwnerId(Long ownerId) {

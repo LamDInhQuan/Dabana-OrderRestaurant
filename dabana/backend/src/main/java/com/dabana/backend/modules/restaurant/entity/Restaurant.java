@@ -49,7 +49,7 @@ public class Restaurant extends BaseEntity {
     @Column(name = "approval_status", nullable = false, length = 30) // Đổi tên cột từ status -> approval_status
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-    @Column(length = 100)
+    @Column(length = 1000)
     private String cuisineType;
 
     @Column(length = 500)

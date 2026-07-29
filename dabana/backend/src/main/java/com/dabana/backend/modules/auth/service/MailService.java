@@ -139,14 +139,15 @@ public class MailService {
                 </div>
                 """.formatted(newPassword);
     }
-    public void sendPartnerApprovedEmail(String toEmail, String fullName) {
+
+    public void sendPartnerApprovedEmail(String toEmail, String fullName, String restaurantName) {
         if (!mailEnabled) {
-            log.info("[MAIL-DISABLED] Email duyet tai khoan doi tac danh cho {}", toEmail);
+            log.info("[MAIL-DISABLED] Email duyet tai khoan doi tac danh cho {} (Nha hang: {})", toEmail, restaurantName);
             return;
         }
 
         String subject = "[Dabana Order] Tài khoản nhà hàng đối tác của bạn đã được duyệt";
-        String html = buildPartnerApprovedEmailHtml(fullName);
+        String html = buildPartnerApprovedEmailHtml(fullName, restaurantName);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -162,30 +163,32 @@ public class MailService {
         }
     }
 
-    private String buildPartnerApprovedEmailHtml(String fullName) {
+    private String buildPartnerApprovedEmailHtml(String fullName, String restaurantName) {
         String greetingName = (fullName == null || fullName.isBlank()) ? "" : " " + fullName;
+        String restaurantInfo = (restaurantName == null || restaurantName.isBlank())
+                ? ""
+                : "<p>Nhà hàng liên kết: <b>%s</b> đã được kích hoạt hoạt động.</p>".formatted(restaurantName);
+
         return """
                 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
                   <h2 style="color: #ff6600; margin-bottom: 4px;">Dabana Order</h2>
                   <p>Xin chào%s,</p>
-                  <p>Chúc mừng! Tài khoản <b>Nhà hàng đối tác</b> của bạn trên Dabana Order đã được quản trị viên <b>phê duyệt</b>.</p>
+                  <p>Chúc mừng! Tài khoản và hồ sơ <b>Nhà hàng đối tác</b> của bạn trên Dabana Order đã được quản trị viên <b>phê duyệt thành công</b>.</p>
+                  %s
                   <p>Bạn có thể đăng nhập ngay bây giờ để bắt đầu thiết lập chi nhánh, thực đơn và quản lý đặt bàn.</p>
                   <p style="color:#999; font-size: 12px; margin-top: 24px;">Nếu bạn không thực hiện yêu cầu đăng ký này, vui lòng liên hệ với chúng tôi ngay.</p>
                 </div>
-                """.formatted(greetingName);
+                """.formatted(greetingName, restaurantInfo);
     }
 
-    /**
-     * Gui email thong bao tai khoan Nha hang doi tac bi TU CHOI boi Admin, kem ly do (neu co).
-     */
-    public void sendPartnerRejectedEmail(String toEmail, String fullName, String reason) {
+    public void sendPartnerRejectedEmail(String toEmail, String fullName, String restaurantName, String reason) {
         if (!mailEnabled) {
-            log.info("[MAIL-DISABLED] Email tu choi tai khoan doi tac danh cho {} (ly do: {})", toEmail, reason);
+            log.info("[MAIL-DISABLED] Email tu choi tai khoan doi tac danh cho {} (Nha hang: {}, ly do: {})", toEmail, restaurantName, reason);
             return;
         }
 
         String subject = "[Dabana Order] Đăng ký nhà hàng đối tác chưa được duyệt";
-        String html = buildPartnerRejectedEmailHtml(fullName, reason);
+        String html = buildPartnerRejectedEmailHtml(fullName, restaurantName, reason);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -201,21 +204,27 @@ public class MailService {
         }
     }
 
-    private String buildPartnerRejectedEmailHtml(String fullName, String reason) {
+    private String buildPartnerRejectedEmailHtml(String fullName, String restaurantName, String reason) {
         String greetingName = (fullName == null || fullName.isBlank()) ? "" : " " + fullName;
+        String restaurantInfo = (restaurantName == null || restaurantName.isBlank())
+                ? ""
+                : "<p>Nhà hàng đăng ký: <b>%s</b></p>".formatted(restaurantName);
+
         String reasonBlock = (reason == null || reason.isBlank())
                 ? ""
                 : """
-                  <p>Lý do: <b>%s</b></p>
-                  """.formatted(reason);
+                <p>Lý do từ chối: <b>%s</b></p>
+                """.formatted(reason);
+
         return """
                 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #eee; border-radius: 12px;">
                   <h2 style="color: #ff6600; margin-bottom: 4px;">Dabana Order</h2>
                   <p>Xin chào%s,</p>
-                  <p>Rất tiếc, hồ sơ đăng ký <b>Nhà hàng đối tác</b> của bạn trên Dabana Order <b>chưa được duyệt</b>.</p>
+                  <p>Rất tiếc, hồ sơ đăng ký <b>Nhà hàng đối tác</b> của bạn trên Dabana Order hiện <b>chưa được duyệt</b> hoạt động.</p>
                   %s
-                  <p>Vui lòng kiểm tra và cập nhật lại thông tin, hoặc liên hệ với chúng tôi để được hỗ trợ thêm.</p>
+                  %s
+                  <p>Vui lòng liên hệ với quản trị viên hoặc gửi lại thông tin chính xác để được hỗ trợ kích hoạt sớm nhất.</p>
                 </div>
-                """.formatted(greetingName, reasonBlock);
+                """.formatted(greetingName, restaurantInfo, reasonBlock);
     }
 }

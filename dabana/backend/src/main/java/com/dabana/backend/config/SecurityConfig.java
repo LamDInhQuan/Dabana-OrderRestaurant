@@ -134,8 +134,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/statistics/platform/**").hasRole("ADMIN")
 
                         // B02/B03/B04 phe duyet - chi admin
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                                // 1. Đưa các endpoint categories cụ thể lên TRƯỚC
+                                .requestMatchers("POST", "/api/admin/categories/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER", "ADMIN")
+                                .requestMatchers("GET", "/api/admin/categories/**").hasAnyRole("CUSTOMER", "RESTAURANT_PARTNER", "ADMIN")
 
+// 2. Các tính năng quản trị chung khác của admin nằm ở SAU
+                                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

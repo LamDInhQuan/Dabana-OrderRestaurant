@@ -21,6 +21,9 @@ import com.dabana.backend.modules.auth.util.AccountStatus;
 import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.auth.util.RoleUser;
+import com.dabana.backend.modules.restaurant.ApprovalStatus;
+import com.dabana.backend.modules.restaurant.entity.Restaurant;
+import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;
@@ -55,6 +58,7 @@ public class AuthService implements IAuthService {
     private final AuthenticationManager authenticationManager;
     private final UserMapper userMapper;
     private final MailService mailService;
+    private final RestaurantRepository restaurantRepository ;
 
     private static final String PASSWORD_CHARS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -95,7 +99,18 @@ public class AuthService implements IAuthService {
             user.setStatus(AccountStatus.ACTIVE.getStatus());
         }
         user = userRepository.saveAndFlush(user);
+        // === TẠO BẢN GHI NHÀ HÀNG NẾU LÀ RESTAURANT_PARTNER ===
+        if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
+            Restaurant restaurant = new Restaurant();
+            restaurant.setOwner(user); // Gắn khóa ngoại liên kết với User vừa tạo
+            restaurant.setRestaurantName(req.getRestaurantName());
+            restaurant.setPhone(req.getRestaurantPhone() != null && !req.getRestaurantPhone().trim().isEmpty() ? req.getRestaurantPhone() : req.getPhone());
+            restaurant.setDescription(req.getDescription());
+            restaurant.setWebsite(req.getWebsite());
+            restaurant.setApprovalStatus(ApprovalStatus.PENDING); // Trạng thái chờ admin duyệt nhà hàng
 
+            restaurantRepository.save(restaurant);
+        }
         UserResponse userResponse = userMapper.userResponse(user);
         if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
             String otp = otpService.generateAndSend(req.getEmail(), OtpPurpose.REGISTER); // B02 Buoc 3: gui OTP that qua email

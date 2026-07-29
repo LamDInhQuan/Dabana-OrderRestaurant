@@ -30,4 +30,19 @@ public class RegisterAccountRequest {
     /** CUSTOMER hoặc RESTAURANT_PARTNER — mặc định CUSTOMER nếu không gửi */
     private RoleUser role;
 
+    // --- Bổ sung thêm các trường thông tin nhà hàng ban đầu ---
+    @Size(max = 250, message = "Tên nhà hàng tối đa 250 ký tự")
+    private String restaurantName;
+
+    @Pattern(
+            regexp = "^(0|\\+84)[0-9]{9}$",
+            message = "Số điện thoại nhà hàng không hợp lệ"
+    )
+    private String restaurantPhone;
+
+    private String description;
+
+    @Size(max = 255, message = "Website tối đa 255 ký tự")
+    private String website;
+
 }
