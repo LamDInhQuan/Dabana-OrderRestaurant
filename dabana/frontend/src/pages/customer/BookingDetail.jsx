@@ -59,7 +59,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                 bankName: data.accountName || 'MB Bank',
                 accountNumber: data.accountNumber || '',
                 accountHolder: data.accountName || '',
-                transferContent: data.description || `Coc dat ban ${booking.id}`,
+                transferContent: data.description || `Thanh toan BK${booking.id}`,
                 checkoutUrl: data.checkoutUrl || '',
                 status: data.status || 'PENDING',
             });

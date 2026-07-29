@@ -42,6 +42,11 @@ public enum PaymentErrorCode implements ErrorCode {
     REFUND_BANK_INFO_ALREADY_EXISTS("PM_302", "Đơn này đã có thông tin tài khoản nhận hoàn cọc."),
 
     // ==========================
+    // Invoice payment (thanh toan hoa don cuoi buoi qua QR - khong persist)
+    // ==========================
+    INVOICE_PAYMENT_AMOUNT_INVALID("PM_322", "Số tiền hoá đơn không hợp lệ (phải lớn hơn 0)."),
+
+    // ==========================
     // Payout order (chi hoan coc)
     // ==========================
     PAYOUT_ALREADY_EXISTS("PM_401", "Đơn đặt bàn này đã có lệnh chi hoàn cọc."),
