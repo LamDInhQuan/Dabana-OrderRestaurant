@@ -397,6 +397,7 @@ export const adminApi = {
 
   // F50: xuất báo cáo
   exportReportUrl: (type) => `/api/admin/reports/export?type=${type}`,
+  getRestaurantByUser: (userId) => api.get(`/restaurants/by-user/${userId}`),
 }
 
 // ===== Preorder Item API (Tab Gọi Món - món đặt trước, rs_preorder_items) =====

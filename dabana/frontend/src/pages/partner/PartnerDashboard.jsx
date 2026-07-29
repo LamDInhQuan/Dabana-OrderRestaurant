@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi, adminApi } from '../../api'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 
@@ -24,6 +24,7 @@ import BillingTab from './tab/subscription/BillingTab'
 import BranchImageManager from './tab/settings/BranchImageManager'
 import ExportExcelBar from './exportBar'
 import ManageBookings from './ManageBookings'
+import CuisineSelector from './component/CuisineSelector'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -181,6 +182,7 @@ export default function PartnerDashboard() {
   // B03: hồ sơ thương hiệu nhà hàng
   const [restaurant, setRestaurant] = useState(null)
   const [restaurantForm, setRestaurantForm] = useState({ restaurantName: '', logoUrl: '', description: '', cuisineType: '', phone: '', email: '', website: '' })
+  const [systemCuisines, setSystemCuisines] = useState([]);
   const [savingRestaurant, setSavingRestaurant] = useState(false)
 
   // B04: khung giờ hoạt động & tạo chi nhánh mới
@@ -209,6 +211,17 @@ export default function PartnerDashboard() {
   // ── Load data ──────────────────────────────────────
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [customerProfiles, setCustomerProfiles] = useState([]);
+
+  useEffect(() => {
+    adminApi.listCategories()
+      .then(data => {
+        if (Array.isArray(data.data)) {
+          console.log("dataa", data);
+          setSystemCuisines(data.data); // data nhận vào chính là mảng JSON bạn vừa gửi
+        }
+      })
+      .catch(err => console.error("Lỗi tải danh mục ẩm thực:", err));
+  }, []);
   //dining table status
 
 
@@ -457,20 +470,39 @@ export default function PartnerDashboard() {
 
   // ── B03: hồ sơ thương hiệu chung ─────────────────────
   const saveRestaurantInfo = async () => {
-    if (!restaurantForm.restaurantName.trim()) {
-      toast.error('Tên thương hiệu không được để trống'); return
+    if (!restaurantForm.restaurantName?.trim()) {
+      toast.error('Tên thương hiệu không được để trống');
+      return;
     }
-    setSavingRestaurant(true)
+
+    setSavingRestaurant(true);
     try {
+      // 1. Chuẩn hóa cuisineTypes: Dù đang là mảng hay chuỗi đều gom lại thành chuỗi phân cách bằng dấu phẩy
+      const rawCuisine = restaurantForm.cuisineTypes || restaurantForm.cuisineType || "";
+      const cuisineString = Array.isArray(rawCuisine)
+        ? rawCuisine.join(', ')
+        : String(rawCuisine).trim();
+
+      // 2. Tạo payload sạch sẽ, đồng bộ đúng chuẩn Backend yêu cầu
+      const payload = {
+        ...restaurantForm,
+        cuisineType: cuisineString,
+        // Xóa field thừa hoặc gán null nếu backend không dùng để tránh gửi nhầm field cũ
+        cuisineTypes: undefined
+      };
+
       const { data: res } = restaurant
-        ? await restaurantApi.update(restaurantForm)
-        : await restaurantApi.register(restaurantForm)   // 👈 tạo mới nếu chưa có
-      setRestaurant(res.data)
-      toast.success('Đã lưu thông tin thương hiệu!')
+        ? await restaurantApi.update(payload)
+        : await restaurantApi.register(payload);
+
+      setRestaurant(res.data);
+      toast.success('Đã lưu thông tin thương hiệu!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể lưu thông tin thương hiệu')
-    } finally { setSavingRestaurant(false) }
-  }
+      toast.error(err.response?.data?.message || 'Không thể lưu thông tin thương hiệu');
+    } finally {
+      setSavingRestaurant(false);
+    }
+  };
   const cancelRestaurantPendingUpdate = async () => {
     try {
       const { data: res } = await restaurantApi.cancelPendingUpdate()
@@ -1370,9 +1402,49 @@ export default function PartnerDashboard() {
                       onChange={e => setRestaurantForm(p => ({ ...p, description: e.target.value }))} />
                   </div>
                   <div>
-                    <label style={S.label}>Ngành ẩm thực chính</label>
-                    <input style={S.input} placeholder="VD: Ẩm thực Việt Nam" value={restaurantForm.cuisineType}
-                      onChange={e => setRestaurantForm(p => ({ ...p, cuisineType: e.target.value }))} />
+                    <label style={S.label}>Ngành ẩm thực (Chọn nhiều)</label>
+
+                    {/* Khu vực hiển thị các Badge đã chọn (Dù state là mảng hay chuỗi đều tự xử lý được) */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                      {(() => {
+                        // Chuẩn hóa: Biến đổi linh hoạt dù cuisineTypes là mảng hay chuỗi
+                        const raw = restaurantForm.cuisineType;
+                        const currentArray = Array.isArray(raw)
+                          ? raw
+                          : String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
+
+                        return currentArray.map((item, index) => (
+                          <span key={index} style={{
+                            background: '#fdf3c7',
+                            color: '#92400e',
+                            padding: '4px 10px',
+                            borderRadius: '16px',
+                            fontSize: '0.85rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            border: '1px solid #fcd34d'
+                          }}>
+                            {item}
+                            <span
+                              style={{ cursor: 'pointer', fontWeight: 'bold' }}
+                              onClick={() => {
+                                const updated = currentArray.filter(c => c !== item);
+                                // Lưu về dạng chuỗi phân tách bằng dấu phẩy để khớp với backend
+                                setRestaurantForm(p => ({ ...p, cuisineType: updated.join(', ') }));
+                              }}
+                            >×</span>
+                          </span>
+                        ));
+                      })()}
+                    </div>
+
+                    {/* Gọi lại component chọn ngành ẩm thực phân cấp trực quan */}
+                    <CuisineSelector
+                      systemCuisines={systemCuisines}
+                      restaurantForm={restaurantForm}
+                      setRestaurantForm={setRestaurantForm}
+                    />
                   </div>
                   <div>
                     <label style={S.label}>Số điện thoại</label>

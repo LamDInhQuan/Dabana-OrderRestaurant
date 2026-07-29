@@ -329,14 +329,60 @@ function BranchDrawer({ restaurant, branches, loading, onClose, onSelectBranch }
         </div>
 
         {/* Drawer body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+
+          {/* --- BỔ SUNG: KHỐI THÔNG TIN CHI TIẾT NHÀ HÀNG --- */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            padding: '1.15rem',
+            marginBottom: '1.5rem',
+            border: '1px solid rgba(92, 58, 30, 0.1)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          }}>
+            <h4 style={{
+              fontFamily: "'Cormorant Garamond',Georgia,serif",
+              fontSize: '1rem', fontWeight: 700, color: '#5C3A1E',
+              margin: '0 0 0.5rem 0', textTransform: 'uppercase', letterSpacing: '0.05em'
+            }}>
+              Giới thiệu nhà hàng
+            </h4>
+
+            <p style={{ fontSize: '0.875rem', color: '#4B382A', lineHeight: 1.6, margin: '0 0 0.85rem 0' }}>
+              {restaurant.description || 'Chưa có thông tin mô tả chi tiết cho nhà hàng này.'}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem', color: '#666', borderTop: '1px solid #f1f1f1', paddingTop: '0.75rem' }}>
+              {restaurant.phone && (
+                <div>📞 SĐT tổng: <strong style={{ color: '#333' }}>{restaurant.phone}</strong></div>
+              )}
+              {restaurant.email && (
+                <div>✉️ Email: <strong style={{ color: '#333' }}>{restaurant.email}</strong></div>
+              )}
+              {restaurant.website && (
+                <div>
+                  🌐 Website: <a href={restaurant.website} target="_blank" rel="noreferrer" style={{ color: '#5C3A1E', textDecoration: 'underline' }}>{restaurant.website}</a>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* ----------------------------------------------- */}
+
+          {/* Tiêu đề danh sách chi nhánh */}
+          <h4 style={{
+            fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em',
+            color: '#8C6D53', fontWeight: 700, marginBottom: '0.75rem'
+          }}>
+            Danh sách chi nhánh ({branches.length})
+          </h4>
+
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--muted)' }}>
               <div style={{ fontSize: '2rem', marginBottom: '.75rem' }}>⟳</div>
               <p style={{ fontSize: '.88rem' }}>Đang tải chi nhánh...</p>
             </div>
           ) : branches.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--muted)' }}>
+            <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--muted)' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>🏗️</div>
               <p style={{ fontSize: '.88rem' }}>Chưa có chi nhánh hoạt động.</p>
             </div>

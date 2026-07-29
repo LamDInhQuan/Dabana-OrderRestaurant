@@ -7,14 +7,23 @@ const RESEND_COOLDOWN_SECONDS = 60
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '', role: 'CUSTOMER' })
+  const [form, setForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'CUSTOMER',
+    restaurantName: '',
+    restaurantPhone: '',
+    description: '',
+    website: ''
+  })
   const [loading, setLoading] = useState(false)
-  const [step, setStep]   = useState('form') // form | otp
-  const [otp, setOtp]     = useState('')
+  const [step, setStep] = useState('form') // form | otp
+  const [otp, setOtp] = useState('')
   const [resendCooldown, setResendCooldown] = useState(0)
   const [resending, setResending] = useState(false)
 
-  // Đếm ngược cho phép gửi lại OTP
   useEffect(() => {
     if (resendCooldown <= 0) return
     const timer = setInterval(() => setResendCooldown(s => Math.max(0, s - 1)), 1000)
@@ -49,7 +58,7 @@ export default function RegisterPage() {
     try {
       const identifier = form.email || form.phone
       await authApi.verifyOtp({ identifier, otpCode: otp })
-      toast.success('Xác thực OTP thành công! Tài khoản đang chờ quản trị viên duyệt.')
+      toast.success('Xác thực OTP thành công! Tài khoản và thông tin nhà hàng đang chờ quản trị viên duyệt.')
       navigate('/login')
     } catch (err) {
       toast.error(err.response?.data?.message || 'OTP không hợp lệ')
@@ -107,48 +116,93 @@ export default function RegisterPage() {
   )
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="card" style={{ width: '100%', maxWidth: 440 }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 0' }}>
+      <div className="card" style={{ width: '100%', maxWidth: 500 }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', color: 'var(--brand)', marginBottom: '1.5rem' }}>
           Đăng ký tài khoản
         </h1>
 
         {/* Chọn vai trò */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '1.25rem' }}>
-          {[['CUSTOMER','👤 Khách hàng'],['RESTAURANT_PARTNER','🏪 Nhà hàng đối tác']].map(([r,label]) => (
+          {[['CUSTOMER', '👤 Khách hàng'], ['RESTAURANT_PARTNER', '🏪 Nhà hàng đối tác']].map(([r, label]) => (
             <button key={r} type="button"
               onClick={() => setForm(p => ({ ...p, role: r }))}
-              style={{ padding: '.75rem', borderRadius: 10, border: '2px solid',
+              style={{
+                padding: '.75rem', borderRadius: 10, border: '2px solid',
                 borderColor: form.role === r ? 'var(--brand)' : 'var(--border)',
                 background: form.role === r ? 'var(--brand-light)' : 'var(--white)',
                 color: form.role === r ? 'var(--brand-dark)' : 'var(--text-muted)',
-                fontWeight: 600, fontSize: '.85rem' }}>
+                fontWeight: 600, fontSize: '.85rem', cursor: 'pointer'
+              }}>
               {label}
             </button>
           ))}
         </div>
 
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
+
+          {/* Thông tin cá nhân */}
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--brand)', borderBottom: '1px solid var(--border)', paddingBottom: '4px', marginTop: '4px' }}>
+            Thông tin tài khoản đại diện
+          </div>
+
           <div>
-            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Họ tên</label>
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Họ tên *</label>
             <input value={form.fullName} onChange={set('fullName')} placeholder="Nguyễn Văn A" required />
           </div>
           <div>
-            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Email</label>
-            <input type="email" value={form.email} onChange={set('email')} placeholder="abc@gmail.com" />
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Email *</label>
+            <input type="email" value={form.email} onChange={set('email')} placeholder="abc@gmail.com" required />
           </div>
           <div>
-            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Số điện thoại</label>
-            <input value={form.phone} onChange={set('phone')} placeholder="0901234567" />
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Số điện thoại *</label>
+            <input value={form.phone} onChange={set('phone')} placeholder="0901234567" required />
           </div>
           <div>
-            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Mật khẩu</label>
-            <input type="password" value={form.password} onChange={set('password')} placeholder="Tối thiểu 6 ký tự" required />
+            <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Mật khẩu *</label>
+            <input type="password" value={form.password} onChange={set('password')} placeholder="Tối thiểu 8 ký tự" required />
           </div>
+
+          {/* Phần mở rộng cho Nhà hàng đối tác */}
+          {form.role === 'RESTAURANT_PARTNER' && (
+            <>
+              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--brand)', borderBottom: '1px solid var(--border)', paddingBottom: '4px', marginTop: '10px' }}>
+                Thông tin nhà hàng ban đầu (Chờ duyệt)
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Tên thương hiệu nhà hàng *</label>
+                <input value={form.restaurantName} onChange={set('restaurantName')} placeholder="Ví dụ: Gogi House - Trần Duy Hưng" required={form.role === 'RESTAURANT_PARTNER'} />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Số điện thoại nhà hàng</label>
+                <input value={form.restaurantPhone} onChange={set('restaurantPhone')} placeholder="0243123456" />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Mô tả tổng quan</label>
+                <textarea
+                  value={form.description}
+                  onChange={set('description')}
+                  placeholder="Giới thiệu ngắn gọn về nhà hàng..."
+                  rows={2}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', fontFamily: 'inherit', outline: 'none' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Website (Có thể bỏ trống)</label>
+                <input value={form.website} onChange={set('website')} placeholder="https://example.com" />
+              </div>
+            </>
+          )}
+
           <button className="btn-primary" type="submit" disabled={loading} style={{ padding: '.8rem', marginTop: '.5rem' }}>
             {loading ? 'Đang xử lý...' : 'Đăng ký'}
           </button>
         </form>
+
         <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '.87rem', color: 'var(--text-muted)' }}>
           Đã có tài khoản? <Link to="/login" style={{ color: 'var(--brand)', fontWeight: 600 }}>Đăng nhập</Link>
         </p>
