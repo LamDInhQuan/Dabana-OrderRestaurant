@@ -85,7 +85,7 @@ public class SecurityConfig {
 
                         // Module Subscription (thu phi nen tang): tu quan ly goi cua CHINH minh
                         .requestMatchers("/api/subscriptions/me/**").hasRole("RESTAURANT_PARTNER")
-                        .requestMatchers("/api/subscriptions/payos/webhook").hasAnyRole("RESTAURANT_PARTNER", "ADMIN")
+                        .requestMatchers("/api/subscriptions/payos/webhook").permitAll()
 
                         // Trang gia cong khai - khong can dang nhap
                         .requestMatchers(HttpMethod.GET, "/api/subscription-plans/**").permitAll()
