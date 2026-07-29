@@ -86,14 +86,30 @@ function formatVND(n) {
 // Tính bậc cọc + có yêu cầu cọc theo khung giờ hay không, dùng chung ở bước 1 và bước 4
 function computeDepositInfo(policy, guestCount, timeSlot) {
   if (!policy?.depositRules?.length) return { rule: null, needsDeposit: false }
-  const rule = policy.depositRules.find(r => guestCount >= r.minGuest && guestCount <= r.maxGuest) || null
-  if (!rule) return { rule: null, needsDeposit: false }
-  const slotMin = toMinutes(timeSlot)
-  const inSchedule = policy.status === 'ACTIVE' && policy.schedules?.some(sch => {
+
+  // Khung giờ có nằm trong lịch áp cọc không (nếu policy không có schedule nào thì coi như luôn áp dụng)
+  const matchesSchedule = policy.schedules?.some(sch => {
     if (sch.status !== 'ACTIVE') return false
-    return slotMin >= toMinutes(sch.timeFrom) && slotMin < toMinutes(sch.timeTo)
+    if (!sch.timeFrom || !sch.timeTo) return true
+    const slotMin = toMinutes(timeSlot)
+    return slotMin >= toMinutes(sch.timeFrom) && slotMin <= toMinutes(sch.timeTo)
   })
-  return { rule, needsDeposit: !!inSchedule }
+  if (policy.schedules?.length > 0 && !matchesSchedule) {
+    return { rule: null, needsDeposit: false }
+  }
+
+  // Tìm rule khớp bậc số khách — cho phép maxGuest = null (không giới hạn trên)
+  const sortedRules = [...policy.depositRules].sort((a, b) => a.minGuest - b.minGuest)
+  let rule = sortedRules.find(
+    r => guestCount >= r.minGuest && (r.maxGuest == null || guestCount <= r.maxGuest)
+  )
+  // Vượt mốc lớn nhất (vd: 9 khách > bậc 5-8) -> lấy bậc cao nhất làm fallback
+  if (!rule && sortedRules.length > 0) {
+    rule = sortedRules[sortedRules.length - 1]
+  }
+
+  const needsDeposit = !!rule && Number(rule.depositValue || 0) > 0
+  return { rule, needsDeposit }
 }
 
 export default function BookingFlow() {
@@ -459,6 +475,7 @@ export default function BookingFlow() {
                   policy={policy} zones={zones}
                   loading={loading}
                   depositAmount={depositAmount}
+                  formatVND={formatVND}
                   onBack={goBack} onSubmit={confirm}
                 />
               )}
@@ -609,10 +626,36 @@ function StepTimeAndTable({
   )
 
   const isSlotUnderDeposit = (slotTime) => {
-    if (!policy?.depositRules?.length) return false
-    const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, slotTime)
-    return !!rule && needsDeposit
-  }
+    if (!policy?.depositRules || policy.depositRules.length === 0) return false;
+
+    // 1. Kiểm tra xem slotTime có nằm trong schedule nào của policy này không
+    const matchesSchedule = policy.schedules?.some(sch => {
+      if (!sch.timeFrom || !sch.timeTo) return true;
+      const from = sch.timeFrom.slice(0, 5);
+      const to = sch.timeTo.slice(0, 5);
+      return slotTime >= from && slotTime <= to;
+    });
+
+    // Nếu khung giờ này không nằm trong lịch trình áp dụng policy thì không tính cọc
+    if (policy.schedules?.length > 0 && !matchesSchedule) {
+      return false;
+    }
+
+    // 2. Tìm rule khớp chuẩn xác hoặc lấy rule lớn nhất làm fallback khi vượt mốc (ví dụ 9 khách > mốc 8)
+    const sortedRules = [...policy.depositRules].sort((a, b) => a.minGuest - b.minGuest);
+
+    let matchedRule = sortedRules.find(
+      (r) => guestCount >= r.minGuest && (r.maxGuest === null || guestCount <= r.maxGuest)
+    );
+
+    // Nếu vượt quá mốc lớn nhất (như 9 khách vượt mốc 5-8), ép lấy rule cuối cùng (mốc lớn nhất)
+    if (!matchedRule && sortedRules.length > 0) {
+      matchedRule = sortedRules[sortedRules.length - 1];
+    }
+
+    // Nếu tồn tại rule áp dụng và giá trị cọc > 0 thì khung giờ này bị tính cọc
+    return matchedRule && Number(matchedRule.depositValue || 0) > 0;
+  };
 
   const depositLabel = activeDepositRule
     ? activeDepositRule.depositType === 'PER_PERSON'
@@ -696,19 +739,23 @@ function StepTimeAndTable({
               {g.label && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '.4rem' }}>{g.label}</p>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem' }}>
                 {g.slots.map(s => {
-                  const needsDeposit = isSlotUnderDeposit(s)
+                  const needsDeposit = isSlotUnderDeposit(s);
                   return (
-                    <button key={s} type="button" onClick={() => {
-                      console.log('Slot được chọn:', s); // 👈 Log ra xem slot có đúng dạng "14:00" không
-                      setTimeSlot(s);
-                    }}
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        console.log('Slot được chọn:', s);
+                        setTimeSlot(s);
+                      }}
                       className="btn-sm"
                       style={{
                         position: 'relative', overflow: 'visible',
                         background: timeSlot === s ? 'var(--brand)' : needsDeposit ? '#FFFDF7' : 'var(--white)',
                         color: timeSlot === s ? '#fff' : 'var(--text-primary)',
                         border: `1.5px solid ${timeSlot === s ? 'var(--brand)' : needsDeposit ? '#FCD34D' : 'var(--border)'}`,
-                      }}>
+                      }}
+                    >
                       {s}
                       {needsDeposit && (
                         <span
@@ -732,26 +779,28 @@ function StepTimeAndTable({
                         </span>
                       )}
                     </button>
-                  )
+                  );
                 })}
-                {slotGroups.some(g => g.slots.some(isSlotUnderDeposit)) && activeDepositRule && (
-                  <div className="flex items-center gap-2" style={{ marginTop: '.6rem' }}>
-                    <span style={{
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #FBBF24, #F59E0B)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4M3 5v14a2 2 0 0 0 2 2h16v-5M18 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"
-                          stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                    <p style={{ fontSize: '.72rem', color: '#B45309', margin: 0 }}>
-                      Khung giờ có icon ví yêu cầu đặt cọc theo bậc số khách ở trên
-                    </p>
-                  </div>
-                )}
               </div>
+
+              {/* Chú thích icon cọc đặt đúng phạm vi bên trong nhóm slot hoặc toàn cục */}
+              {g.slots.some(isSlotUnderDeposit) && (
+                <div className="flex items-center gap-2" style={{ marginTop: '.6rem' }}>
+                  <span style={{
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #FBBF24, #F59E0B)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4M3 5v14a2 2 0 0 0 2 2h16v-5M18 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"
+                        stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                  <p style={{ fontSize: '.72rem', color: '#B45309', margin: 0 }}>
+                    Khung giờ có icon ví yêu cầu đặt cọc theo bậc số khách ở trên
+                  </p>
+                </div>
+              )}
             </div>
           ))}
           {usingFallbackHours && (
@@ -1205,11 +1254,10 @@ function StepConfirm({
   contactName, contactPhone, note,
   allMenuItems, cart, itemsInCart, preOrderTotal,
   policy, zones,
-  loading, depositAmount,
+  loading, depositAmount, formatVND, // <-- Đã bổ sung formatVND ở đây
   onBack, onSubmit
 }) {
   const [y, m, d] = date.split('-')
-  const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, timeSlot)
 
   const cartItems = Object.entries(cart)
     .filter(([, q]) => q > 0)
@@ -1278,9 +1326,10 @@ function StepConfirm({
           </div>
         )}
 
-        {rule && (
-          <p style={{ fontSize: '.78rem', color: needsDeposit ? '#B45309' : 'var(--text-muted)', marginTop: '1rem' }}>
-            {needsDeposit
+        {/* Thông tin chính sách cọc */}
+        {policy && (
+          <p style={{ fontSize: '.78rem', color: Number(depositAmount) > 0 ? '#B45309' : 'var(--text-muted)', marginTop: '1rem' }}>
+            {Number(depositAmount) > 0
               ? `Khung giờ này yêu cầu đặt cọc theo chính sách ${policy?.policy?.name || ''}. Hủy trước 2 giờ được hoàn 100% cọc; hủy trong vòng 2 giờ hoặc không đến sẽ không hoàn cọc.`
               : 'Không yêu cầu đặt cọc cho lượt đặt bàn này.'}
           </p>
