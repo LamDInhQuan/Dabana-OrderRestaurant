@@ -556,7 +556,11 @@ public class BookingService implements IBookingService {
         applyCancellationRefundPolicy(booking);
 
         booking = bookingRepository.save(booking);
-        applyTableStatus(booking, DiningTableStatus.CLEANING);
+        // Huy don (truoc khi khach check-in) -> ban CHUA TUNG co khach ngoi, nen
+        // tra thang ve EMPTY de co the nhan khach moi ngay, KHONG phai CLEANING
+        // (CLEANING chi danh cho ban DA thuc su duoc su dung - xem checkOut()/
+        // markNoShow() o tren, noi khach da/co the da ngoi vao ban).
+        applyTableStatus(booking, DiningTableStatus.EMPTY);
 
         // Tu dong hoan coc: neu policy tinh ra refundStatus=PENDING (co tien de hoan),
         // publish event de PayoutAutoCreateListener (module payment) tu goi payOS
@@ -635,7 +639,9 @@ public class BookingService implements IBookingService {
      * qua rs_reservation_tables) theo dung bang transition da chot voi doi tac:
      * CONFIRMED -> RESERVED (chua lam, thuoc luong xac nhan/thanh toan - TODO
      * rieng),
-     * CHECKED_IN -> OCCUPIED, COMPLETED/NO_SHOW/CANCELLED_* / EXPIRED -> CLEANING.
+     * CHECKED_IN -> OCCUPIED, COMPLETED/NO_SHOW/EXPIRED -> CLEANING,
+     * CANCELLED_BY_CUSTOMER/CANCELLED_BY_RESTAURANT -> EMPTY (ban chua tung
+     * co khach ngoi nen khong can dọn, tra trong lai ngay - xem cancel()).
      */
     private void applyTableStatus(Booking booking, DiningTableStatus status) {
         List<Long> tableIds = booking.getBookingTables().stream()
