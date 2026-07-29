@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.booking;
 
+import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -160,6 +161,30 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByContactEmailOrderByCreatedAtDesc(String email);
 
     long countByBookingTables_Id(Long id);
+
+    @Query("""
+        SELECT new com.dabana.backend.modules.booking.dto.response.CustomerResponse(
+            b.customer.id,
+            COALESCE(b.customer.fullName, b.contactName),
+            COALESCE(b.customer.phone, b.contactPhone),
+            COALESCE(b.customer.email, b.contactEmail),
+            CAST(COUNT(b.id) AS java.lang.Long),
+            CAST(SUM(CASE WHEN b.status = 'COMPLETED' THEN 1 ELSE 0 END) AS java.lang.Long),
+            CAST(SUM(CASE WHEN b.status IN ('CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_RESTAURANT', 'NO_SHOW') THEN 1 ELSE 0 END) AS java.lang.Long),
+            CAST(SUM(CASE WHEN b.status = 'COMPLETED' THEN COALESCE(b.estimatedTotal, 0) ELSE 0 END) AS java.math.BigDecimal),
+            MAX(b.createdAt)
+        )
+        FROM Booking b
+        WHERE b.branch.id = :branchId
+          AND (:keyword IS NULL OR 
+               b.customer.fullName LIKE %:keyword% OR b.customer.phone LIKE %:keyword% OR 
+               b.contactName LIKE %:keyword% OR b.contactPhone LIKE %:keyword% OR b.contactEmail LIKE %:keyword%)
+        GROUP BY 
+            COALESCE(b.customer.id, b.contactPhone, b.contactEmail, b.id)
+        ORDER BY MAX(b.createdAt) DESC
+    """)
+    List<CustomerResponse> getBranchCustomersStats(@Param("branchId") Long branchId,
+                                                   @Param("keyword") String keyword);
 
 
 }

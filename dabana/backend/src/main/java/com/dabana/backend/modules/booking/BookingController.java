@@ -12,6 +12,7 @@ import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.dto.request.GuestLookupRequest;
+import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
 import com.dabana.backend.modules.booking.service.BookingService;
 import com.dabana.backend.modules.invoice.dto.request.ConfirmCheckoutRequest;
 import com.dabana.backend.modules.invoice.dto.response.InvoicePreviewResponse;
@@ -110,6 +111,19 @@ public class BookingController extends BaseController {
         List<BookingResponse> bookings = bookingService.getBookingsByEmail(request.getEmail());
 
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, bookings));
+    }
+
+    @GetMapping("/{branchId}/customers")
+    public ResponseEntity<List<CustomerResponse>> getBranchCustomers(
+            @PathVariable Long branchId,
+            @RequestParam(required = false) String keyword) {
+
+        List<CustomerResponse> result = bookingService.getListCustomerByBranch(branchId, blankToNull(keyword));
+        return ResponseEntity.ok(result);
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
     // /** Buoc 4: cap nhat thong tin lien he */
     // @PatchMapping("/{id}/contact-info")

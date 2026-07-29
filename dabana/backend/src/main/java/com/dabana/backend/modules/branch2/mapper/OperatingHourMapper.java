@@ -23,6 +23,19 @@ public class OperatingHourMapper {
                 .toList();
         return entities;
     }
+    // 2. Map một DTO đơn lẻ sang Entity (dùng cho create)
+    public OperatingHour toEntity(OperatingHourDto dto, Branch branch) {
+        if (dto == null) return null;
+        OperatingHour entity = new OperatingHour();
+        entity.setBranch(branch);
+        entity.setDayOfWeek(dto.getDayOfWeek());
+        entity.setOpenTime(dto.getOpenTime());
+        entity.setCloseTime(dto.getCloseTime());
+        entity.setShiftName(dto.getShiftName());
+//        entity.setIsClosed(dto.getIsClosed()); // Bổ sung nếu entity có trường này
+        return entity;
+    }
+
     public OperatingHourDto mapToDto(OperatingHour entity) {
         if (entity == null) return null;
         return OperatingHourDto.builder()

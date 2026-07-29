@@ -2,6 +2,7 @@ package com.dabana.backend.modules.booking.service;
 
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
+import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
 import com.dabana.backend.modules.invoice.dto.request.ConfirmCheckoutRequest;
 import com.dabana.backend.modules.invoice.dto.response.InvoicePreviewResponse;
 
@@ -37,4 +38,6 @@ public interface IBookingService {
 
     // B11 buoc 5-7 (tu dong): CONFIRMED qua gio hen + khoang dem -> NO_SHOW
     void expireOverdueConfirmedBookings();
+
+    List<CustomerResponse> getListCustomerByBranch(Long branchId , String keyword) ;
 }

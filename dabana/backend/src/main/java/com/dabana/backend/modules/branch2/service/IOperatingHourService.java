@@ -12,5 +12,12 @@ public interface IOperatingHourService {
             List<OperatingHourDto> requests
     );
 
-    void deleteByBranch(Long branchId);
+//    void deleteByBranch(Long branchId);
+
+    OperatingHourDto createOperatingHour(Long branchId, OperatingHourDto request);
+
+    OperatingHourDto updateOperatingHour(Long id, OperatingHourDto request);
+
+    void deleteOperatingHour(Long id);
+
 }

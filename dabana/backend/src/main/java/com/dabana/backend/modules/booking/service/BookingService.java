@@ -13,6 +13,7 @@ import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
+import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.entity.BranchCancellationPolicy;
@@ -75,7 +76,7 @@ public class BookingService implements IBookingService {
     private final UserRepository userRepository;
     private final BranchCancellationPolicyService branchCancellationPolicyService;
     private final IInvoiceService invoiceService;
-    private final ReviewRepository reviewRepository ;
+    private final ReviewRepository reviewRepository;
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va
     // broadcast.
@@ -374,6 +375,7 @@ public class BookingService implements IBookingService {
             return response;
         }).collect(Collectors.toList());
     }
+
     @Override
     public BookingResponse getBookingDetail(Long bookingId, User user) {
         // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ ResourceNotFoundException
@@ -419,6 +421,7 @@ public class BookingService implements IBookingService {
 
         return response;
     }
+
     public List<BookingResponse> getBookingsByEmail(String email) {
         // Truy vấn DB lấy các booking theo email của khách
         var bookings = bookingRepository.findByContactEmailOrderByCreatedAtDesc(email);
@@ -647,4 +650,10 @@ public class BookingService implements IBookingService {
     // .collect(Collectors.toList()))
     // .build();
     // }
+
+
+    @Override
+    public List<CustomerResponse> getListCustomerByBranch(Long branchId, String keyword) {
+        return bookingRepository.getBranchCustomersStats(branchId, keyword);
+    }
 }

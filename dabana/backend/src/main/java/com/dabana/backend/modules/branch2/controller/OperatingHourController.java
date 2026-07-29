@@ -28,5 +28,28 @@ public class OperatingHourController {
         List<OperatingHourDto> response = operatingHourService.getByBranch(branchId);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, response));
     }
+    // 2. Thêm mới một khung giờ cho chi nhánh
+    @PostMapping("/branch/{branchId}")
+    public ResponseEntity<ApiResponse<OperatingHourDto>> createOperatingHour(
+            @PathVariable Long branchId,
+            @RequestBody OperatingHourDto request) {
+        OperatingHourDto response = operatingHourService.createOperatingHour(branchId, request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, response));
+    }
 
+    // 3. Cập nhật một khung giờ cụ thể theo ID
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<OperatingHourDto>> updateOperatingHour(
+            @PathVariable Long id,
+            @RequestBody OperatingHourDto request) {
+        OperatingHourDto response = operatingHourService.updateOperatingHour(id, request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, response));
+    }
+
+    // 4. Xóa một khung giờ cụ thể theo ID
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteOperatingHour(@PathVariable Long id) {
+        operatingHourService.deleteOperatingHour(id);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, null));
+    }
 }
