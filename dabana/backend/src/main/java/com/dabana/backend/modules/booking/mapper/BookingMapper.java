@@ -56,6 +56,11 @@ public class BookingMapper {
                 .estimatedTotal(booking.getEstimatedTotal())
                 .policySnapshotDto(booking.getPolicySnapshot())
                 .createdAt(booking.getCreatedAt())
+                .refundAmount(booking.getRefundAmount())
+                .penaltyAmount(booking.getPenaltyAmount())
+                .refundStatus(booking.getRefundStatus() != null ? booking.getRefundStatus().name() : null)
+                .cancelledAt(booking.getCancelledAt())
+                .cancelReason(booking.getCancelReason())
                 .build();
     }
 }

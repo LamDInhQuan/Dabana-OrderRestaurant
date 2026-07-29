@@ -53,6 +53,8 @@ public enum PaymentErrorCode implements ErrorCode {
     PAYOUT_NOT_FOUND("PM_402", "Không tìm thấy lệnh chi hoàn cọc."),
     PAYOS_CREATE_PAYOUT_FAILED("PM_403", "Không thể tạo lệnh chi hoàn cọc trên payOS."),
     PAYOS_SYNC_PAYOUT_FAILED("PM_404", "Không thể đồng bộ trạng thái lệnh chi từ payOS."),
+    REFUND_NOT_ELIGIBLE("PM_405", "Đơn đặt bàn chưa hủy hoặc chưa đủ điều kiện hoàn cọc theo chính sách."),
+    REFUND_AMOUNT_ZERO("PM_406", "Theo chính sách hủy, đơn này không được hoàn tiền cọc (0đ)."),
 
     // ==========================
     // Webhook

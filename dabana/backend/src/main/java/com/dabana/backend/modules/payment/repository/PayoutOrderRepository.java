@@ -19,4 +19,10 @@ public interface PayoutOrderRepository extends JpaRepository<PayoutOrder, Long> 
     Optional<PayoutOrder> findByReferenceId(String referenceId);
 
     Optional<PayoutOrder> findByPayosPayoutId(String payosPayoutId);
+
+    /** Dung cho job dong bo dinh ky (PayoutOrderService#syncProcessingPayouts) -
+     * payOS hien KHONG co webhook cho lenh chi (chi co webhook cho link thanh toan,
+     * da xac nhan qua tai lieu chinh thuc https://payos.vn/docs/api/), nen phai
+     * chu dong poll GET /v1/payouts/{payoutId} cho cac lenh con dang xu ly. */
+    java.util.List<PayoutOrder> findByState(com.dabana.backend.modules.payment.util.PayoutState state);
 }

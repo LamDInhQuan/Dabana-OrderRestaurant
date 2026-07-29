@@ -43,17 +43,6 @@ export default function MyBookings() {
     setCancelingBooking(booking)
   }
 
-  const handleConfirmCancel = async (id, cancelData) => {
-    try {
-      await bookingApi.cancel(id, cancelData)
-      toast.success('Hủy đặt bàn thành công!')
-      setCancelingBooking(null)
-      load()
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể huỷ đặt bàn')
-    }
-  }
-
   const handleReview = async (data) => {
     try {
       await reviewApi.create(data)
@@ -231,7 +220,7 @@ export default function MyBookings() {
         <CancelBookingModal
           booking={cancelingBooking}
           onClose={() => setCancelingBooking(null)}
-          onConfirm={handleConfirmCancel}
+          onRefresh={load}
         />
       )}
     </div>

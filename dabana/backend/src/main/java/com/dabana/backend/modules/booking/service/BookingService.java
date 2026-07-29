@@ -13,8 +13,11 @@ import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.BookingDtos.*;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
+import com.dabana.backend.modules.booking.event.BookingCancelledForRefundEvent;
 import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
+import com.dabana.backend.modules.booking.util.CancelledBy;
+import com.dabana.backend.modules.booking.util.RefundStatus;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.entity.BranchCancellationPolicy;
 import com.dabana.backend.modules.branch2.repository.BranchCancellationPolicyRepository;
@@ -34,6 +37,9 @@ import com.dabana.backend.modules.invoice.dto.request.ConfirmCheckoutRequest;
 import com.dabana.backend.modules.invoice.dto.response.InvoicePreviewResponse;
 import com.dabana.backend.modules.invoice.service.IInvoiceService;
 import com.dabana.backend.modules.invoice.util.InvoiceErrorCode;
+import com.dabana.backend.modules.payment.entity.DepositPayment;
+import com.dabana.backend.modules.payment.repository.DepositPaymentRepository;
+import com.dabana.backend.modules.payment.util.DepositPaymentStatus;
 import com.dabana.backend.modules.reservation_policy.dto.DepositResult;
 import com.dabana.backend.modules.reservation_policy.entity.BranchPolicy;
 import com.dabana.backend.modules.reservation_policy.service.BranchPolicyResolverService;
@@ -47,10 +53,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -76,6 +85,7 @@ public class BookingService implements IBookingService {
     private final UserRepository userRepository;
     private final BranchCancellationPolicyService branchCancellationPolicyService;
     private final IInvoiceService invoiceService;
+    private final DepositPaymentRepository depositPaymentRepository;
     private final ReviewRepository reviewRepository;
     // Task 5: chi publish event noi bo (khong biet gi ve WebSocket/STOMP) - xem
     // OrderBoardWebSocketListener (module orderboard) de biet noi lang nghe va
@@ -539,13 +549,89 @@ public class BookingService implements IBookingService {
         }
         boolean byRestaurant = request != null && Boolean.TRUE.equals(request.getCancelledByRestaurant());
         booking.setStatus(byRestaurant ? BookingStatus.CANCELLED_BY_RESTAURANT : BookingStatus.CANCELLED_BY_CUSTOMER);
-        // TODO: neu request.getReason() can luu lai, hien Booking entity chua co cot
-        // rieng
-        // cho ly do huy - can bo sung cot (vd cancel_reason) neu nghiep vu yeu cau hien
-        // thi lai.
+        booking.setCancelledBy(byRestaurant ? CancelledBy.STAFF : CancelledBy.CUSTOMER);
+        booking.setCancelledAt(LocalDateTime.now());
+        booking.setCancelReason(request != null ? request.getReason() : null);
+
+        applyCancellationRefundPolicy(booking);
+
         booking = bookingRepository.save(booking);
-        applyTableStatus(booking, DiningTableStatus.CLEANING);
+        // Huy don (truoc khi khach check-in) -> ban CHUA TUNG co khach ngoi, nen
+        // tra thang ve EMPTY de co the nhan khach moi ngay, KHONG phai CLEANING
+        // (CLEANING chi danh cho ban DA thuc su duoc su dung - xem checkOut()/
+        // markNoShow() o tren, noi khach da/co the da ngoi vao ban).
+        applyTableStatus(booking, DiningTableStatus.EMPTY);
+
+        // Tu dong hoan coc: neu policy tinh ra refundStatus=PENDING (co tien de hoan),
+        // publish event de PayoutAutoCreateListener (module payment) tu goi payOS
+        // tao lenh chi NGAY SAU KHI transaction nay commit - khong can nhan vien bam
+        // nut thu cong nua. Publish TRUOC KHI return, nhung listener chi chay o
+        // AFTER_COMMIT nen an toan neu phan con lai cua method nay loi/rollback.
+        if (booking.getRefundStatus() == RefundStatus.PENDING) {
+            eventPublisher.publishEvent(new BookingCancelledForRefundEvent(booking.getId()));
+        }
+
         return bookingMapper.toResponse(booking);
+    }
+
+    /**
+     * BR: Tinh so tien hoan coc khi huy don, dua tren policySnapshot da luu
+     * NGAY LUC TAO booking (KHONG doc lai BranchCancellationPolicy hien tai cua
+     * chi nhanh - vi chinh sach co the da thay doi sau khi khach dat, phai tinh
+     * theo chinh sach da cam ket voi khach luc dat ban).
+     *
+     * - Neu chua co lenh coc nao PAID -> khong co gi de hoan (refundStatus=NONE).
+     * - Neu huy tu luc con >= freeCancellationHours gio truoc gio hen -> ap dung
+     *   freeRefundPercent (thuong 100%).
+     * - Neu huy trong khoang duoi freeCancellationHours gio -> ap dung
+     *   lateRefundPercent (thuong < 100%, phan con lai la penaltyAmount).
+     * - Ket qua duoc luu vao Booking.refundAmount/penaltyAmount/refundStatus=PENDING,
+     *   PayoutOrderService se doc refundAmount nay de tao lenh chi qua payOS.
+     */
+    private void applyCancellationRefundPolicy(Booking booking) {
+        Optional<DepositPayment> paidDepositOpt = depositPaymentRepository
+                .findByReservation_IdAndStatus(booking.getId(), DepositPaymentStatus.PAID);
+
+        if (paidDepositOpt.isEmpty()) {
+            booking.setRefundAmount(BigDecimal.ZERO);
+            booking.setPenaltyAmount(BigDecimal.ZERO);
+            booking.setRefundStatus(RefundStatus.NONE);
+            return;
+        }
+
+        BigDecimal paidAmount = paidDepositOpt.get().getAmountPaid();
+        BigDecimal refundPercent = resolveRefundPercent(booking, booking.getPolicySnapshot());
+
+        BigDecimal refundAmount = paidAmount
+                .multiply(refundPercent)
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        // Chan an toan: khong bao gio hoan qua so tien da thu, du policy nhap sai > 100%.
+        if (refundAmount.compareTo(paidAmount) > 0) {
+            refundAmount = paidAmount;
+        }
+        if (refundAmount.compareTo(BigDecimal.ZERO) < 0) {
+            refundAmount = BigDecimal.ZERO;
+        }
+
+        booking.setRefundAmount(refundAmount);
+        booking.setPenaltyAmount(paidAmount.subtract(refundAmount));
+        booking.setRefundStatus(refundAmount.compareTo(BigDecimal.ZERO) > 0 ? RefundStatus.PENDING : RefundStatus.NONE);
+    }
+
+    /** % hoan tien ap dung, dua tren khoang cach tu luc huy toi gio hen (reservationTime). */
+    private BigDecimal resolveRefundPercent(Booking booking, PolicySnapshotDto policy) {
+        if (policy == null || policy.getFreeCancellationHours() == null) {
+            // Khong co snapshot chinh sach huy (vd du lieu cu truoc khi co tinh nang
+            // nay, hoac booking khach vang lai) -> khong tu y hoan tien khi khong ro
+            // chinh sach, de nhan vien xu ly thu cong.
+            return BigDecimal.ZERO;
+        }
+
+        long hoursBeforeReservation = Duration.between(LocalDateTime.now(), booking.getReservationTime()).toHours();
+        boolean isFreeCancellation = hoursBeforeReservation >= policy.getFreeCancellationHours();
+
+        BigDecimal percent = isFreeCancellation ? policy.getFreeRefundPercent() : policy.getLateRefundPercent();
+        return percent != null ? percent : BigDecimal.ZERO;
     }
 
     /**
@@ -553,7 +639,9 @@ public class BookingService implements IBookingService {
      * qua rs_reservation_tables) theo dung bang transition da chot voi doi tac:
      * CONFIRMED -> RESERVED (chua lam, thuoc luong xac nhan/thanh toan - TODO
      * rieng),
-     * CHECKED_IN -> OCCUPIED, COMPLETED/NO_SHOW/CANCELLED_* / EXPIRED -> CLEANING.
+     * CHECKED_IN -> OCCUPIED, COMPLETED/NO_SHOW/EXPIRED -> CLEANING,
+     * CANCELLED_BY_CUSTOMER/CANCELLED_BY_RESTAURANT -> EMPTY (ban chua tung
+     * co khach ngoi nen khong can dọn, tra trong lai ngay - xem cancel()).
      */
     private void applyTableStatus(Booking booking, DiningTableStatus status) {
         List<Long> tableIds = booking.getBookingTables().stream()

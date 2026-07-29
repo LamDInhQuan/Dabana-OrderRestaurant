@@ -459,6 +459,13 @@ export const paymentApi = {
   refund: (bookingId, data) => api.post(`/payment/${bookingId}/cancel-refund`, data),
 };
 
+export const refundBankInfoApi = {
+  // Lưu/cập nhật tài khoản nhận hoàn tiền cọc của khách trước khi hủy đơn.
+  // bankId là id nội bộ trong BankCatalog (không phải chuỗi BIN).
+  createOrUpdate: (data) => api.put('/payment/refund-bank-infos', data),
+  getByReservation: (reservationId) => api.get(`/payment/refund-bank-infos/reservation/${reservationId}`),
+};
+
 export const invoicePaymentApi = {
   // Tạo QR mới. reservationId là field bắt buộc duy nhất - amount do BE tự
   // tính lại từ InvoiceService.preview() (không tin số FE gửi). surcharge tuỳ chọn.
