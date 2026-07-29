@@ -210,6 +210,7 @@ export default function BranchScheduleTab({ branch }) {
                     setWeeklyHours={setWeeklyHours}
                     onSaveWeekly={handleSaveWeekly}
                     formatTimeVN={formatTimeVN} // 👈 Truyền xuống đây
+                    activeBranch={branch}
                 />
             ) : (
                 <ExceptionsPanel

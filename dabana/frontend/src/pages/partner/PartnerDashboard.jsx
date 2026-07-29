@@ -208,7 +208,7 @@ export default function PartnerDashboard() {
 
   // ── Load data ──────────────────────────────────────
   const [creatingBranch, setCreatingBranch] = useState(false);
-
+  const [customerProfiles, setCustomerProfiles] = useState([]);
   //dining table status
 
 
@@ -414,25 +414,7 @@ export default function PartnerDashboard() {
   // B09: thông báo chưa đọc
   const unreadCount = notifications.filter(n => !n.read).length
   // B14: hồ sơ khách hàng & lịch sử đặt bàn (gộp từ bookings)
-  const customerProfiles = Object.values(
-    bookings.reduce((acc, b) => {
-      const key = b.contactPhone || b.contactName
-      if (!acc[key]) acc[key] = { key, name: b.contactName, phone: b.contactPhone, bookings: [] }
-      acc[key].bookings.push(b)
-      return acc
-    }, {})
-  ).map(c => ({
-    ...c,
-    totalBookings: c.bookings.length,
-    completed: c.bookings.filter(b => b.status === 'COMPLETED').length,
-    noShows: c.bookings.filter(b => b.status === 'NO_SHOW').length,
-    cancelled: c.bookings.filter(b => b.status?.startsWith('CANCELLED')).length,
-    totalSpent: c.bookings.reduce((s, b) => s + (b.depositAmount || 0), 0),
-    lastVisit: c.bookings.reduce((max, b) => new Date(b.reservationTime) > new Date(max) ? b.reservationTime : max, c.bookings[0].reservationTime),
-  })).filter(c => !customerQuery.trim() ||
-    c.name?.toLowerCase().includes(customerQuery.toLowerCase()) ||
-    c.phone?.includes(customerQuery)
-  ).sort((a, b) => new Date(b.lastVisit) - new Date(a.lastVisit))
+
   // B15: thống kê kinh doanh
   const menuByCategory = CATEGORIES.map(cat => ({
     cat, count: menu.filter(m => m.category === cat).length,
@@ -713,6 +695,48 @@ export default function PartnerDashboard() {
 
   // ── Filtered bookings ──────────────────────────────
   const filteredBookings = bkFilter === 'ALL' ? branchBookingList : branchBookingList.filter(b => b.status === bkFilter)
+  // Hàm gọi API lấy danh sách khách hàng
+  const fetchBranchCustomers = async (keyword = '') => {
+    if (!activeBranch?.id) return;
+
+    try {
+      const response = await bookingApi.getBranchCustomers(activeBranch.id, keyword);
+      const data = response.data || response;
+
+      if (Array.isArray(data)) {
+        const formattedData = data.map((item, index) => ({
+          key: item.customerId || `guest_${index}`,
+          name: item.fullName || 'Khách vãng lai',
+          phone: item.phone || 'Chưa cập nhật',
+          email: item.email || '', // Bổ sung thêm email ở đây
+          totalBookings: item.totalBookings || 0,
+          completed: item.completedBookings || 0,
+          cancelled: item.cancelledOrNoShow || 0,
+          noShows: 0,
+          totalSpent: item.totalDeposit || 0,
+          lastVisit: item.lastVisit
+        }));
+
+        setCustomerProfiles(formattedData);
+      } else {
+        setCustomerProfiles([]);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách khách hàng:", error);
+      setCustomerProfiles([]);
+    }
+  };
+
+  // Dùng chung 1 useEffect xử lý cả khi đổi chi nhánh VÀ khi gõ tìm kiếm (có Debounce)
+  useEffect(() => {
+    if (!activeBranch?.id) return;
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchBranchCustomers(customerQuery);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [activeBranch?.id, customerQuery]); // Chỉ theo dõi id chi nhánh và từ khóa tìm kiếm
 
   // ── RENDER ─────────────────────────────────────────
   return (
@@ -1055,6 +1079,7 @@ export default function PartnerDashboard() {
           )}
 
           {/* ══════ CUSTOMERS (B14) ══════ */}
+          {/* ══════ CUSTOMERS (B14) ══════ */}
           {activeTab === 'customers' && (
             <div>
               <div style={{ marginBottom: '1.25rem' }}>
@@ -1078,6 +1103,8 @@ export default function PartnerDashboard() {
                         <div>
                           <p style={{ fontWeight: 700, fontSize: '.92rem' }}>{c.name}</p>
                           <p style={{ fontSize: '.78rem', color: C.muted }}>{c.phone}</p>
+                          {/* Hiển thị email nếu có */}
+                          {c.email && <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '2px' }}>✉️ {c.email}</p>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.8rem', textAlign: 'center' }}>

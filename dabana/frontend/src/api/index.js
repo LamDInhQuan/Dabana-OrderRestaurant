@@ -128,6 +128,10 @@ export const bookingApi = {
   previewInvoice: (id) => api.get(`/bookings/${id}/invoice/preview`),
   createWalkIn: (payload) => api.post('/bookings/walk-in', payload),
   guestLookup: (data) => api.post('/bookings/guest-lookup', data),
+  getBranchCustomers: (branchId, keyword) => {
+    const params = keyword ? `?keyword=${encodeURIComponent(keyword)}` : '';
+    return api.get(`/bookings/${branchId}/customers${params}`);
+  },
 }
 
 // ===== Menu API (B06) =====
@@ -172,7 +176,7 @@ export const waitlistApi = {
 // ===== Review API (B13) =====
 export const reviewApi = {
   create: (data) => api.post('/reviews', data),
-  getByBranch: (bid, p) => api.get(`/reviews/branch/${bid}`, { params: p }), 
+  getByBranch: (bid, p) => api.get(`/reviews/branch/${bid}`, { params: p }),
   reply: (reviewId, data) => api.post(`/reviews/${reviewId}/reply`, data),
 }
 
@@ -226,9 +230,9 @@ export const restaurantApi = {
   Dashboard: () => api.get('/restaurants/me/dashboard'),
   GetTablesByBranch: (branchid) => api.get(`/restaurants/me/tables/${branchid}`),
   UpcomingBooking: (branchid) => api.get(`/restaurants/me/bookings/${branchid}`),
-  export: (branchIds,from,to) => api.get(`/restaurants/me/export`, {
+  export: (branchIds, from, to) => api.get(`/restaurants/me/export`, {
     responseType: "blob",
-    params:{branchIds,from ,to }
+    params: { branchIds, from, to }
   })
 }
 
@@ -241,6 +245,9 @@ export const restaurantApi = {
 export const operatingHourApi = {
   getByBranch: (branchId) => api.get(`/branchs/operating-hours/${branchId}`),
   save: (branchId, arr) => api.post(`/branchs/operating-hours/branch/${branchId}/save`, arr),
+  create: (branchId, data) => api.post(`/branchs/operating-hours/branch/${branchId}`, data),
+  update: (id, data) => api.put(`/branchs/operating-hours/${id}`, data),
+  delete: (id) => api.delete(`/branchs/operating-hours/${id}`),
 }
 
 export const branchScheduleExceptionApi = {

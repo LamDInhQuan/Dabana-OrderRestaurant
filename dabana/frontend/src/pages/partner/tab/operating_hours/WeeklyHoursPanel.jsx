@@ -1,5 +1,10 @@
 import React, { useState } from 'react'
-import TimeSelectVN from './TimeSelectVN' // 👈 Import component chọn giờ
+import TimeSelectVN from './TimeSelectVN' // Component chọn giờ
+// Giả định project dùng react-hot-toast hoặc thay bằng hàm thông báo của bạn
+import { toast } from 'react-hot-toast' 
+import { operatingHourApi } from '../../../../api'
+
+
 
 const DOW_LABELS = [
   { key: 'MONDAY', label: 'Thứ 2' },
@@ -14,7 +19,12 @@ const DOW_LABELS = [
 function uid() { return Math.random().toString(36).slice(2, 9) }
 
 export default function WeeklyHoursPanel({
-  activeDays, weeklyHours, setActiveDays, setWeeklyHours, onSaveWeekly
+  activeBranch, 
+  activeDays, 
+  weeklyHours, 
+  setActiveDays, 
+  setWeeklyHours, 
+  onSaveWeekly // Hoặc hàm lưu truyền từ component cha vào
 }) {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -32,12 +42,13 @@ export default function WeeklyHoursPanel({
       if (!weeklyHours[dayKey] || weeklyHours[dayKey].shifts.length === 0) {
         setWeeklyHours(prev => ({
           ...prev,
-          [dayKey]: { shifts: [{ id: uid(), open: '08:00', close: '22:00', shiftName: '' }] }
+          [dayKey]: { shifts: [{ id: uid(), open: '08:00', close: '22:00', shiftName: 'Ca 1' }] }
         }))
       }
     }
   }
 
+  // Cập nhật state local khi người dùng gõ thay đổi giờ hoặc tên ca
   const updateShiftTime = (dayKey, shiftId, field, value) => {
     setWeeklyHours(prev => ({
       ...prev,
@@ -48,34 +59,61 @@ export default function WeeklyHoursPanel({
     }))
   }
 
+  // THÊM CA MỚI TRÊN GIAO DIỆN (Không gọi API)
   const addShift = (dayKey) => {
+    const currentShifts = weeklyHours[dayKey]?.shifts || []
     setWeeklyHours(prev => ({
       ...prev,
-      [dayKey]: { ...prev[dayKey], shifts: [...prev[dayKey].shifts, { id: uid(), open: '12:00', close: '16:00', shiftName: '' }] }
+      [dayKey]: { 
+        ...prev[dayKey], 
+        shifts: [
+          ...currentShifts, 
+          { id: uid(), open: '12:00', close: '16:00', shiftName: `Ca ${currentShifts.length + 1}` }
+        ] 
+      }
     }))
   }
 
+  // XÓA CA TRÊN GIAO DIỆN
   const removeShift = (dayKey, shiftId) => {
     setWeeklyHours(prev => ({
       ...prev,
-      [dayKey]: { ...prev[dayKey], shifts: prev[dayKey].shifts.filter(s => s.id !== shiftId) }
+      [dayKey]: { 
+        ...prev[dayKey], 
+        shifts: prev[dayKey].shifts.filter(s => s.id !== shiftId) 
+      }
     }))
   }
 
-  const handleSave = async () => {
+  // GỘP VÀ GỬI TOÀN BỘ LÊN SERVER KHI BẤM NÚT LƯU Ở CUỐI TRANG
+  const handleSaveAll = async () => {
+    if (!activeBranch?.id) {
+      toast.error("Không tìm thấy thông tin chi nhánh!");
+      return;
+    }
+
     setSaving(true)
     try {
       const payload = activeDays.flatMap(dayKey => {
         const shifts = weeklyHours[dayKey]?.shifts || []
         return shifts.map((shift, index) => ({
-          id: typeof shift.id === 'number' ? shift.id : null,
+          // Nếu id là chuỗi ngẫu nhiên do frontend sinh ra, gửi lên là null để backend hiểu là tạo mới
+          id: typeof shift.id === 'string' ? null : shift.id,
           dayOfWeek: dayKey,
           openTime: shift.open.length === 5 ? `${shift.open}:00` : shift.open,
           closeTime: shift.close.length === 5 ? `${shift.close}:00` : shift.close,
           shiftName: shift.shiftName || `Ca ${index + 1}`
         }))
       })
-      await onSaveWeekly(payload)
+
+      // Gọi API lưu toàn bộ danh sách
+      await operatingHourApi.save(activeBranch.id, payload)
+      toast.success("Lưu khung giờ hoạt động thành công!")
+      
+      if (onSaveWeekly) onSaveWeekly(payload)
+    } catch (error) {
+      console.error("Lỗi khi lưu khung giờ:", error)
+      toast.error("Lưu khung giờ thất bại!")
     } finally {
       setSaving(false)
     }
@@ -138,17 +176,16 @@ export default function WeeklyHoursPanel({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
                 {day.shifts.map((shift, idx) => (
-                  <div key={shift.id} className="flex items-center gap-2" style={{ background: '#F9FAFB', padding: '.5rem', borderRadius: 6 }}>
+                  <div key={shift.id} className="flex items-center gap-2" style={{ background: '#F9FAFB', padding: '.5rem', borderRadius: 6, flexWrap: 'wrap' }}>
                     <input
                       type="text"
                       placeholder={`Ca ${idx + 1}`}
                       value={shift.shiftName || ''}
                       onChange={e => updateShiftTime(key, shift.id, 'shiftName', e.target.value)}
-                      style={{ width: 100, fontSize: '.78rem' }}
+                      style={{ width: 100, fontSize: '.78rem', padding: '4px' }}
                     />
 
-                    {/* 👇 Đã thay bằng Dropdown chọn giờ Tiếng Việt */}
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 120 }}>
                       <TimeSelectVN
                         value={shift.open}
                         onChange={(val) => updateShiftTime(key, shift.id, 'open', val)}
@@ -157,20 +194,33 @@ export default function WeeklyHoursPanel({
 
                     <span style={{ color: 'var(--text-muted)' }}>–</span>
 
-                    {/* 👇 Đã thay bằng Dropdown chọn giờ Tiếng Việt */}
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 120 }}>
                       <TimeSelectVN
                         value={shift.close}
                         onChange={(val) => updateShiftTime(key, shift.id, 'close', val)}
                       />
                     </div>
 
+                    {/* Nút xóa ca trên giao diện */}
                     {day.shifts.length > 1 && (
-                      <button type="button" onClick={() => removeShift(key, shift.id)} style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '1.2rem' }}>×</button>
+                      <button 
+                        type="button" 
+                        onClick={() => removeShift(key, shift.id)} 
+                        style={{ color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '1.2rem', padding: '0 5px' }}
+                        title="Xóa ca này"
+                      >
+                        ×
+                      </button>
                     )}
                   </div>
                 ))}
-                <button type="button" onClick={() => addShift(key)} className="btn-sm" style={{ alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', color: 'var(--brand)', fontSize: '.75rem' }}>
+                
+                <button 
+                  type="button" 
+                  onClick={() => addShift(key)} 
+                  className="btn-sm" 
+                  style={{ alignSelf: 'flex-start', background: 'none', border: '1px dashed var(--border)', color: 'var(--brand)', fontSize: '.75rem', marginTop: '4px', cursor: 'pointer' }}
+                >
                   + Thêm ca
                 </button>
               </div>
@@ -179,8 +229,14 @@ export default function WeeklyHoursPanel({
         })}
       </div>
 
+      {/* Nút lưu tổng thể ở cuối trang */}
       <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn-primary" onClick={handleSave} disabled={saving} style={{ padding: '.75rem 1.8rem' }}>
+        <button 
+          className="btn-primary" 
+          onClick={handleSaveAll} 
+          disabled={saving} 
+          style={{ padding: '.75rem 1.8rem', cursor: 'pointer' }}
+        >
           {saving ? 'Đang lưu...' : '💾 LƯU KHUNG GIỜ HOẠT ĐỘNG'}
         </button>
       </div>
