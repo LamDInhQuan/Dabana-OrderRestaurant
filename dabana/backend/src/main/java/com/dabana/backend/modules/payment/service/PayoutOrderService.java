@@ -4,6 +4,7 @@ import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.Booking;
 import com.dabana.backend.modules.booking.BookingRepository;
+import com.dabana.backend.modules.booking.util.RefundStatus;
 import com.dabana.backend.modules.payment.dto.request.CreatePayoutOrderRequest;
 import com.dabana.backend.modules.payment.dto.response.PayoutOrderResponse;
 import com.dabana.backend.modules.payment.entity.BranchBankAccount;
@@ -28,6 +29,8 @@ import vn.payos.model.v1.payouts.Payout;
 import vn.payos.model.v1.payouts.PayoutRequests;
 import vn.payos.model.v1.payouts.PayoutTransaction;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -78,6 +81,17 @@ public class PayoutOrderService {
             throw new BusinessException(PaymentErrorCode.PAYOUT_ALREADY_EXISTS);
         }
 
+        // Bat buoc booking phai da qua BookingService.cancel() - noi tinh refundAmount
+        // theo policySnapshot (chinh sach huy da chot luc dat ban), KHONG cho phep
+        // tao lenh chi tuy y voi so tien tu request nua.
+        if (booking.getRefundStatus() != RefundStatus.PENDING) {
+            throw new BusinessException(PaymentErrorCode.REFUND_NOT_ELIGIBLE);
+        }
+        BigDecimal refundAmount = booking.getRefundAmount();
+        if (refundAmount == null || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(PaymentErrorCode.REFUND_AMOUNT_ZERO);
+        }
+
         RefundBankInfo refundBankInfo = refundBankInfoRepository.findByReservation_Id(booking.getId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.REFUND_BANK_INFO_NOT_FOUND));
 
@@ -85,7 +99,10 @@ public class PayoutOrderService {
                 .findByBranch_Id(booking.getBranch().getId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.BRANCH_BANK_ACCOUNT_NOT_FOUND));
 
-        DepositPayment paidDeposit = depositPaymentRepository
+        // Van kiem tra ton tai coc PAID de chan cac truong hop du lieu bat thuong
+        // (vd refundStatus=PENDING nhung khong con ban ghi coc PAID nao) - amount
+        // thuc te dung de tao lenh chi la refundAmount o tren, KHONG phai amountPaid.
+        depositPaymentRepository
                 .findByReservation_IdAndStatus(booking.getId(), DepositPaymentStatus.PAID)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.DEPOSIT_NOT_FOUND));
 
@@ -102,7 +119,7 @@ public class PayoutOrderService {
             payosResponse = client.payouts().create(
                     PayoutRequests.builder()
                             .referenceId(referenceId)
-                            .amount(paidDeposit.getAmountPaid().longValue())
+                            .amount(refundAmount.longValue())
                             .description(description)
                             .toBin(refundBankInfo.getBank().getBin())
                             .toAccountNumber(refundBankInfo.getAccountNumber())
@@ -121,7 +138,7 @@ public class PayoutOrderService {
         entity.setSourceBranchBankAccount(sourceBranchBankAccount);
         entity.setIdempotencyKey(idempotencyKey);
         entity.setReferenceId(referenceId);
-        entity.setAmount(paidDeposit.getAmountPaid());
+        entity.setAmount(refundAmount);
         entity.setDescription(description);
         entity.setToBin(refundBankInfo.getBank().getBin());
         entity.setToAccountNumber(refundBankInfo.getAccountNumber());
@@ -131,10 +148,23 @@ public class PayoutOrderService {
         entity.setPayosPayoutId(payosResponse.getId());
         entity.setPayosTransactionId(firstTxn.getId());
         entity.setToAccountName(firstTxn.getToAccountName());
-        entity.setState(mapSdkState(firstTxn.getState()));
+        PayoutState mappedState = mapSdkState(firstTxn.getState());
+        entity.setState(mappedState);
         entity.setApprovalState(mapSdkApprovalState(payosResponse.getApprovalState()));
 
         entity = payoutOrderRepository.save(entity);
+
+        // Dong bo refundStatus cua booking theo ket qua tao lenh chi. Neu payOS
+        // van dang xu ly (PROCESSING) thi giu nguyen PENDING - PaymentScheduledTasks
+        // (chay dinh ky) se tu poll va cap nhat SUCCESS/FAILED sau (xem syncProcessingPayouts()).
+        if (mappedState == PayoutState.SUCCEEDED) {
+            booking.setRefundStatus(RefundStatus.SUCCESS);
+            bookingRepository.save(booking);
+        } else if (mappedState == PayoutState.FAILED || mappedState == PayoutState.CANCELLED) {
+            booking.setRefundStatus(RefundStatus.FAILED);
+            bookingRepository.save(booking);
+        }
+
         return payoutOrderMapper.toResponse(entity);
     }
 
@@ -142,6 +172,82 @@ public class PayoutOrderService {
         PayoutOrder entity = payoutOrderRepository.findByReservation_Id(reservationId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYOUT_NOT_FOUND));
         return payoutOrderMapper.toResponse(entity);
+    }
+
+    /**
+     * payOS HIEN KHONG CO webhook cho lenh chi (chi co webhook cho link thanh
+     * toan/Thu - da xac nhan qua tai lieu chinh thuc https://payos.vn/docs/api/,
+     * muc "Chi" chi co: tao lenh chi don/hang loat, lay danh sach, lay thong tin,
+     * uoc tinh phi - khong co event webhook nao ca).
+     *
+     * -> Thay the bang co che POLLING: chay dinh ky (xem PaymentScheduledTasks),
+     * duyet tat ca PayoutOrder dang o state PROCESSING, goi GET /v1/payouts/{id}
+     * de lay trang thai moi nhat, cap nhat state/approvalState va dong bo nguoc
+     * Booking.refundStatus (SUCCESS/FAILED) tuong ung.
+     *
+     * Loi khi dong bo 1 lenh KHONG duoc lam dung ca job - chi log va tiep tuc
+     * voi cac lenh con lai.
+     */
+    @Transactional
+    public void syncProcessingPayouts() {
+        List<PayoutOrder> processing = payoutOrderRepository.findByState(PayoutState.PROCESSING);
+        for (PayoutOrder entity : processing) {
+            try {
+                syncOnePayout(entity);
+            } catch (Exception e) {
+                log.error("Loi dong bo payout id={}, payosPayoutId={}",
+                        entity.getId(), entity.getPayosPayoutId(), e);
+            }
+        }
+    }
+
+    private void syncOnePayout(PayoutOrder entity) {
+        if (entity.getPayosPayoutId() == null) {
+            return;
+        }
+        Booking booking = entity.getReservation();
+        PayOS client = payosClientProvider.getPayoutClientForBranch(booking.getBranch().getId());
+
+        // LUU Y: chua the xac minh chinh xac ten method cua SDK payos-lib-java cho
+        // GET /v1/payouts/{payoutId} (khong co jar SDK trong moi truong nay de doc
+        // truc tiep) - dua theo cung pattern voi client.payouts().create(...) da
+        // dung o createPayoutOrder(). Neu ten method thuc te khac (vd .retrieve()
+        // thay vi .get()), chi can sua dong duoi day, phan con lai giu nguyen.
+        Payout payosResponse;
+        try {
+            payosResponse = client.payouts().get(entity.getPayosPayoutId());
+        } catch (PayOSException e) {
+            log.error("Khong the goi payOS de lay thong tin payout id={}, payosPayoutId={}",
+                    entity.getId(), entity.getPayosPayoutId(), e);
+            return;
+        }
+
+        PayoutTransaction firstTxn = payosResponse.getTransactions().get(0);
+        PayoutState newState = mapSdkState(firstTxn.getState());
+        PayoutApprovalState newApprovalState = mapSdkApprovalState(payosResponse.getApprovalState());
+
+        boolean changed = newState != entity.getState() || newApprovalState != entity.getApprovalState();
+        entity.setState(newState);
+        entity.setApprovalState(newApprovalState);
+        if (firstTxn.getToAccountName() != null) {
+            entity.setToAccountName(firstTxn.getToAccountName());
+        }
+        if (!changed) {
+            return;
+        }
+        payoutOrderRepository.save(entity);
+
+        if (newState == PayoutState.SUCCEEDED) {
+            booking.setRefundStatus(RefundStatus.SUCCESS);
+            bookingRepository.save(booking);
+            log.info("Dong bo payout: bookingId={} refundStatus=SUCCESS (payosPayoutId={})",
+                    booking.getId(), entity.getPayosPayoutId());
+        } else if (newState == PayoutState.FAILED || newState == PayoutState.CANCELLED) {
+            booking.setRefundStatus(RefundStatus.FAILED);
+            bookingRepository.save(booking);
+            log.warn("Dong bo payout: bookingId={} refundStatus=FAILED (payosPayoutId={}, state={})",
+                    booking.getId(), entity.getPayosPayoutId(), newState);
+        }
     }
 
     /** Quy doi vn.payos.model.v1.payouts.PayoutTransactionState (SDK) -> PayoutState (Dabana). */

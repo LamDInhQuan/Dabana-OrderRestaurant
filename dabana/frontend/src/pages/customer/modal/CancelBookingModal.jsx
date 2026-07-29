@@ -2,7 +2,7 @@
 // 2. MODAL HỦY ĐẶT BÀN & HOÀN TIỀN (CancelBookingModal)
 
 import { useEffect, useState, useRef } from "react"
-import { branchBankAccountApi, paymentApi } from "../../../api" // Đảm bảo import đúng api client của bạn
+import { branchBankAccountApi, bookingApi, refundBankInfoApi } from "../../../api" // Đảm bảo import đúng api client của bạn
 import toast from "react-hot-toast"
 
 
@@ -15,7 +15,7 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
     // State cho phần ngân hàng
     const [banks, setBanks] = useState([])
     const [loadingBanks, setLoadingBanks] = useState(true)
-    const [selectedBin, setSelectedBin] = useState('')
+    const [selectedBankId, setSelectedBankId] = useState('') // BankCatalog.id, KHÔNG phải BIN
     const [toAccountNumber, setToAccountNumber] = useState('')
     const [accountName, setAccountName] = useState('')
 
@@ -62,10 +62,11 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         pollIntervalRef.current = setInterval(async () => {
             try {
                 // Gọi API lấy thông tin chi tiết booking mới nhất
-                const res = await api.get(`/booking/${bookingId}`)
+                const res = await bookingApi.getById(bookingId)
                 const updatedBooking = res.data?.data || res.data
 
                 const currentStatus = updatedBooking?.status
+                console.log('[CancelBookingModal] poll status =', currentStatus)
 
                 // Kiểm tra nếu trạng thái đã chuyển thành công sang REFUNDED hoặc CANCELLED
                 if (currentStatus === 'REFUNDED' || currentStatus === 'CANCELLED_BY_CUSTOMER' || currentStatus === 'CANCELLED') {
@@ -81,7 +82,8 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                     toast.error('Giao dịch hoàn tiền thất bại từ cổng thanh toán. Vui lòng thử lại!')
                 }
             } catch (err) {
-                console.error("Lỗi kiểm tra trạng thái booking:", err)
+                console.error("[CancelBookingModal] Lỗi kiểm tra trạng thái booking (poll):", err)
+                console.error("[CancelBookingModal] err.response?.data:", err?.response?.data)
             }
         }, 3000) // Call lại mỗi 3 giây
     }
@@ -90,32 +92,44 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         if (!agreed) return
 
         // Validate thông tin ngân hàng nếu có tiền cọc
-        if (depositAmount > 0 && (!selectedBin || !toAccountNumber.trim() || !accountName.trim())) {
+        if (depositAmount > 0 && (!selectedBankId || !toAccountNumber.trim() || !accountName.trim())) {
             toast.error('Vui lòng chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản nhận tiền hoàn!')
             return
         }
 
         setSubmitting(true)
+        let reachedPollingStep = false
 
         try {
-            // Đóng gói dữ liệu gửi lên
-            const cancelData = depositAmount > 0 ? {
+            // 1. Nếu có cọc cần hoàn: lưu tài khoản nhận tiền TRƯỚC khi hủy đơn.
+            // PayoutAutoCreateListener ở BE sẽ đọc lại thông tin này khi tự động
+            // tạo lệnh chi, nên phải có sẵn trong DB trước khi booking chuyển
+            // trạng thái CANCELLED_* (không đi qua nữa).
+            if (depositAmount > 0) {
+                console.log('[CancelBookingModal] Bước 1: lưu refund-bank-info...')
+                await refundBankInfoApi.createOrUpdate({
+                    reservationId: booking.id,
+                    bankId: Number(selectedBankId), // BankCatalog.id, KHÔNG phải bin
+                    accountNumber: toAccountNumber.trim(),
+                    accountHolderName: accountName.trim(),
+                })
+                console.log('[CancelBookingModal] Bước 1 xong.')
+            }
+
+            // 2. Hủy đơn qua đúng luồng nghiệp vụ (BookingService.cancel) - BE tự
+            // tính % hoàn theo policy và tự publish event tạo lệnh chi payOS,
+            // KHÔNG gọi thẳng /api/payment/{id}/cancel-refund (endpoint test cũ).
+            console.log('[CancelBookingModal] Bước 2: gọi bookingApi.cancel...')
+            const cancelRes = await bookingApi.cancel(booking.id, {
                 reason: cancelReason,
-                toAccountNumber: toAccountNumber.trim(),
-                toAccountName: accountName.trim(),
-                toBin: selectedBin,
-            } : { reason: cancelReason }
-
-            // 🟢 SỬA LẠI: Truyền booking.id vào hàm gọi API hoàn tiền (Ví dụ tùy theo cấu trúc file api của bạn)
-            // Trường hợp gọi qua paymentApi:
-            await paymentApi.refund(booking.id, cancelData)
-
-            // Hoặc nếu cấu trúc api chung của bạn là api.post:
-            // await api.post(`/payment/${booking.id}/cancel-refund`, cancelData)
-
-            toast.info('Đã gửi yêu cầu hoàn tiền. Đang chờ xác nhận từ cổng thanh toán...')
+                cancelledByRestaurant: false,
+            })
+            console.log('[CancelBookingModal] Bước 2 xong, response:', cancelRes?.data)
 
             if (depositAmount > 0) {
+                toast('Đã hủy đơn. Đang chờ hệ thống tự động hoàn cọc...')
+                reachedPollingStep = true
+                console.log('[CancelBookingModal] Bước 3: bắt đầu polling trạng thái...')
                 // Nếu có cọc -> Bắt đầu bật chế độ Polling chờ kết quả Refund
                 startStatusPolling(booking.id)
             } else {
@@ -126,9 +140,19 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
             }
 
         } catch (err) {
-            console.error("Lỗi hủy đơn:", err)
+            // Nếu log KHÔNG in ra "Bước 3" ở trên nhưng vẫn rơi vào đây, nghĩa là
+            // lỗi xảy ra TRƯỚC khi polling kịp bắt đầu - xem message/response bên
+            // dưới trong console để biết chính xác nguyên nhân.
+            console.error("[CancelBookingModal] Lỗi hủy đơn (reachedPollingStep=" + reachedPollingStep + "):", err)
+            console.error("[CancelBookingModal] err.response?.data:", err?.response?.data)
             toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy đơn!')
-            setSubmitting(false)
+        } finally {
+            // Luôn tắt trạng thái "đang gửi" nếu KHÔNG rơi vào nhánh polling (polling
+            // tự tắt submitting/isRefunding riêng khi có kết quả cuối) - tránh nút bị
+            // kẹt ở trạng thái disable mãi nếu có lỗi bất ngờ không được catch đúng chỗ.
+            if (!reachedPollingStep) {
+                setSubmitting(false)
+            }
         }
     }
 
@@ -231,14 +255,14 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                             <div style={{ marginBottom: '.75rem' }}>
                                 <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Chọn Ngân hàng:</label>
                                 <select
-                                    value={selectedBin}
-                                    onChange={e => setSelectedBin(e.target.value)}
+                                    value={selectedBankId}
+                                    onChange={e => setSelectedBankId(e.target.value)}
                                     disabled={loadingBanks}
                                     style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', fontSize: '.87rem' }}
                                 >
                                     <option value="">{loadingBanks ? 'Đang tải danh sách ngân hàng...' : '-- Chọn ngân hàng thụ hưởng --'}</option>
-                                    {banks.map((bank, index) => (
-                                        <option key={bank.bin || index} value={bank.bin}>
+                                    {banks.map((bank) => (
+                                        <option key={bank.id} value={bank.id}>
                                             {bank.name} {bank.shortName ? `(${bank.shortName})` : ''}
                                         </option>
                                     ))}

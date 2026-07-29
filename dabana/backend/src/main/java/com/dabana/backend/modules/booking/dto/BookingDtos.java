@@ -87,6 +87,11 @@ public class BookingDtos {
         private PolicySnapshotDto policySnapshotDto ;
         private LocalDateTime createdAt ;
         private Boolean isReviewed ;
+        private BigDecimal refundAmount;
+        private BigDecimal penaltyAmount;
+        private String refundStatus;
+        private LocalDateTime cancelledAt;
+        private String cancelReason;
     }
 
     @Data
