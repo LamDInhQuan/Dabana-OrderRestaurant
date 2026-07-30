@@ -383,14 +383,33 @@ export default function BookingFlow() {
         <div className="page-container page-with-navbar" style={{ padding: '1.5rem 1rem 6rem', maxWidth: 760 }}>
           {/* Tiêu đề hoặc thông tin chi nhánh */}
           <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
-            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 600, color: 'var(--brand)' }}>
+            <span style={{
+              fontSize: '0.75rem',
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              fontWeight: 600,
+              color: '#ffffff', // Chữ trắng
+              textShadow: '0 1px 3px rgba(0,0,0,0.8)' // Đổ bóng để sắc nét hơn
+            }}>
               <Sparkles size={13} style={{ verticalAlign: '-2px' }} /> Hệ thống đặt bàn trực tuyến
             </span>
-            <h1 style={{ fontWeight: 800, fontSize: '1.8rem', marginBottom: '.35rem', color: '#111827' }}>
+            <h1 style={{
+              fontWeight: 800,
+              fontSize: '1.8rem',
+              marginBottom: '.35rem',
+              color: '#ffffff', // Chữ trắng
+              textShadow: '0 2px 4px rgba(0,0,0,0.8)' // Đổ bóng đậm hơn cho tiêu đề lớn
+            }}>
               Đặt bàn tại {branch?.name || '...'}
             </h1>
             {branch?.address && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}><MapPin size={14} style={{ verticalAlign: '-2px' }} /> {branch.address}</p>
+              <p style={{
+                color: '#f3f4f6', // Trắng ngà/sáng
+                fontSize: '.9rem',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+              }}>
+                <MapPin size={14} style={{ verticalAlign: '-2px' }} /> {branch.address}
+              </p>
             )}
           </div>
 
@@ -475,24 +494,37 @@ function StepIndicator({ step }) {
     <div className="flex items-center gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap' }}>
       {STEPS.map((s, i) => (
         <div key={i} className="flex items-center gap-2">
+          {/* Ô số thứ tự (Giữ nguyên hoặc chỉnh màu nếu muốn) */}
           <div style={{
             width: 26, height: 26, borderRadius: '50%', display: 'flex',
             alignItems: 'center', justifyContent: 'center', fontSize: '.75rem', fontWeight: 700,
-            background: i <= step ? 'var(--brand)' : 'var(--border)',
-            color: i <= step ? '#fff' : 'var(--text-muted)',
+            background: i <= step ? 'var(--brand)' : 'rgba(255, 255, 255, 0.4)',
+            color: i <= step ? '#fff' : '#1f2937',
             transition: 'background .25s',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
           }}>{i + 1}</div>
+
+          {/* Tên bước: Dùng màu sáng và đổ bóng nhẹ */}
           <span style={{
-            fontSize: '.82rem', fontWeight: i === step ? 600 : 400,
-            color: i === step ? 'var(--text-primary)' : 'var(--text-muted)'
+            fontSize: '.82rem',
+            fontWeight: i === step ? 700 : 500,
+            color: i === step ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
+            textShadow: '0 1px 2px rgba(0,0,0,0.8)'
           }}>{s}</span>
-          {i < STEPS.length - 1 && <span style={{ color: 'var(--border)' }}>›</span>}
+
+          {/* Dấu phân cách mũi tên */}
+          {i < STEPS.length - 1 && (
+            <span style={{
+              color: 'rgba(255, 255, 255, 0.6)',
+              fontWeight: 600,
+              margin: '0 2px'
+            }}>›</span>
+          )}
         </div>
       ))}
     </div>
   )
 }
-
 // Danh sách bàn đã chọn, GOM THEO ZONE — luôn tự đứng thành block riêng,
 // KHÔNG đặt trực tiếp giữa 1 hàng flex chứa span (2 kiểu layout khác nhau, vỡ giao diện).
 function SelectedTablesByZone({ selectedTables, zones }) {

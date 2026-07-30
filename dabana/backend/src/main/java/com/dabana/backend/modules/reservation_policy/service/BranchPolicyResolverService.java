@@ -47,7 +47,7 @@ public class BranchPolicyResolverService implements IBranchPolicyResolver {
         return policies.stream()
                 .filter(policy -> match(policy, reservationTime))
                 .max(Comparator.comparingInt(this::getPolicyPriorityRank))
-                .orElseThrow(() -> new BusinessException(PolicyErrorCode.POLICY_NOT_FOUND));
+                .orElse(null);
     }
 
     @Override

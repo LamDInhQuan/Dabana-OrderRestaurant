@@ -143,7 +143,10 @@ public enum AuthErrorCode implements ErrorCode {
     REFRESH_TOKEN_EXPIRED(
             "AUTH_404",
             "Refresh Token đã hết hạn."
-    );
+    ) ,
+    // --- Thêm 2 error code mới cho thông tin nhà hàng ---
+    RESTAURANT_NAME_REQUIRED("RESTAURANT_NAME_REQUIRED", "Tên nhà hàng không được để trống khi đăng ký đối tác"),
+    RESTAURANT_PHONE_REQUIRED("RESTAURANT_PHONE_REQUIRED", "Số điện thoại nhà hàng không được để trống khi đăng ký đối tác");
 
 
     private final String code;
