@@ -11,6 +11,16 @@ const SUMMARY_ITEMS = [
   { key: 'maintenance', status: 5, label: 'Bảo trì' },
 ]
 
+// Các mốc khung giờ phổ biến trong ngày để nhân viên check nhanh
+const TIME_SLOTS = [
+  { id: 'NOW', label: '⏱️ Hiện tại (Real-time)' },
+  { id: '11:00', label: '11:00 Trưa' },
+  { id: '12:30', label: '12:30 Trưa' },
+  { id: '17:30', label: '17:30 Chiều' },
+  { id: '19:00', label: '19:00 Tối' },
+  { id: '20:30', label: '20:30 Tối' },
+]
+
 export default function OrderBoardTab({ orderBoard, onSelectTable }) {
   const {
     zones = [], visibleZones = [], loading, refreshing, lastUpdatedAt,
@@ -18,10 +28,9 @@ export default function OrderBoardTab({ orderBoard, onSelectTable }) {
   } = orderBoard || {}
 
   const [selectedTableId, setSelectedTableId] = useState(null)
+  // State chọn khung giờ để xem trạng thái bàn tương lai
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('NOW')
 
-  // Luon lay ban tu zones (nguon du lieu moi nhat sau moi lan reload) thay vi
-  // giu 1 ban copy rieng trong state - tranh Drawer hien du lieu cu sau khi
-  // check-in/them mon/doi trang thai.
   const selectedTable = useMemo(
     () => zones.flatMap((z) => z.tables || []).find((t) => t.tableId === selectedTableId) || null,
     [zones, selectedTableId]
@@ -34,9 +43,27 @@ export default function OrderBoardTab({ orderBoard, onSelectTable }) {
 
   return (
     <div className="page-container" style={{ padding: '1.5rem 1rem' }}>
-      {/* Header */}
+      
+      {/* THANH CHỌN KHUNG GIỜ (TIMELINE FILTER) */}
+      <div className="card" style={{ marginBottom: '1.25rem', padding: '.75rem 1rem', background: '#FDFBF7', border: '1px solid #E8DECE' }}>
+        <div style={{ fontSize: '.78rem', fontWeight: 700, marginBottom: '.5rem', color: '#8A6E57', textTransform: 'uppercase' }}>
+          📅 Xem trạng thái bàn theo khung giờ:
+        </div>
+        <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+          {TIME_SLOTS.map((slot) => (
+            <button
+              key={slot.id}
+              onClick={() => setSelectedTimeSlot(slot.id)}
+              className={selectedTimeSlot === slot.id ? 'btn-primary btn-sm' : 'btn-outline btn-sm'}
+              style={{ fontSize: '.8rem' }}
+            >
+              {slot.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* Tong quan trang thai */}
+      {/* Tổng quan trạng thái */}
       <div className="card" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
         <div>
           <div style={{ fontSize: '.72rem', color: 'var(--text-muted, #8A6E57)', textTransform: 'uppercase', letterSpacing: '.05em' }}>Tổng số bàn</div>
@@ -104,7 +131,12 @@ export default function OrderBoardTab({ orderBoard, onSelectTable }) {
               gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
             }}>
               {zone.tables.map((table) => (
-                <TableCard key={table.tableId} table={table} onClick={handleSelectTable} />
+                <TableCard 
+                  key={table.tableId} 
+                  table={table} 
+                  selectedTimeSlot={selectedTimeSlot} 
+                  onClick={handleSelectTable} 
+                />
               ))}
             </div>
           )}

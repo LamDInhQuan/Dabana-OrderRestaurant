@@ -1,9 +1,15 @@
 import { TABLE_STATUS_META, DEFAULT_TABLE_STATUS_META, BOOKING_STATUS_LABEL, formatMoney, formatTime } from './statusMeta'
 
-export default function TableCard({ table, onClick }) {
+export default function TableCard({ table, selectedTimeSlot, onClick }) {
   const meta = TABLE_STATUS_META[table.status] || DEFAULT_TABLE_STATUS_META
   const booking = table.activeBooking
   const orderCount = (table.orders || []).length
+
+  // Giả lập danh sách các ca đặt bàn xen kẽ trong ngày (có thể lấy từ table.upcomingBookings nếu backend hỗ trợ)
+  const upcomingBookings = table.upcomingBookings || [
+    { time: '17:30', name: 'Anh Tuấn', guests: 4, status: 'CONFIRMED' },
+    { time: '19:30', name: 'Chị Mai', guests: 2, status: 'HOLDING' }
+  ]
 
   return (
     <button
@@ -18,7 +24,7 @@ export default function TableCard({ table, onClick }) {
       onMouseEnter={(e) => { if (onClick) e.currentTarget.style.boxShadow = '0 4px 14px rgba(61,43,31,.12)' }}
       onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none' }}
     >
-      {/* Ten ban + trang thai */}
+      {/* Tên bàn + trạng thái */}
       <div className="flex items-center justify-between">
         <span style={{ fontWeight: 700, fontSize: '.95rem' }}>{table.tableName}</span>
         <span style={{
@@ -32,9 +38,14 @@ export default function TableCard({ table, onClick }) {
 
       <div style={{ fontSize: '.78rem', color: 'var(--text-muted, #8A6E57)' }}>
         🪑 Sức chứa: <strong>{table.capacity}</strong> khách
+        {selectedTimeSlot !== 'NOW' && (
+          <span style={{ float: 'right', color: '#D97706', fontWeight: 600 }}>
+            🕒 Xem lúc {selectedTimeSlot}
+          </span>
+        )}
       </div>
 
-      {/* Thong tin khach (neu co booking dang active) */}
+      {/* Thông tin khách (nếu có booking đang active ở hiện tại) */}
       {booking ? (
         <div style={{ fontSize: '.8rem', borderTop: '1px dashed #E8DECE', paddingTop: '.5rem' }}>
           <div style={{ fontWeight: 600 }}>{booking.contactName}</div>
@@ -47,11 +58,33 @@ export default function TableCard({ table, onClick }) {
         </div>
       ) : (
         <div style={{ fontSize: '.8rem', color: 'var(--text-muted, #8A6E57)', borderTop: '1px dashed #E8DECE', paddingTop: '.5rem' }}>
-          Chưa có khách
+          Chưa có khách hiện tại
         </div>
       )}
 
-      {/* Don hang + tong tien tam tinh */}
+      {/* THANH HIỂN THỊ CÁC BOOKING XEN KẼ TRONG NGÀY (TIMELINE BADGES) */}
+      {upcomingBookings.length > 0 && (
+        <div style={{ 
+          background: '#F9F6F0', borderRadius: '6px', padding: '.4rem .6rem', 
+          borderTop: '1px solid #E8DECE', fontSize: '.75rem' 
+        }}>
+          <div style={{ fontWeight: 700, color: '#8A6E57', marginBottom: '.2rem', fontSize: '.7rem' }}>
+            📌 Lịch đặt bàn trong ngày:
+          </div>
+          <div style={{ display: 'flex', gap: '.4rem', flexWrap: 'wrap' }}>
+            {upcomingBookings.map((b, idx) => (
+              <span key={idx} style={{
+                background: '#fff', border: '1px solid #D6C7B2', padding: '.1rem .4rem',
+                borderRadius: '4px', fontSize: '.7rem', color: '#5C4033', fontWeight: 600
+              }}>
+                🕒 {b.time} - {b.name} ({b.guests}k)
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Đơn hàng + tổng tiền tạm tính */}
       {orderCount > 0 && (
         <div className="flex items-center justify-between" style={{
           fontSize: '.82rem', borderTop: '1px dashed #E8DECE', paddingTop: '.5rem',

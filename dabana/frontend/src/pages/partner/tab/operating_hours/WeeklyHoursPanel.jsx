@@ -215,7 +215,7 @@ export default function WeeklyHoursPanel({
                   </div>
                 ))}
                 
-                <button 
+                <button F
                   type="button" 
                   onClick={() => addShift(key)} 
                   className="btn-sm" 
