@@ -3,6 +3,8 @@ package com.dabana.backend.modules.payment.service;
 import com.dabana.backend.modules.booking.Booking;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
+import com.dabana.backend.modules.notification.NotificationService;
+import com.dabana.backend.modules.notification.NotificationType;
 import com.dabana.backend.modules.payment.entity.DepositPayment;
 import com.dabana.backend.modules.payment.entity.PayosWebhookLog;
 import com.dabana.backend.modules.payment.repository.DepositPaymentRepository;
@@ -35,15 +37,18 @@ public class PayosWebhookService {
     private final PayosWebhookLogRepository payosWebhookLogRepository;
     private final BookingRepository bookingRepository;
     private final AesEncryptionUtil aesEncryptionUtil;
+    private final NotificationService notificationService;
 
     public PayosWebhookService(DepositPaymentRepository depositPaymentRepository,
                                 PayosWebhookLogRepository payosWebhookLogRepository,
                                 BookingRepository bookingRepository,
-                                AesEncryptionUtil aesEncryptionUtil) {
+                                AesEncryptionUtil aesEncryptionUtil,
+                                NotificationService notificationService) {
         this.depositPaymentRepository = depositPaymentRepository;
         this.payosWebhookLogRepository = payosWebhookLogRepository;
         this.bookingRepository = bookingRepository;
         this.aesEncryptionUtil = aesEncryptionUtil;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -124,6 +129,17 @@ public class PayosWebhookService {
                 bookingRepository.save(booking);
                 log.info("Webhook payOS: Booking id={} da CONFIRMED sau khi coc PAID (orderCode={})",
                         booking.getId(), orderCode);
+
+                // B09 BR01: xac nhan dat ban tuc thi sau khi coc PAID.
+                // Khach vang lai (khong co tai khoan User) chua co co che gui
+                // thong bao qua Notification (recipient bat buoc la User).
+                if (booking.getCustomer() != null) {
+                    String content = String.format(
+                            "Dat ban thanh cong tai %s luc %s.",
+                            booking.getBranch().getName(), booking.getReservationTime());
+                    notificationService.sendImmediate(
+                            booking.getCustomer(), NotificationType.BOOKING_CONFIRMED, content, "IN_APP");
+                }
             }
         }
 

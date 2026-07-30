@@ -29,6 +29,8 @@ import com.dabana.backend.modules.diningtable.service.DiningTableService;
 //import com.dabana.backend.modules.menu.MenuItem;
 //import com.dabana.backend.modules.menu.MenuItemStatus;
 import com.dabana.backend.modules.menu.repository.MenuItemRepository;
+import com.dabana.backend.modules.notification.NotificationService;
+import com.dabana.backend.modules.notification.NotificationType;
 import com.dabana.backend.modules.orderboard.event.TableBoardChangedEvent;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
@@ -93,6 +95,7 @@ public class BookingService implements IBookingService {
     // broadcast.
     private final ApplicationEventPublisher eventPublisher;
     private final OtpService otpService;
+    private final NotificationService notificationService; // B09: gui thong bao cho cac su kien cua B01/B11/B12
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
@@ -247,6 +250,16 @@ public class BookingService implements IBookingService {
         // 10. Lưu món đặt trước (nếu có)
         if (req.getItems() != null && !req.getItems().isEmpty()) {
             bookingItemService.saveItems(booking, req.getItems());
+        }
+
+        // 11. B09 BR01: neu khong can coc, don da CONFIRMED ngay - gui xac nhan
+        // tuc thi. Truong hop can coc (HOLDING), xac nhan se duoc gui sau khi
+        // coc PAID, xem PayosWebhookService.
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            String content = String.format(
+                    "Dat ban thanh cong tai %s luc %s.",
+                    branch.getName(), booking.getReservationTime());
+            notifyCustomer(booking, NotificationType.BOOKING_CONFIRMED, content);
         }
 
         return bookingMapper.toResponse(booking);
@@ -508,6 +521,12 @@ public class BookingService implements IBookingService {
         booking.setStatus(BookingStatus.COMPLETED);
         booking = bookingRepository.save(booking);
         applyTableStatus(booking, DiningTableStatus.CLEANING);
+
+        // B09: moi khach danh gia sau khi don hoan tat (B13)
+        notifyCustomer(booking, NotificationType.REVIEW_INVITATION,
+                String.format("Cam on ban da dung bua tai %s. Hay danh gia trai nghiem cua ban!",
+                        booking.getBranch().getName()));
+
         return bookingMapper.toResponse(booking);
     }
 
@@ -540,6 +559,12 @@ public class BookingService implements IBookingService {
         booking.setStatus(BookingStatus.NO_SHOW);
         booking = bookingRepository.save(booking);
         applyTableStatus(booking, DiningTableStatus.CLEANING);
+
+        // B09: bao ket qua no-show cho khach (B11 buoc 8)
+        notifyCustomer(booking, NotificationType.NO_SHOW_WARNING,
+                String.format("Don dat ban tai %s luc %s da duoc ghi nhan la khong den (no-show).",
+                        booking.getBranch().getName(), booking.getReservationTime()));
+
         return bookingMapper.toResponse(booking);
     }
 
@@ -583,6 +608,17 @@ public class BookingService implements IBookingService {
         if (booking.getRefundStatus() == RefundStatus.PENDING) {
             eventPublisher.publishEvent(new BookingCancelledForRefundEvent(booking.getId()));
         }
+
+        // B09: bao ket qua huy don (va hoan coc neu co) cho khach (B11)
+        String cancelContent = byRestaurant
+                ? String.format("Nha hang %s da huy don dat ban cua ban luc %s.",
+                        booking.getBranch().getName(), booking.getReservationTime())
+                : String.format("Don dat ban tai %s luc %s da duoc huy thanh cong.",
+                        booking.getBranch().getName(), booking.getReservationTime());
+        if (booking.getRefundStatus() == RefundStatus.PENDING) {
+            cancelContent += String.format(" So tien hoan coc: %s VND.", booking.getRefundAmount());
+        }
+        notifyCustomer(booking, NotificationType.BOOKING_CANCELLED, cancelContent);
 
         return bookingMapper.toResponse(booking);
     }
@@ -666,6 +702,19 @@ public class BookingService implements IBookingService {
         eventPublisher.publishEvent(new TableBoardChangedEvent(booking.getBranch().getId(), tableIds));
     }
 
+    /**
+     * B09: gui thong bao (in-app) cho khach hang gan voi mot booking.
+     * Khach vang lai (dat ban khong co tai khoan User, booking.customer = null)
+     * hien chua co co che gui thong bao vi Notification.recipient bat buoc la
+     * mot User - bo qua trong truong hop nay thay vi lam loi ca luong nghiep vu goc.
+     */
+    private void notifyCustomer(Booking booking, NotificationType type, String content) {
+        if (booking == null || booking.getCustomer() == null) {
+            return;
+        }
+        notificationService.sendImmediate(booking.getCustomer(), type, content, "IN_APP");
+    }
+
     // ============================================================
     // EF04: tu dong huy don het han giu ban (chay dinh ky)
     // ============================================================
@@ -699,6 +748,11 @@ public class BookingService implements IBookingService {
             booking.setStatus(BookingStatus.NO_SHOW);
             booking = bookingRepository.save(booking);
             applyTableStatus(booking, DiningTableStatus.CLEANING);
+
+            // B09: bao ket qua no-show cho khach (tu dong chot, khong co xac nhan nhan vien)
+            notifyCustomer(booking, NotificationType.NO_SHOW_WARNING,
+                    String.format("Don dat ban tai %s luc %s da duoc ghi nhan la khong den (no-show).",
+                            booking.getBranch().getName(), booking.getReservationTime()));
         }
     }
 
