@@ -187,18 +187,17 @@ public class AvailableSlotService implements IAvailableSlotService {
 
         for (OperatingPeriod period : periods) {
             LocalTime slotStart = period.getStartTime();
-            while (true) {
+            while (slotStart.plusMinutes(slotDurationMinutes).compareTo(period.getEndTime()) < 0) {
                 LocalTime slotEnd = slotStart.plusMinutes(slotDurationMinutes);
-                if (slotEnd.isAfter(period.getEndTime())) {
-                    break;
-                }
-                // Đóng gói mốc giờ kèm theo description của ca hiện tại
+
                 timePoints.add(OperatingPeriod.builder()
                         .startTime(slotStart)
                         .endTime(slotEnd)
-                        .description(period.getDescription()) // <--- Lấy đúng trường description bạn cần ở đây
+                        .description(period.getDescription())
                         .operatingHourId(period.getOperatingHourId())
                         .build());
+
+                // Dịch chuyển mốc thời gian sang slot tiếp theo
                 slotStart = slotEnd;
             }
         }
