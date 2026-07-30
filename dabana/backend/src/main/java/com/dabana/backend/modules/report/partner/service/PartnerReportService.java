@@ -78,8 +78,8 @@ public class PartnerReportService {
                     applyComparison(revenueCard, prevRevenue);
             }
             kpis.add(revenueCard);
-            kpis.add(card("avgInvoiceValue", "Gia tri hoa don trung binh", avgInvoice));
-            kpis.add(card("unpaidInvoiceCount", "So hoa don chua thanh toan", unpaidCount));
+            kpis.add(card("avgInvoiceValue", "Gía trị hoá đơn trung bình", avgInvoice));
+            kpis.add(card("unpaidInvoiceCount", "Số hoá đơn chưa thanh toán", unpaidCount));
 
             // revenueByTime
             String fmt = timeFormat(params);
@@ -120,9 +120,9 @@ public class PartnerReportService {
                                             + "JOIN rs_reservations r ON r.id=i.reservation_id WHERE " + paidFilter,
                             r, ids).get(0);
             List<PieSlice> composition = List.of(
-                            slice("Dat truoc", bd(comp[0])),
-                            slice("Goi them", bd(comp[1])),
-                            slice("Phu thu", bd(comp[2])));
+                            slice("PREORDER", bd(comp[0])),
+                            slice("EXTRA_ORDER", bd(comp[1])),
+                            slice("SURCHARGE", bd(comp[2])));
 
             // paymentMethodBreakdown pie
             List<PieSlice> payment = new ArrayList<>();
@@ -133,9 +133,7 @@ public class PartnerReportService {
                             r, ids)) {
                     payment.add(slice((String) row[0], bd(row[1])));
             }
-            payment.forEach(p -> {
-                p.setLabel(paymentLabelConvert(p.getLabel()));
-            });
+            // labels kept as raw enum string
             // Top thu ngan: cung branch ids + range, chi hoa don PAID.
             List<PartnerRevenueReportResponse.CashierRow> topCashiers = new ArrayList<>();
             for (Object[] row : rows(
@@ -160,16 +158,6 @@ public class PartnerReportService {
                             .topCashiers(topCashiers).build();
     }
 
-    private String paymentLabelConvert(String label) {
-        switch (label) {
-                case "CASH":
-                        return "Tiền mặt";
-                case "TRANSFER":
-                        return "Chuyển khoản";
-                default:
-                        return "chưa sửa" + label;
-        }
-    }
 
     // ==================================================================
     //  DEPOSITS / CASHFLOW
@@ -209,10 +197,10 @@ public class PartnerReportService {
                             r, ids);
 
             List<KpiCard> kpis = List.of(
-                            card("totalCollected", "Tong tien coc da thu", collected),
-                            card("totalRefunded", "Tong tien da hoan", refunded),
-                            card("totalHeld", "Tong tien phat giu lai", held),
-                            card("pendingRefundCount", "So khoan cho hoan", pendingRes.add(pendingPayout)));
+                            card("totalCollected", "Tổng tiền cọc đã thu", collected),
+                            card("totalRefunded", "Tổng tiền đã hoàn", refunded),
+                            card("totalHeld", "Tổng tiền phạt giữ lại", held),
+                            card("pendingRefundCount", "Số khoản chờ hoàn", pendingRes.add(pendingPayout)));
 
             // cashflowByTime series collected/refunded/held
             Map<String, Map<String, BigDecimal>> byLabel = new TreeMap<>();
@@ -286,15 +274,15 @@ public class PartnerReportService {
                             : noShow.multiply(BigDecimal.valueOf(100)).divide(total, 2, RoundingMode.HALF_UP);
 
             List<KpiCard> kpis = new ArrayList<>();
-            KpiCard totalCard = card("totalReservations", "Tong luot dat", total);
+            KpiCard totalCard = card("totalReservations", "Tổng lượt đặt", total);
             if (Boolean.TRUE.equals(params.getCompareWithPrevious())) {
                     PeriodRange.Range prev = PeriodRange.resolvePrevious(params);
                     BigDecimal prevTotal = scalar("SELECT COUNT(*)" + base, prev, ids);
                     applyComparison(totalCard, prevTotal);
             }
             kpis.add(totalCard);
-            kpis.add(card("servedGuestCount", "So khach da phuc vu", served));
-            kpis.add(card("noShowRate", "Ty le khong den (%)", noShowRate));
+            kpis.add(card("servedGuestCount", "Số khách đã phục vụ", served));
+            kpis.add(card("noShowRate", "Tỷ lệ không đến (%)", noShowRate));
 
             // reservationsByTime
             String fmt = timeFormat(params);

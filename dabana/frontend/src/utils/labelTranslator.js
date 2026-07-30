@@ -46,7 +46,16 @@ export const dictionary = {
   // InvoiceType
   INITIAL: 'Đăng ký mới',
   RENEWAL: 'Gia hạn',
-  UPGRADE: 'Nâng cấp'
+  UPGRADE: 'Nâng cấp',
+
+  // Revenue Composition
+  PREORDER: 'Đặt trước',
+  EXTRA_ORDER: 'Gọi thêm',
+  SURCHARGE: 'Phụ thu',
+  'DAT TRUOC': 'Đặt trước',
+  'GOI THEM': 'Gọi thêm',
+  'PHU THU': 'Phụ thu',
+  TRANSFER: 'Chuyển khoản'
 };
 
 export function translateLabel(label) {
