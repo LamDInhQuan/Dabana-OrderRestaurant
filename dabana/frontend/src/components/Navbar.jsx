@@ -116,6 +116,17 @@ export default function Navbar({ solid = false }) {
                   }}>Quản lý</button>
                 </Link>
               )}
+              {isRole('RESTAURANT_PARTNER') && (
+                <Link to="/partner/reports">
+                  <button style={{
+                    background: 'transparent', color: linkColor,
+                    border: `1.5px solid ${isSolidBg ? 'var(--gold)' : 'rgba(255,255,255,.5)'}`,
+                    padding: '.45rem 1.1rem', fontSize: '.78rem', fontWeight: 600,
+                    letterSpacing: '.06em', textTransform: 'uppercase', borderRadius: 2,
+                    cursor: 'pointer'
+                  }}>Thống kê</button>
+                </Link>
+              )}
               {isRole('ADMIN') && (
                 <Link to="/admin">
                   <button style={{

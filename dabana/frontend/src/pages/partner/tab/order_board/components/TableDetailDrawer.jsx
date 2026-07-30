@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { X, Clock, Users, Check, Trash2, Utensils, Printer, DoorOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { bookingApi, tableApi, extraOrderApi, preorderItemApi } from '../../../../../api'
 import { TABLE_STATUS_META, DEFAULT_TABLE_STATUS_META, BOOKING_STATUS_LABEL, formatMoney, formatTime } from './statusMeta'
@@ -261,7 +262,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #E8DECE', flexShrink: 0 }}>
           <div className="flex items-center justify-between">
             <h2 style={{ fontWeight: 800, fontSize: '1.1rem' }}>{table.tableName}</h2>
-            <button className="btn-outline btn-sm" onClick={onClose}>✕ Đóng</button>
+            <button className="btn-outline btn-sm" onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><X size={16} /> Đóng</button>
           </div>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '.3rem', marginTop: '.4rem',
@@ -285,7 +286,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
                 <div style={{ fontWeight: 700, marginBottom: '.2rem' }}>{booking.contactName}</div>
                 <div style={{ color: '#8A6E57', marginBottom: '.3rem' }}>{booking.contactPhone}</div>
                 <div style={{ color: '#8A6E57' }}>
-                  🕐 {formatTime(booking.reservationTime)} · 👥 {booking.guestCount} khách
+                  <Clock size={14} style={{ verticalAlign: '-2px' }} /> {formatTime(booking.reservationTime)} · <Users size={14} style={{ verticalAlign: '-2px' }} /> {booking.guestCount} khách
                   {' · '}<strong>{BOOKING_STATUS_LABEL[booking.status] || booking.status}</strong>
                 </div>
               </div>
@@ -307,7 +308,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
                   fontSize: '.8rem', color: '#B45309', background: 'rgba(180,83,9,.08)',
                   borderRadius: 8, padding: '.6rem .75rem', marginBottom: '.6rem', fontWeight: 600,
                 }}>
-                  ⏰ Bàn này có khách đặt trước lúc {formatTime(booking.reservationTime)}
+                  <Clock size={14} style={{ verticalAlign: '-2px' }} /> Bàn này có khách đặt trước lúc {formatTime(booking.reservationTime)}
                   ({booking.guestCount} khách) - cân nhắc xếp bàn khác nếu gần giờ.
                 </div>
               )}
@@ -319,7 +320,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
                   style={{ width: 70 }}
                 />
                 <button type="submit" className="btn-primary btn-sm" disabled={creatingWalkIn}>
-                  {creatingWalkIn ? 'Đang nhận khách...' : '✅ Nhận khách vào bàn'}
+                  {creatingWalkIn ? 'Đang nhận khách...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Check size={16} /> Nhận khách vào bàn</span>}
                 </button>
               </form>
               <p style={{ fontSize: '.72rem', color: '#8A6E57', marginTop: '.4rem' }}>
@@ -379,7 +380,7 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
                                 onClick={() => handleChangeQuantity(item, item.quantity + 1)}>+</button>
                               <button className="btn-outline btn-sm" style={{ padding: '.15rem .5rem', color: '#EF4444', borderColor: '#EF444455' }}
                                 disabled={rowSaving}
-                                onClick={() => handleDeleteItem(item)}>🗑</button>
+                                onClick={() => handleDeleteItem(item)}><Trash2 size={16} /></button>
                             </>
                           ) : (
                             <span style={{ fontWeight: 700, fontSize: '.85rem' }}>{formatMoney(item.lineTotal)}</span>
@@ -405,8 +406,8 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
               <h3 style={{ fontSize: '.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#8A6E57', marginBottom: '.5rem' }}>
                 Thêm món
               </h3>
-              <button className="btn-primary btn-sm" onClick={() => setMenuPickerOpen(true)}>
-                🍽 Mở thực đơn để chọn món
+              <button className="btn-primary btn-sm" onClick={() => setMenuPickerOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                <Utensils size={16} /> Mở thực đơn để chọn món
               </button>
             </div>
           )}
@@ -438,17 +439,17 @@ export default function TableDetailDrawer({ table, branchId, onClose, onChanged 
           <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #E8DECE', flexShrink: 0 }}>
             {canCheckIn && (
               <button className="btn-primary" style={{ width: '100%' }} disabled={checking} onClick={handleCheckIn}>
-                {checking ? 'Đang xử lý...' : '✅ Check-in bàn'}
+                {checking ? 'Đang xử lý...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Check size={16} /> Check-in bàn</span>}
               </button>
             )}
             {canCheckOut && (
-              <button className="btn-outline" style={{ width: '100%', marginBottom: '.5rem' }} onClick={printInvoice}>
-                🖨 In hoá đơn
+              <button className="btn-outline" style={{ width: '100%', marginBottom: '.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '.3rem' }} onClick={printInvoice}>
+                <Printer size={16} /> In hoá đơn
               </button>
             )}
             {canCheckOut && (
-              <button className="btn-primary" style={{ width: '100%' }} disabled={checking} onClick={handleOpenPayment}>
-                {`🚪 Thanh toán & Check-out · ${formatMoney(table.estimatedTotal)}`}
+              <button className="btn-primary" style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '.3rem' }} disabled={checking} onClick={handleOpenPayment}>
+                <DoorOpen size={16} /> Thanh toán & Check-out · {formatMoney(table.estimatedTotal)}
               </button>
             )}
           </div>

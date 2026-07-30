@@ -26,6 +26,7 @@ import SubscriptionPlanManagement from './pages/admin/SubscriptionPlanManagement
 import SubscriptionInvoiceApproval from './pages/admin/SubscriptionInvoiceApproval'
 import SubscriptionPayosConfigPage from './pages/admin/SubscriptionPayosConfigPage'
 import Reports from './pages/admin/Reports'
+import PartnerReportsPage from './pages/partner/reports/PartnerReportsPage'
 import BookingLockPage from './pages/customer/BookingLockPage'
 import BookingInvoicePage from './pages/customer/BookingInvoicePage'
 
@@ -84,6 +85,10 @@ export default function App() {
           <Route
             path="/partner"
             element={<ProtectedRoute role="RESTAURANT_PARTNER"><PartnerDashboard /></ProtectedRoute>}
+          />
+          <Route
+            path="/partner/reports"
+            element={<ProtectedRoute role="RESTAURANT_PARTNER"><PartnerReportsPage /></ProtectedRoute>}
           />
 
           {/* ===== Admin ===== */}

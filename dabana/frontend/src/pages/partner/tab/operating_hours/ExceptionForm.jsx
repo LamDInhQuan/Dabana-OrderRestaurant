@@ -1,3 +1,5 @@
+import { Ban, Hourglass, Plus } from 'lucide-react'
+
 function ExceptionForm({ exception, operatingHours = [], onCancel, onSave }) {
   const [form, setForm] = useState(exception || {
     exceptionType: 'CLOSE_ALL_DAY',
@@ -52,15 +54,15 @@ function ExceptionForm({ exception, operatingHours = [], onCancel, onSave }) {
         <div className="flex gap-2 flex-wrap">
           <label style={radioBtnStyle(form.exceptionType === 'CLOSE_ALL_DAY')}>
             <input type="radio" hidden checked={form.exceptionType === 'CLOSE_ALL_DAY'} onChange={() => handleTypeChange('CLOSE_ALL_DAY')} />
-            🚫 Đóng nguyên ngày
+            <Ban size={14} style={{ verticalAlign: '-2px' }} /> Đóng nguyên ngày
           </label>
           <label style={radioBtnStyle(form.exceptionType === 'CLOSE_TIME_RANGE')}>
             <input type="radio" hidden checked={form.exceptionType === 'CLOSE_TIME_RANGE'} onChange={() => handleTypeChange('CLOSE_TIME_RANGE')} />
-            ⏳ Tạm đóng trong ca
+            <Hourglass size={14} style={{ verticalAlign: '-2px' }} /> Tạm đóng trong ca
           </label>
           <label style={radioBtnStyle(form.exceptionType === 'ADD_TIME_RANGE')}>
             <input type="radio" hidden checked={form.exceptionType === 'ADD_TIME_RANGE'} onChange={() => handleTypeChange('ADD_TIME_RANGE')} />
-            ➕ Mở thêm ca
+            <Plus size={14} style={{ verticalAlign: '-2px' }} /> Mở thêm ca
           </label>
         </div>
       </div>

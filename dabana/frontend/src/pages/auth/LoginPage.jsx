@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { authApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
+import { Utensils } from 'lucide-react'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -33,8 +34,8 @@ export default function LoginPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
       <div className="card" style={{ width: '100%', maxWidth: 420 }}>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '1.5rem', textAlign: 'center', color: 'var(--brand)' }}>
-          🍽️ Dabana
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '1.5rem', textAlign: 'center', color: 'var(--brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.5rem' }}>
+          <Utensils size={24} /> Dabana
         </h1>
         <h2 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', color: 'var(--text-muted)', textAlign: 'center' }}>
           Đăng nhập tài khoản

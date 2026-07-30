@@ -4,16 +4,20 @@ import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import { restaurantApi, branchApi, authApi, bookingApi } from '../../api'
 import GuestBookingLookup from './GuestBookingLookup'
+import {
+  Utensils, Flag, Fish, Beef, Shell, Soup, Map, Bell, Shield, Star, MapPin,
+  X, Phone, Mail, Globe, Building2, Sparkles, Search, Lamp, PartyPopper,
+} from 'lucide-react'
 
 // ─── Constants (giữ nguyên) ────────────────────────────────────
 const CUISINES = [
-  { label: 'Tất cả', value: '', emoji: '🍽️' },
-  { label: 'Việt Nam', value: 'Việt Nam', emoji: '🇻🇳' },
-  { label: 'Nhật Bản', value: 'Nhật Bản', emoji: '🍣' },
-  { label: 'Hàn Quốc', value: 'Hàn Quốc', emoji: '🥩' },
-  { label: 'Hải sản', value: 'Hải sản', emoji: '🦞' },
-  { label: 'Lẩu nướng', value: 'Lẩu & Nướng', emoji: '🫕' },
-  { label: 'Âu', value: 'Âu', emoji: '🍝' },
+  { label: 'Tất cả', value: '', icon: Utensils },
+  { label: 'Việt Nam', value: 'Việt Nam', icon: Flag },
+  { label: 'Nhật Bản', value: 'Nhật Bản', icon: Fish },
+  { label: 'Hàn Quốc', value: 'Hàn Quốc', icon: Beef },
+  { label: 'Hải sản', value: 'Hải sản', icon: Shell },
+  { label: 'Lẩu nướng', value: 'Lẩu & Nướng', icon: Soup },
+  { label: 'Âu', value: 'Âu', icon: Utensils },
 ]
 
 const CARD_GRADIENTS = [
@@ -29,10 +33,10 @@ const STATS = [
 ]
 
 const EXPERIENCE = [
-  { icon: '🗺️', title: 'Sơ đồ bàn trực quan', desc: 'Chọn đúng vị trí bạn muốn — trong nhà, ngoài trời, phòng VIP — ngay trên bản đồ chi nhánh.' },
-  { icon: '🍜', title: 'Đặt món trước khi đến', desc: 'Tiết kiệm thời gian chờ, nhà hàng chuẩn bị sẵn phần ăn theo ý bạn.' },
-  { icon: '🔔', title: 'Nhắc lịch tự động', desc: 'SMS và thông báo nhắc trước 30 phút — không bỏ lỡ buổi hẹn nào.' },
-  { icon: '🛡️', title: 'Đặt cọc an toàn', desc: 'Hoàn tiền minh bạch theo chính sách từng nhà hàng. Mọi giao dịch đều được mã hóa.' },
+  { icon: Map, title: 'Sơ đồ bàn trực quan', desc: 'Chọn đúng vị trí bạn muốn — trong nhà, ngoài trời, phòng VIP — ngay trên bản đồ chi nhánh.' },
+  { icon: Soup, title: 'Đặt món trước khi đến', desc: 'Tiết kiệm thời gian chờ, nhà hàng chuẩn bị sẵn phần ăn theo ý bạn.' },
+  { icon: Bell, title: 'Nhắc lịch tự động', desc: 'SMS và thông báo nhắc trước 30 phút — không bỏ lỡ buổi hẹn nào.' },
+  { icon: Shield, title: 'Đặt cọc an toàn', desc: 'Hoàn tiền minh bạch theo chính sách từng nhà hàng. Mọi giao dịch đều được mã hóa.' },
 ]
 
 // ─── Hooks (giữ nguyên) ────────────────────────────────────────
@@ -121,8 +125,8 @@ function RestaurantCard({ restaurant, index, onClick }) {
             position: 'absolute', inset: 0,
             background: `linear-gradient(135deg,${g0},${g1})`,
             display: 'flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: '4.5rem',
-          }}>🍽️</div>
+            justifyContent: 'center', color: 'var(--gold-light)',
+          }}><Utensils size={56} /></div>
         )}
 
         {restaurant.branchCount > 0 && (
@@ -143,7 +147,7 @@ function RestaurantCard({ restaurant, index, onClick }) {
             background: 'rgba(0,0,0,.6)', color: 'var(--gold-light)',
             fontSize: '.8rem', fontWeight: 600, padding: '.3rem .6rem',
             borderRadius: 2, display: 'flex', alignItems: 'center', gap: '.3rem',
-          }}>★ {restaurant.rating}</div>
+          }}><Star size={14} fill="currentColor" /> {restaurant.rating}</div>
         )}
       </div>
 
@@ -216,8 +220,8 @@ function BranchCard({ branch, index, onClick }) {
           <div style={{
             position: 'absolute', inset: 0, display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.6rem', color: 'var(--gold)',
-          }}>🍽️</div>
+            color: 'var(--gold)',
+          }}><Utensils size={26} /></div>
         )}
       </div>
 
@@ -234,7 +238,7 @@ function BranchCard({ branch, index, onClick }) {
             <span style={{
               fontSize: '.74rem', fontWeight: 700, color: '#B8903D',
               flexShrink: 0, display: 'flex', alignItems: 'center', gap: '.2rem',
-            }}>★ {branch.rating}</span>
+            }}><Star size={12} fill="currentColor" /> {branch.rating}</span>
           )}
         </div>
 
@@ -242,7 +246,7 @@ function BranchCard({ branch, index, onClick }) {
           fontSize: '.78rem', color: 'var(--muted)', margin: 0, lineHeight: 1.5,
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
-          📍 {branch.address}{branch.province ? `, ${branch.province}` : ''}
+          <MapPin size={13} style={{ verticalAlign: '-2px' }} /> {branch.address}{branch.province ? `, ${branch.province}` : ''}
         </p>
 
         <span style={{
@@ -325,7 +329,7 @@ function BranchDrawer({ restaurant, branches, loading, onClose, onSelectBranch }
             color: '#fff', width: 32, height: 32, borderRadius: 6,
             cursor: 'pointer', fontSize: '1rem', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>✕</button>
+          }}><X size={18} /></button>
         </div>
 
         {/* Drawer body */}
@@ -354,14 +358,14 @@ function BranchDrawer({ restaurant, branches, loading, onClose, onSelectBranch }
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem', color: '#666', borderTop: '1px solid #f1f1f1', paddingTop: '0.75rem' }}>
               {restaurant.phone && (
-                <div>📞 SĐT tổng: <strong style={{ color: '#333' }}>{restaurant.phone}</strong></div>
+                <div><Phone size={14} style={{ verticalAlign: '-2px' }} /> SĐT tổng: <strong style={{ color: '#333' }}>{restaurant.phone}</strong></div>
               )}
               {restaurant.email && (
-                <div>✉️ Email: <strong style={{ color: '#333' }}>{restaurant.email}</strong></div>
+                <div><Mail size={14} style={{ verticalAlign: '-2px' }} /> Email: <strong style={{ color: '#333' }}>{restaurant.email}</strong></div>
               )}
               {restaurant.website && (
                 <div>
-                  🌐 Website: <a href={restaurant.website} target="_blank" rel="noreferrer" style={{ color: '#5C3A1E', textDecoration: 'underline' }}>{restaurant.website}</a>
+                  <Globe size={14} style={{ verticalAlign: '-2px' }} /> Website: <a href={restaurant.website} target="_blank" rel="noreferrer" style={{ color: '#5C3A1E', textDecoration: 'underline' }}>{restaurant.website}</a>
                 </div>
               )}
             </div>
@@ -383,7 +387,7 @@ function BranchDrawer({ restaurant, branches, loading, onClose, onSelectBranch }
             </div>
           ) : branches.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--muted)' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>🏗️</div>
+              <div style={{ marginBottom: '.75rem' }}><Building2 size={40} /></div>
               <p style={{ fontSize: '.88rem' }}>Chưa có chi nhánh hoạt động.</p>
             </div>
           ) : (
@@ -532,7 +536,7 @@ export default function HomePage() {
           transition: 'opacity .8s ease, transform .8s ease',
         }}>
           <div style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.28em', textTransform: 'uppercase', color: 'var(--gold-light)', marginBottom: '1.25rem' }}>
-            ✦ Tinh hoa ẩm thực Việt ✦
+            <Sparkles size={14} style={{ verticalAlign: '-2px' }} /> Tinh hoa ẩm thực Việt <Sparkles size={14} style={{ verticalAlign: '-2px' }} />
           </div>
           <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 'clamp(3rem,9vw,6.5rem)', fontWeight: 700, color: '#fff', lineHeight: 1.05, marginBottom: '1.25rem' }}>
             Nơi mỗi<br /><em style={{ color: 'var(--gold-light)', fontStyle: 'italic' }}>bữa tiệc</em><br />là ký ức
@@ -589,10 +593,10 @@ export default function HomePage() {
             onChange={e => setCuisine(e.target.value)}
             style={{ width: 'auto', minWidth: 180, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
           >
-            {CUISINES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
+            {CUISINES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
           <button onClick={handleSearch} style={{ background: 'var(--brown)', color: '#fff', border: 'none', padding: '.65rem 1.75rem', fontSize: '.88rem', fontWeight: 600, letterSpacing: '.06em', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-            🔍 Tìm kiếm
+            <Search size={16} style={{ verticalAlign: '-3px' }} /> Tìm kiếm
           </button>
         </div>
 
@@ -608,13 +612,13 @@ export default function HomePage() {
                 color: cuisine === c.value ? 'var(--brown)' : 'var(--muted)',
                 cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit',
               }}
-            >{c.emoji} {c.label}</button>
+            ><c.icon size={14} style={{ verticalAlign: '-2px' }} /> {c.label}</button>
           ))}
         </div>
 
         {restaurants.length === 0 && !loadingRestaurants ? (
           <div style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--muted)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+            <div style={{ marginBottom: '1rem' }}><Search size={48} /></div>
             <p>Không tìm thấy nhà hàng phù hợp. Thử từ khoá khác nhé!</p>
           </div>
         ) : (
@@ -633,7 +637,7 @@ export default function HomePage() {
 
       {/* ══════════════ EXPERIENCE (giữ nguyên) ══════════════ */}
       <div id="experience" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', minHeight: 520, background: 'var(--brown)' }}>
-        <div style={{ background: 'linear-gradient(135deg,#5c3a1e 0%,#8B6914 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8rem', minHeight: 320 }}>🏮</div>
+        <div style={{ background: 'linear-gradient(135deg,#5c3a1e 0%,#8B6914 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}><Lamp size={96} color="var(--gold-light)" /></div>
         <div style={{ padding: '4rem 8%' }}>
           <div style={{ ...S.eyebrow, color: 'var(--gold-light)' }}>Tại sao chọn Dabana</div>
           <h2 style={{ ...S.title, color: 'var(--cream)', marginBottom: '.75rem' }}>
@@ -642,7 +646,7 @@ export default function HomePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '2rem' }}>
             {EXPERIENCE.map(item => (
               <div key={item.title} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                <div style={{ width: 40, height: 40, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0, color: 'var(--gold)' }}>{item.icon}</div>
+                <div style={{ width: 40, height: 40, border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--gold)' }}><item.icon size={18} /></div>
                 <div>
                   <h4 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.05rem', fontWeight: 600, color: 'var(--cream)', marginBottom: '.2rem' }}>{item.title}</h4>
                   <p style={{ fontSize: '.82rem', color: 'rgba(251,247,239,.5)', lineHeight: 1.65 }}>{item.desc}</p>
@@ -661,7 +665,7 @@ export default function HomePage() {
             <h2 style={S.title}>Đặt Bàn & Tra Cứu Lịch Sử</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem auto', maxWidth: 300 }}>
               <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right,transparent,var(--gold-light),transparent)' }} />
-              <span style={{ color: 'var(--gold)' }}>✦</span>
+              <span style={{ color: 'var(--gold)' }}><Sparkles size={14} /></span>
               <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right,transparent,var(--gold-light),transparent)' }} />
             </div>
           </div>
@@ -750,14 +754,14 @@ export default function HomePage() {
 
                   <div style={{ gridColumn: '1/-1', textAlign: 'center', marginTop: '.5rem' }}>
                     <button type="submit" style={{ background: 'var(--gold)', color: 'var(--brown)', border: 'none', padding: '1rem 3.5rem', fontSize: '.9rem', fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>
-                      ✦ Xác Nhận Đặt Bàn ✦
+                      <Sparkles size={16} style={{ verticalAlign: '-3px' }} /> Xác Nhận Đặt Bàn <Sparkles size={16} style={{ verticalAlign: '-3px' }} />
                     </button>
                   </div>
                 </div>
               </form>
             ) : (
               <div style={{ background: 'linear-gradient(135deg,#3d2b1f,#6b4226)', color: 'var(--gold-light)', padding: '3rem 2rem', textAlign: 'center', borderRadius: 4 }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎊</div>
+                <div style={{ marginBottom: '1rem' }}><PartyPopper size={48} /></div>
                 <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.8rem', fontWeight: 700, marginBottom: '.75rem' }}>Đặt bàn thành công!</h3>
                 <p style={{ color: 'rgba(232,201,122,.75)', fontSize: '.95rem', lineHeight: 1.7 }}>
                   Chúng tôi sẽ liên hệ xác nhận qua điện thoại/email trong vài phút.<br />Hẹn gặp bạn tại nhà hàng!

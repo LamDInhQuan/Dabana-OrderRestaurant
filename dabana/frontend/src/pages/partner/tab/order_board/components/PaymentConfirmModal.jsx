@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
+import { X, Check, Hourglass, Banknote, Landmark } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { bookingApi, invoicePaymentApi } from '../../../../../api'
 import { formatMoney } from './statusMeta'
 
+const iconLabel = (Icon, text) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Icon size={16} /> {text}</span>
+)
+
 const PAYMENT_METHODS = [
-  { value: 'CASH', label: '💵 Tiền mặt' },
-  { value: 'TRANSFER', label: '🏦 Chuyển khoản / QR' },
+  { value: 'CASH', label: iconLabel(Banknote, 'Tiền mặt') },
+  { value: 'TRANSFER', label: iconLabel(Landmark, 'Chuyển khoản / QR') },
 ]
 
 const POLL_INTERVAL_MS = 3000
@@ -132,7 +137,7 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
         <div style={{ padding: '1.1rem 1.4rem', borderBottom: '1px solid #E8DECE', flexShrink: 0 }}>
           <div className="flex items-center justify-between">
             <h2 style={{ fontWeight: 800, fontSize: '1.1rem' }}>Thanh toán hoá đơn</h2>
-            <button className="btn-outline btn-sm" onClick={onClose}>✕</button>
+            <button className="btn-outline btn-sm" onClick={onClose}><X size={16} /></button>
           </div>
           <p style={{ fontSize: '.8rem', color: '#8A6E57', margin: 0 }}>{tableName}</p>
         </div>
@@ -215,9 +220,9 @@ export default function PaymentConfirmModal({ open, bookingId, tableName, onClos
                         {qr.accountName ? `${qr.accountName} · ${qr.accountNumber}` : 'Quét mã để chuyển khoản'}
                       </p>
                       {qrPaid ? (
-                        <p style={{ color: '#1E8E3E', fontWeight: 700, marginTop: '.5rem' }}>✅ Đã nhận được thanh toán</p>
+                        <p style={{ color: '#1E8E3E', fontWeight: 700, marginTop: '.5rem', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Check size={16} /> Đã nhận được thanh toán</p>
                       ) : (
-                        <p style={{ color: '#8A6E57', marginTop: '.5rem' }}>⏳ Đang chờ khách quét mã...</p>
+                        <p style={{ color: '#8A6E57', marginTop: '.5rem', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Hourglass size={16} /> Đang chờ khách quét mã...</p>
                       )}
                     </>
                   )}

@@ -4,6 +4,7 @@
 import { useEffect, useState, useRef } from "react"
 import { branchBankAccountApi, bookingApi, refundBankInfoApi } from "../../../api" // Đảm bảo import đúng api client của bạn
 import toast from "react-hot-toast"
+import { Clock, ScrollText, Landmark } from "lucide-react"
 
 
 // ----------------------------------------------------------------------
@@ -54,7 +55,7 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         }
     }, [depositAmount])
 
-    // 🟢 Hàm bắt đầu Polling kiểm tra trạng thái đơn hàng liên tục
+    // Hàm bắt đầu Polling kiểm tra trạng thái đơn hàng liên tục
     const startStatusPolling = (bookingId) => {
         setIsRefunding(true)
         setStatusMessage('Đang xử lý yêu cầu hoàn tiền, vui lòng đợi hệ thống cổng thanh toán phản hồi...')
@@ -192,7 +193,7 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         }}>
             <div className="card" style={{ width: '100%', maxWidth: 480, padding: '1.5rem', background: '#fff', borderRadius: 12, maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
 
-                {/* 🟢 Hiển thị màn hình chờ Overlay khi đang Polling Refund */}
+                {/* Hiển thị màn hình chờ Overlay khi đang Polling Refund */}
                 {isRefunding && (
                     <div style={{
                         position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.9)', zIndex: 10,
@@ -216,14 +217,14 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                     {createdAt && (
                         <div><strong>Thời gian tạo đơn:</strong> {createdAt.toLocaleString('vi-VN')}</div>
                     )}
-                    <div style={{ color: '#D97706' }}><strong>⏰ Giờ check-in (Hẹn):</strong> {reservationTime.toLocaleString('vi-VN')}</div>
+                    <div style={{ color: '#D97706' }}><strong><Clock size={14} style={{ verticalAlign: '-2px' }} /> Giờ check-in (Hẹn):</strong> {reservationTime.toLocaleString('vi-VN')}</div>
                 </div>
 
                 {depositAmount > 0 && (
                     <>
                         <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '.75rem 1rem', marginBottom: '1rem', fontSize: '.83rem' }}>
                             <div style={{ fontWeight: 700, marginBottom: '.4rem', color: '#374151' }}>
-                                📜 Chính sách hủy bàn: {policy.policyDepositName || 'Chuẩn'}
+                                <ScrollText size={15} style={{ verticalAlign: '-2px' }} /> Chính sách hủy bàn: {policy.policyDepositName || 'Chuẩn'}
                             </div>
                             <ul style={{ paddingLeft: '1.2rem', margin: 0, color: 'var(--text-muted)' }}>
                                 <li>Hủy trước từ {freeCancelLimitHours}h trở lên: Hoàn {policy.freeRefundPercent ?? 100}% cọc.</li>
@@ -249,7 +250,7 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                         {/* Khung điền thông tin tài khoản ngân hàng nhận hoàn tiền */}
                         <div style={{ background: '#F9FAFB', border: '1px solid var(--border)', padding: '1rem', borderRadius: 8, marginBottom: '1rem' }}>
                             <div style={{ fontSize: '.85rem', fontWeight: 700, color: '#374151', marginBottom: '.5rem' }}>
-                                🏦 Thông tin tài khoản nhận tiền hoàn
+                                <Landmark size={15} style={{ verticalAlign: '-2px' }} /> Thông tin tài khoản nhận tiền hoàn
                             </div>
 
                             <div style={{ marginBottom: '.75rem' }}>

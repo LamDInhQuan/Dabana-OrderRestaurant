@@ -230,9 +230,9 @@ export const restaurantApi = {
   Dashboard: () => api.get('/restaurants/me/dashboard'),
   GetTablesByBranch: (branchid) => api.get(`/restaurants/me/tables/${branchid}`),
   UpcomingBooking: (branchid) => api.get(`/restaurants/me/bookings/${branchid}`),
-  export: (branchIds, from, to) => api.get(`/restaurants/me/export`, {
+  export: (branchIds, from, to, type = 'BOOKING') => api.get(`/restaurants/me/export`, {
     responseType: "blob",
-    params: { branchIds, from, to }
+    params: { branchIds, from, to, type }
   })
 }
 
@@ -390,14 +390,29 @@ export const adminApi = {
   // F46: giám sát hoạt động
   recentActivity: (limit) => api.get('/admin/activity/recent', { params: { limit } }),
 
-  // F47-F49: thống kê & báo cáo
+  // Dùng bởi AdminDashboard (top summary). Endpoint BE hiện tạm tắt → 404 được
+  // Promise.allSettled nuốt gọn, dashboard vẫn render (summary rỗng). Giữ binding
+  // để không vỡ caller; thay bằng /admin/reports/* khi cần số liệu thật.
   platformSummary: () => api.get('/admin/statistics/platform/summary'),
-  revenueByRestaurant: () => api.get('/admin/statistics/revenue-by-restaurant'),
-  bookingsDaily: (days) => api.get('/admin/statistics/bookings-daily', { params: { days } }),
-
-  // F50: xuất báo cáo
-  exportReportUrl: (type) => `/api/admin/reports/export?type=${type}`,
   getRestaurantByUser: (userId) => api.get(`/restaurants/by-user/${userId}`),
+}
+
+// ===== Report API (module Thống kê & Báo cáo) =====
+// Admin: /api/admin/reports/*  — Partner: /api/restaurants/me/reports/*
+// params = queryParams từ usePeriodState() (period/date/month/quarter/year/from/to/compareWithPrevious)
+export const adminReportApi = {
+  subscriptions: (params) => api.get('/admin/reports/subscriptions', { params }),
+  restaurants: (params) => api.get('/admin/reports/restaurants', { params }),
+  reservations: (params) => api.get('/admin/reports/reservations', { params }),
+  deposits: (params) => api.get('/admin/reports/deposits', { params }),
+  users: (params) => api.get('/admin/reports/users', { params }),
+}
+
+export const partnerReportApi = {
+  revenue: (params) => api.get('/restaurants/me/reports/revenue', { params }),
+  deposits: (params) => api.get('/restaurants/me/reports/deposits', { params }),
+  reservations: (params) => api.get('/restaurants/me/reports/reservations', { params }),
+  peakHours: (params) => api.get('/restaurants/me/reports/reservations/peak-hours', { params }),
 }
 
 // ===== Preorder Item API (Tab Gọi Món - món đặt trước, rs_preorder_items) =====
@@ -454,7 +469,7 @@ export const paymentApi = {
     `/payment/deposits/reservation/${reservationId}/cancel`,
     { cancellationReason }
   ),
-  // 🌟 ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
+  // ĐƯỜNG TRUYỀN GIẢ LẬP ĐỂ TEST
   mockSuccess: (bookingId) => api.post(`/payment/${bookingId}/mock-success`),
   refund: (bookingId, data) => api.post(`/payment/${bookingId}/cancel-refund`, data),
 };

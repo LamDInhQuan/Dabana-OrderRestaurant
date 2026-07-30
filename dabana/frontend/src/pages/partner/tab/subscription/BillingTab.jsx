@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
 import { subscriptionApi } from '../../../../api'
+import { TriangleAlert, Ban, Calendar, ArrowUp, ArrowDown, CreditCard, Sparkles } from 'lucide-react'
 
 // ── Design tokens (đồng bộ với PartnerDashboard.jsx) ─────────────
 const C = {
@@ -378,18 +379,18 @@ export default function BillingTab() {
 
           {subscription.status === 'PAST_DUE' && (
             <div style={{ background: C.amberBg, border: `1px solid ${C.amber}44`, borderRadius: 4, padding: '.75rem 1rem', fontSize: '.82rem', color: C.brown, marginBottom: '1rem' }}>
-              ⚠️ Hóa đơn đang quá hạn thanh toán. Sau ngày ân hạn, các chi nhánh vượt hạn mức sẽ tự động bị tạm ngưng.
+              <TriangleAlert size={15} style={{ verticalAlign: '-2px' }} /> Hóa đơn đang quá hạn thanh toán. Sau ngày ân hạn, các chi nhánh vượt hạn mức sẽ tự động bị tạm ngưng.
             </div>
           )}
           {subscription.status === 'EXPIRED' && (
             <div style={{ background: C.redBg, border: `1px solid ${C.red}44`, borderRadius: 4, padding: '.75rem 1rem', fontSize: '.82rem', color: C.brown, marginBottom: '1rem' }}>
-              🚫 Gói dịch vụ đã hết hạn. Một số chi nhánh có thể đã bị tạm ngưng. Thanh toán hóa đơn bên dưới để khôi phục.
+              <Ban size={15} style={{ verticalAlign: '-2px' }} /> Gói dịch vụ đã hết hạn. Một số chi nhánh có thể đã bị tạm ngưng. Thanh toán hóa đơn bên dưới để khôi phục.
             </div>
           )}
 
           {subscription.pendingDowngradePlanName && (
             <div style={{ background: C.blueBg, border: `1px solid ${C.blue}44`, borderRadius: 4, padding: '.75rem 1rem', fontSize: '.82rem', color: C.brown, marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '.5rem' }}>
-              <span>📅 Đã đặt lịch hạ cấp xuống <strong>{subscription.pendingDowngradePlanName}</strong>, áp dụng từ kỳ gia hạn tiếp theo.</span>
+              <span><Calendar size={15} style={{ verticalAlign: '-2px' }} /> Đã đặt lịch hạ cấp xuống <strong>{subscription.pendingDowngradePlanName}</strong>, áp dụng từ kỳ gia hạn tiếp theo.</span>
               <button onClick={cancelScheduledDowngrade} disabled={actionLoading} style={{ ...S.btnSm, background: C.white, border: `1px solid ${C.blue}`, color: C.blue }}>
                 Hủy lịch hạ cấp
               </button>
@@ -398,11 +399,11 @@ export default function BillingTab() {
 
           <div style={{ display: 'flex', gap: '.75rem', flexWrap: 'wrap' }}>
             <button onClick={() => setUpgradeModalOpen(true)} disabled={actionLoading || higherPlans.length === 0} style={S.btnGold}>
-              ↑ Nâng cấp gói
+              <ArrowUp size={15} style={{ verticalAlign: '-2px' }} /> Nâng cấp gói
             </button>
             {!subscription.pendingDowngradePlanName && (
               <button onClick={() => setDowngradeModalOpen(true)} disabled={actionLoading || lowerPlans.length === 0} style={S.btnOut}>
-                ↓ Đặt lịch hạ cấp
+                <ArrowDown size={15} style={{ verticalAlign: '-2px' }} /> Đặt lịch hạ cấp
               </button>
             )}
           </div>
@@ -414,7 +415,7 @@ export default function BillingTab() {
         <div style={{ ...S.card, borderLeft: `4px solid ${C.amber}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: '.9rem', color: C.text, marginBottom: '.2rem' }}>
-              💳 Có hóa đơn đang chờ thanh toán
+              <CreditCard size={15} style={{ verticalAlign: '-2px' }} /> Có hóa đơn đang chờ thanh toán
             </div>
             <p style={{ fontSize: '.82rem', color: C.muted, margin: 0 }}>
               Quét mã QR để thanh toán qua payOS - gói dịch vụ sẽ được kích hoạt tự động ngay sau khi nhận tiền.
@@ -476,7 +477,7 @@ export default function BillingTab() {
         <PlanPickerModal
           title="Nâng cấp gói dịch vụ"
           plans={higherPlans}
-          submitLabel="✦ Nâng cấp ngay"
+          submitLabel={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Sparkles size={14} /> Nâng cấp ngay</span>}
           submitting={actionLoading}
           onSubmit={upgrade}
           onClose={() => setUpgradeModalOpen(false)}

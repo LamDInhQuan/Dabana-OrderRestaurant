@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { bookingApi,restaurantApi } from '../../api'
+import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban } from 'lucide-react'
 
 const STATUS_META = {
   CONFIRMED:        { label: 'Đã xác nhận', badge: 'badge-green', actions: ['check-in'] },
@@ -92,37 +93,37 @@ export default function ManageBookings({bookings}) {
 
                 <div style={{ display: 'flex', gap: '.5rem', fontSize: '.87rem', marginBottom: '.875rem', flexWrap: 'wrap',flexDirection:'column' }}>
                   <p>
-                    🪑  Bàn: {b.tables.map((table, index) => (
+                    <Armchair size={16} style={{ verticalAlign: '-3px' }} />  Bàn: {b.tables.map((table, index) => (
                             <strong key={table.id || index}>
                               {table.tableName}
                               {index < b.tables.length - 1 ? ', ' : ''}
                             </strong>
                           ))}
                   </p>
-                  <p>👥 Khách: <strong>{b.guestCount}</strong></p>
-                  <p>🕐 <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
-                  {b.depositAmount > 0 && <span>💰 Cọc: <strong>{Number(b.depositAmount).toLocaleString('vi-VN')}₫</strong></span>}
+                  <p><Users size={16} style={{ verticalAlign: '-3px' }} /> Khách: <strong>{b.guestCount}</strong></p>
+                  <p><Clock size={16} style={{ verticalAlign: '-3px' }} /> <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
+                  {b.depositAmount > 0 && <span><Wallet size={16} style={{ verticalAlign: '-3px' }} /> Cọc: <strong>{Number(b.depositAmount).toLocaleString('vi-VN')}₫</strong></span>}
                 </div>
 
                 <div className="flex gap-2">
                   {meta.actions.includes('check-in') && (
                     <button className="btn-primary btn-sm" onClick={() => doAction(b.id, 'check-in')}>
-                      ✅ Check-in
+                      <Check size={15} style={{ verticalAlign: '-2px' }} /> Check-in
                     </button>
                   )}
                   {meta.actions.includes('check-out') && (
                     <button className="btn-primary btn-sm" onClick={() => doAction(b.id, 'check-out')}>
-                      🚪 Check-out & Hoàn tất
+                      <DoorOpen size={15} style={{ verticalAlign: '-2px' }} /> Check-out & Hoàn tất
                     </button>
                   )}
                   {meta.actions.includes('no-show') && (
                     <button className="btn-danger btn-sm" onClick={() => doAction(b.id, 'no-show')}>
-                      ❌ Chốt No-show
+                      <X size={15} style={{ verticalAlign: '-2px' }} /> Chốt No-show
                     </button>
                   )}
                   {b.status === 'CONFIRMED' && (
                     <button className="btn-outline btn-sm" onClick={() => doAction(b.id, 'cancel')}>
-                      🚫 Nhà hàng huỷ
+                      <Ban size={15} style={{ verticalAlign: '-2px' }} /> Nhà hàng huỷ
                     </button>
                   )}
                 </div>

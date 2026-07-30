@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { User, Hourglass, Store, FileText, Link, X, Check, PartyPopper } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import { adminApi } from '../../api'
@@ -43,7 +44,7 @@ function ApprovalCard({ item, onApprove, onReject }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <span style={{ fontSize: '1.25rem' }}>👤</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><User size={20} /></span>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
               {item.fullName || `ID: ${item.id}`}
             </h3>
@@ -56,8 +57,8 @@ function ApprovalCard({ item, onApprove, onReject }) {
           </p>
         </div>
         
-        <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700 }}>
-          ⏳ Chờ duyệt
+        <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+          <Hourglass size={13} /> Chờ duyệt
         </span>
       </div>
 
@@ -68,8 +69,8 @@ function ApprovalCard({ item, onApprove, onReject }) {
         ) : restaurant ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#4f46e5', marginBottom: '0.25rem' }}>
-                🏪 Thương hiệu nhà hàng
+              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#4f46e5', marginBottom: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                <Store size={14} /> Thương hiệu nhà hàng
               </div>
               <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a' }}>
                 {restaurant.restaurantName || restaurant.name || 'Chưa cập nhật tên nhà hàng'}
@@ -80,15 +81,15 @@ function ApprovalCard({ item, onApprove, onReject }) {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#64748b', marginBottom: '0.25rem' }}>
-                📝 Mô tả & Website
+              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#64748b', marginBottom: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                <FileText size={14} /> Mô tả & Website
               </div>
               <div style={{ fontSize: '0.85rem', color: '#334155', fontStyle: 'italic', marginBottom: '0.25rem' }}>
                 "{restaurant.description || 'Không có mô tả'}"
               </div>
               {restaurant.website && (
-                <a href={restaurant.website} target="_blank" rel="noreferrer" style={{ fontSize: '0.85rem', color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}>
-                  🔗 {restaurant.website}
+                <a href={restaurant.website} target="_blank" rel="noreferrer" style={{ fontSize: '0.85rem', color: '#4f46e5', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                  <Link size={14} /> {restaurant.website}
                 </a>
               )}
             </div>
@@ -104,13 +105,13 @@ function ApprovalCard({ item, onApprove, onReject }) {
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
             <button 
               onClick={() => setShowReject(true)}
-              style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', transition: 'background 0.2s' }}>
-              ❌ Từ chối
+              style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', transition: 'background 0.2s', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
+              <X size={16} /> Từ chối
             </button>
-            <button 
+            <button
               onClick={() => setShowApproveModal(true)}
-              style={{ background: '#4f46e5', color: '#fff', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)', transition: 'background 0.2s' }}>
-              ✅ Phê duyệt tài khoản
+              style={{ background: '#4f46e5', color: '#fff', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.2)', transition: 'background 0.2s', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
+              <Check size={16} /> Phê duyệt tài khoản
             </button>
           </div>
         ) : (
@@ -242,7 +243,7 @@ export default function ApprovalPanel() {
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Đang tải dữ liệu...</div>
       ) : data.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', color: '#64748b' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}><PartyPopper size={48} /></div>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.25rem' }}>Tuyệt vời!</h3>
           <p style={{ fontSize: '0.9rem' }}>Hiện không có tài khoản đối tác nào đang chờ phê duyệt.</p>
         </div>

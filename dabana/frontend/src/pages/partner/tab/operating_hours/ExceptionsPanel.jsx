@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Ban, X, Clock } from 'lucide-react'
 
 const EXCEPTION_TYPES = [
     { value: 'CLOSE_ALL_DAY', label: 'Đóng cửa cả ngày' },
@@ -64,7 +65,7 @@ export default function ExceptionsPanel({
                                 <option value="">-- Chọn ca hoạt động --</option>
                                 {operatingHours.map(oh => (
                                     <option key={oh.id} value={oh.id}>
-                                        {/* 👇 Định dạng giờ tiếng Việt trong Select Option */}
+                                        {/* Định dạng giờ tiếng Việt trong Select Option */}
                                         {oh.dayOfWeek}: {oh.shiftName ? `${oh.shiftName} (` : ''}
                                         {formatTimeVN ? `${formatTimeVN(oh.openTime)} - ${formatTimeVN(oh.closeTime)}` : `${oh.openTime} - ${oh.closeTime}`}
                                         {oh.shiftName ? ')' : ''}
@@ -119,11 +120,11 @@ export default function ExceptionsPanel({
                                     {exc.startDate === exc.endDate ? exc.startDate : `${exc.startDate} → ${exc.endDate}`}
                                 </div>
                                 <div style={{ fontSize: '.8rem', color: '#DC2626', marginTop: '.2rem' }}>
-                                    {exc.exceptionType === 'CLOSE_ALL_DAY' && '🚫 Đóng cửa cả ngày'}
-                                    {exc.exceptionType === 'CANCEL_SHIFT' && '❌ Hủy ca hoạt động'}
-                                    {/* 👇 Định dạng giờ tiếng Việt hiển thị trên Card */}
+                                    {exc.exceptionType === 'CLOSE_ALL_DAY' && <><Ban size={14} style={{ verticalAlign: '-2px' }} /> Đóng cửa cả ngày</>}
+                                    {exc.exceptionType === 'CANCEL_SHIFT' && <><X size={14} style={{ verticalAlign: '-2px' }} /> Hủy ca hoạt động</>}
+                                    {/* Định dạng giờ tiếng Việt hiển thị trên Card */}
                                     {exc.exceptionType === 'SPECIFIC_HOURS' && (
-                                        `⏰ Mở cửa: ${formatTimeVN ? `${formatTimeVN(exc.openTime)} - ${formatTimeVN(exc.closeTime)}` : `${exc.openTime} - ${exc.closeTime}`}`
+                                        <><Clock size={14} style={{ verticalAlign: '-2px' }} /> {`Mở cửa: ${formatTimeVN ? `${formatTimeVN(exc.openTime)} - ${formatTimeVN(exc.closeTime)}` : `${exc.openTime} - ${exc.closeTime}`}`}</>
                                     )}
                                 </div>
                                 {exc.reason && <div style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: '.2rem' }}>Ghi chú: {exc.reason}</div>}

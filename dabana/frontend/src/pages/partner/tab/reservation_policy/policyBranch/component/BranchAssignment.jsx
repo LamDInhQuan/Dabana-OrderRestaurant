@@ -1,8 +1,9 @@
 import React, { useState, useEffect, memo } from "react";
+import { Sparkles } from "lucide-react";
 import { C, S, GoldDivider } from '../../../../theme'
 import PolicySchedule from "../../components/PolicySchedule";
 
-// 🟢 Định nghĩa mảng DAYS để hàm dịch thứ không bị crash
+// Định nghĩa mảng DAYS để hàm dịch thứ không bị crash
 const DAYS = [
   { key: "MONDAY", label: "T2" },
   { key: "TUESDAY", label: "T3" },
@@ -84,7 +85,7 @@ function BranchAssignment({
 
   return (
     <div style={S.card}>
-      {/* 🟢 SỬA LỖI: Đổi {policy.name} thành tiêu đề tĩnh hoặc id do không còn object policy */}
+      {/* SỬA LỖI: Đổi {policy.name} thành tiêu đề tĩnh hoặc id do không còn object policy */}
       <div style={{ ...S.eyebrow, marginBottom: "1.5rem" }}>
         Thiết lập lịch áp dụng chính sách cho các chi nhánh
       </div>
@@ -166,7 +167,7 @@ function BranchAssignment({
             onClick={handleSave}
             style={{ ...S.btnGold, padding: ".75rem 2rem" }}
           >
-            ✦ Lưu áp dụng
+            <Sparkles size={16} style={{ verticalAlign: '-2px' }} /> Lưu áp dụng
           </button>
         </div>
       </div>
@@ -221,5 +222,5 @@ function BranchAssignment({
   );
 }
 
-// 🟢 Bọc React.memo để khi gõ text ở form khác hoặc render list, component này hoàn toàn không bị tính toán lại thừa thãi.
+// Bọc React.memo để khi gõ text ở form khác hoặc render list, component này hoàn toàn không bị tính toán lại thừa thãi.
 export default memo(BranchAssignment);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Hourglass, CreditCard, Ban, TriangleAlert, X, Library, Eye, Check, MapPin, RefreshCw, Settings, Wrench, ShieldCheck, Circle, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import { S } from "../../../theme";
 import { branchPolicyApi, reservationPolicyApi, branchCancellationPolicyApi } from "../../../../../api";
@@ -18,7 +19,7 @@ const emptyPolicy = {
   terms: "",
 };
 
-// 🟢 Helper render Badge theo scheduleType
+// Helper render Badge theo scheduleType
 const renderScheduleTypeBadge = (scheduleType) => {
   switch (scheduleType) {
     case "ALWAYS":
@@ -164,7 +165,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
       const res = await branchCancellationPolicyApi.getByBranch(branchId);
       const data = res.data?.data || res.data;
       if (data) {
-        // ✅ Nối toàn bộ object từ API (bao gồm id, branchId, v.v.)
+        // Nối toàn bộ object từ API (bao gồm id, branchId, v.v.)
         setCancelPolicy(data);
       }
 
@@ -331,7 +332,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
   if (loading) {
     return (
       <div style={{ padding: "2.5rem", textAlign: "center", color: "#8A8272" }}>
-        ⌛ Đang tải dữ liệu chính sách...
+        <Hourglass size={16} style={{ verticalAlign: '-2px' }} /> Đang tải dữ liệu chính sách...
       </div>
     );
   }
@@ -339,7 +340,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", width: "100%", padding: "0 0.5rem" }}>
 
-      {/* 🔴 SUB-TAB SWITCHER */}
+      {/* SUB-TAB SWITCHER */}
       <div style={ui.subTabContainer}>
         <button
           type="button"
@@ -349,7 +350,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
             ...(subTab === "deposit" ? ui.subTabBtnActive : {}),
           }}
         >
-          💳 Chính sách Đặt cọc
+          <CreditCard size={16} style={{ verticalAlign: '-2px' }} /> Chính sách Đặt cọc
         </button>
         <button
           type="button"
@@ -359,11 +360,11 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
             ...(subTab === "cancellation" ? ui.subTabBtnActive : {}),
           }}
         >
-          🚫 Quy định Hủy cọc & Hoàn tiền
+          <Ban size={16} style={{ verticalAlign: '-2px' }} /> Quy định Hủy cọc & Hoàn tiền
         </button>
       </div>
 
-      {/* ⚠️ Error Banner */}
+      {/* Error Banner */}
       {errorMessage && (
         <div
           style={{
@@ -378,25 +379,25 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
             alignItems: "center",
           }}
         >
-          <span>⚠️ {errorMessage}</span>
+          <span><TriangleAlert size={15} style={{ verticalAlign: '-2px' }} /> {errorMessage}</span>
           <button
             onClick={() => setErrorMessage("")}
             style={{ background: "none", border: "none", cursor: "pointer", color: "#991B1B", fontWeight: 700 }}
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
 
       {/* ========================================================= */}
-      {/* 🟢 SUB-TAB 1: CHÍNH SÁCH ĐẶT CỌC                             */}
+      {/* SUB-TAB 1: CHÍNH SÁCH ĐẶT CỌC                             */}
       {/* ========================================================= */}
       {subTab === "deposit" && (
         <>
           {/* KHU VỰC 1: Thư viện Chính sách Mẫu (Nhà hàng) */}
           <div style={{ background: "#fff", padding: "1.25rem", borderRadius: "12px", border: "1px solid #E7E1D3" }}>
             <div style={{ fontSize: ".85rem", fontWeight: 700, textTransform: "uppercase", color: "#8A8272", marginBottom: "0.25rem" }}>
-              🏛️ Thư viện Chính sách Mẫu (Nhà hàng)
+              <Library size={16} style={{ verticalAlign: '-2px' }} /> Thư viện Chính sách Mẫu (Nhà hàng)
             </div>
             <p style={{ fontSize: "0.8rem", color: "#6B6353", marginTop: 0, marginBottom: "1.25rem" }}>
               Chọn các chính sách mẫu do Nhà hàng thiết lập để áp dụng nhanh cho Chi nhánh này.
@@ -482,7 +483,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        👁️ Xem
+                        <Eye size={14} /> Xem
                       </button>
 
                       <button
@@ -502,7 +503,11 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
                           borderRadius: "8px",
                         }}
                       >
-                        {isProcessing ? "⏳ Đang áp dụng..." : isAssigned ? "✓ Đã áp dụng" : "＋ Áp dụng cho CN này"}
+                        {isProcessing
+                          ? <><Hourglass size={14} style={{ verticalAlign: '-2px' }} /> Đang áp dụng...</>
+                          : isAssigned
+                            ? <><Check size={14} style={{ verticalAlign: '-2px' }} /> Đã áp dụng</>
+                            : "＋ Áp dụng cho CN này"}
                       </button>
                     </div>
                   </div>
@@ -515,7 +520,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
           <div style={{ background: "#fff", padding: "1.25rem", borderRadius: "12px", border: "1px solid #E7E1D3" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
               <div style={{ fontSize: ".85rem", fontWeight: 700, textTransform: "uppercase", color: "#2E2A25" }}>
-                📍 Chính sách đang hoạt động tại Chi nhánh ({branchPolicies.length})
+                <MapPin size={16} style={{ verticalAlign: '-2px' }} /> Chính sách đang hoạt động tại Chi nhánh ({branchPolicies.length})
               </div>
               <button
                 onClick={fetchBranchPolicies}
@@ -528,7 +533,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
                   cursor: "pointer",
                 }}
               >
-                🔄 Làm mới
+                <RefreshCw size={14} style={{ verticalAlign: '-2px' }} /> Làm mới
               </button>
             </div>
 
@@ -634,7 +639,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
                             fontWeight: 600,
                           }}
                         >
-                          {isDeleting ? "⏳ Đang gỡ..." : "Gỡ bỏ"}
+                          {isDeleting ? <><Hourglass size={14} style={{ verticalAlign: '-2px' }} /> Đang gỡ...</> : "Gỡ bỏ"}
                         </button>
 
                         <button
@@ -655,7 +660,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
                             transition: "all 0.15s ease",
                           }}
                         >
-                          ⚙️ {isSelected ? "Đang cấu hình" : "Cấu hình chi tiết"}
+                          <Settings size={16} /> {isSelected ? "Đang cấu hình" : "Cấu hình chi tiết"}
                         </button>
                       </div>
                     </div>
@@ -669,7 +674,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
           {selectedBranchPolicyId && editingPolicy?.id && (
             <div style={{ background: "#fff", padding: "2rem", borderRadius: "12px", border: "1px solid #E7E1D3", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <div style={{ fontSize: ".95rem", fontWeight: 700, textTransform: "uppercase", color: "#6B6353", marginBottom: "1.5rem" }}>
-                🛠️ Cấu hình Quy tắc cọc & Lịch trình riêng cho Chi nhánh
+                <Wrench size={16} style={{ verticalAlign: '-2px' }} /> Cấu hình Quy tắc cọc & Lịch trình riêng cho Chi nhánh
               </div>
               <PolicyFormWithExtras
                 restaurantId={restaurantId}
@@ -694,13 +699,13 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
 
       {/* ========================================================= */}
       {/* ========================================================= */}
-      {/* 🔴 SUB-TAB 2: QUY ĐỊNH HỦY CỌC & HOÀN TIỀN                 */}
+      {/* SUB-TAB 2: QUY ĐỊNH HỦY CỌC & HOÀN TIỀN                 */}
       {/* ========================================================= */}
       {subTab === "cancellation" && (
         <div style={{ background: "#fff", padding: "1.5rem", borderRadius: "12px", border: "1px solid #E7E1D3" }}>
           <div style={{ marginBottom: "1.5rem" }}>
             <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#1F2937" }}>
-              🛡️ Quy định Hủy đặt bàn & Hoàn tiền cọc
+              <ShieldCheck size={18} style={{ verticalAlign: '-3px' }} /> Quy định Hủy đặt bàn & Hoàn tiền cọc
             </h4>
             <p style={{ fontSize: ".82rem", color: "#6B7280", margin: "4px 0 0 0" }}>
               Khách hủy bàn đúng hạn sẽ được <strong>hoàn 100% tiền cọc</strong>. Thiết lập mốc thời gian và tỷ lệ phạt khi hủy muộn bên dưới.
@@ -709,7 +714,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
 
           {loadingCancel ? (
             <div style={{ padding: "2.5rem", textAlign: "center", color: "#8A8272" }}>
-              ⌛ Đang tải cấu hình hủy cọc...
+              <Hourglass size={16} style={{ verticalAlign: '-2px' }} /> Đang tải cấu hình hủy cọc...
             </div>
           ) : (
             <form onSubmit={handleSaveCancellation} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -717,7 +722,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
               {/* 1. Mốc thời gian Hủy Miễn Phí (Mặc định 100%) */}
               <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", padding: "1rem", borderRadius: "8px" }}>
                 <label style={{ ...ui.label, color: "#166534", display: "block", marginBottom: ".5rem" }}>
-                  🟢 Mốc Hủy Miễn Phí (Hoàn 100% tiền cọc) *
+                  <Circle size={10} fill="#16A34A" color="#16A34A" style={{ verticalAlign: '0px' }} /> Mốc Hủy Miễn Phí (Hoàn 100% tiền cọc) *
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
                   <span style={ui.unitText}>Khách được hủy và hoàn 100% cọc trước:</span>
@@ -801,7 +806,9 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
               {!isReadOnly && (
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem", borderTop: "1px solid #F3F4F6", paddingTop: "1rem" }}>
                   <button type="submit" disabled={savingCancel} style={ui.saveBtn}>
-                    {savingCancel ? "⏳ Đang lưu..." : "💾 Lưu chính sách hủy cọc"}
+                    {savingCancel
+                      ? <><Hourglass size={16} style={{ verticalAlign: '-2px' }} /> Đang lưu...</>
+                      : <><Save size={16} style={{ verticalAlign: '-2px' }} /> Lưu chính sách hủy cọc</>}
                   </button>
                 </div>
               )}
@@ -811,7 +818,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
         </div>
       )}
 
-      {/* 👁️ MODAL XEM CHI TIẾT TEMPLATE (READ-ONLY) */}
+      {/* MODAL XEM CHI TIẾT TEMPLATE (READ-ONLY) */}
       {viewingTemplate && (
         <PolicyFormWithExtras
           restaurantId={restaurantId}
@@ -821,7 +828,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
         />
       )}
 
-      {/* 🗑️ MODAL XÁC NHẬN XÓA */}
+      {/* MODAL XÁC NHẬN XÓA */}
       {deleteModal.isOpen && (
         <div
           style={{

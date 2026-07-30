@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { authApi } from '../../api'
+import { User, Store } from 'lucide-react'
 
 const RESEND_COOLDOWN_SECONDS = 60
 
@@ -124,7 +125,7 @@ export default function RegisterPage() {
 
         {/* Chọn vai trò */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '1.25rem' }}>
-          {[['CUSTOMER', '👤 Khách hàng'], ['RESTAURANT_PARTNER', '🏪 Nhà hàng đối tác']].map(([r, label]) => (
+          {[['CUSTOMER', User, 'Khách hàng'], ['RESTAURANT_PARTNER', Store, 'Nhà hàng đối tác']].map(([r, Icon, label]) => (
             <button key={r} type="button"
               onClick={() => setForm(p => ({ ...p, role: r }))}
               style={{
@@ -132,9 +133,10 @@ export default function RegisterPage() {
                 borderColor: form.role === r ? 'var(--brand)' : 'var(--border)',
                 background: form.role === r ? 'var(--brand-light)' : 'var(--white)',
                 color: form.role === r ? 'var(--brand-dark)' : 'var(--text-muted)',
-                fontWeight: 600, fontSize: '.85rem', cursor: 'pointer'
+                fontWeight: 600, fontSize: '.85rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '.4rem'
               }}>
-              {label}
+              <Icon size={16} /> {label}
             </button>
           ))}
         </div>

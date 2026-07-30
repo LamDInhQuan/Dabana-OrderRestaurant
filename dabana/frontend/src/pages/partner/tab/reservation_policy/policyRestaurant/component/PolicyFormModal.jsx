@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Check, X, Calendar, Lock } from "lucide-react";
 import PolicyForm from "../../components/PolicyForm";
 import PolicyDepositRules from "../../components/PolicyDepositRules";
 import PolicyDateSchedules from "../../components/PolicyDateSchedules";
@@ -52,9 +53,9 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
 
   const handleScheduleTypeChange = (newType) => {
     if (isEditing) {
-      // 🟢 Cảnh báo khi cố tình thay đổi loại lịch của chính sách đã tồn tại
+      // Cảnh báo khi cố tình thay đổi loại lịch của chính sách đã tồn tại
       const confirmChange = window.confirm(
-        "⚠️ CẢNH BÁO QUAN TRỌNG:\n\n" +
+        "CẢNH BÁO QUAN TRỌNG:\n\n" +
         "Thay đổi loại lịch áp dụng sẽ làm ảnh hưởng và có thể xóa/làm lại toàn bộ các thiết lập lịch và quy tắc cọc hiện tại của các chi nhánh đang áp dụng chính sách này.\n\n" +
         "Bạn có chắc chắn muốn đổi không? Nếu cần thiết, hãy xóa chính sách cũ và tạo mới từ đầu."
       );
@@ -85,7 +86,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
             alignItems: "center",
             gap: ".5rem"
           }}>
-            <span>✅</span> {successMessage}
+            <span style={{ display: 'inline-flex' }}><Check size={16} /></span> {successMessage}
           </div>
         )}
 
@@ -94,7 +95,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
           <h3 style={{ margin: 0 }}>
             {isEditing ? `Chỉnh sửa: ${formData.name || ""}` : "Tạo mới chính sách khung"}
           </h3>
-          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: "1.5rem", cursor: "pointer" }}>✕</button>
+          <button onClick={onClose} style={{ border: "none", background: "none", fontSize: "1.5rem", cursor: "pointer" }}><X size={20} /></button>
         </div>
 
         {/* Horizontal Sub-Tabs */}
@@ -134,7 +135,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
                   <div style={{ padding: "1rem", border: "1px solid #ECE4D3", borderRadius: 8, background: isEditing ? "#F3F4F6" : "#FCFAF6" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".5rem" }}>
                       <label style={{ fontWeight: 600, color: "#1F2937" }}>
-                        📅 Loại lịch áp dụng {isEditing && "🔒"}
+                        <Calendar size={16} style={{ verticalAlign: '-2px' }} /> Loại lịch áp dụng {isEditing && <Lock size={14} style={{ verticalAlign: '-2px' }} />}
                       </label>
                       {isEditing && (
                         <span style={{ fontSize: "0.75rem", color: "#B45309", background: "#FEF3C7", padding: "0.2rem 0.5rem", borderRadius: 4, fontWeight: 500 }}>
@@ -145,7 +146,7 @@ function PolicyFormModal({ initialData, loading, onSave, onClose, onRefresh }) {
 
                     <select
                       value={formData.scheduleType ?? "ALWAYS"}
-                      disabled={isEditing} // 🟢 Khóa chọn nếu đang ở chế độ chỉnh sửa
+                      disabled={isEditing} // Khóa chọn nếu đang ở chế độ chỉnh sửa
                       onChange={(e) => handleScheduleTypeChange(e.target.value)}
                       style={{
                         width: "100%",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { MapPin, ChevronUp, Map, Minimize2, Maximize2, Check, X, Star, Sparkles } from "lucide-react";
 
 const C = {
   brown: "#5C3A1E",
@@ -176,7 +177,7 @@ export function BranchLocationPicker({ value, onChange }) {
                 <div key={i} onClick={() => selectSuggestion(item)}
                   style={{ padding: "8px 12px", cursor: "pointer", fontSize: ".82rem", borderBottom: `1px solid ${C.border}` }}
                 >
-                  📍 {item.display_name}
+                  <MapPin size={14} style={{ verticalAlign: "-2px" }} /> {item.display_name}
                 </div>
               ))}
             </div>
@@ -187,18 +188,18 @@ export function BranchLocationPicker({ value, onChange }) {
       {/* Buttons */}
       <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" onClick={() => setShowMap(v => !v)} style={{ ...S.btnOut, fontSize: ".8rem", padding: "6px 12px" }}>
-          {showMap ? "▲ Ẩn bản đồ" : "🗺 Mở bản đồ chọn vị trí"}
+          {showMap ? <><ChevronUp size={14} style={{ verticalAlign: "-2px" }} /> Ẩn bản đồ</> : <><Map size={14} style={{ verticalAlign: "-2px" }} /> Mở bản đồ chọn vị trí</>}
         </button>
 
         {showMap && (
           <button type="button" onClick={() => setIsExpanded(v => !v)} style={{ ...S.btnOut, fontSize: ".8rem", padding: "6px 12px", borderColor: C.gold, color: C.brownMid }}>
-            {isExpanded ? "🗗 Thu nhỏ" : "⤢ Phóng to bản đồ"}
+            {isExpanded ? <><Minimize2 size={14} style={{ verticalAlign: "-2px" }} /> Thu nhỏ</> : <><Maximize2 size={14} style={{ verticalAlign: "-2px" }} /> Phóng to bản đồ</>}
           </button>
         )}
 
         {hasCoords && (
-          <span style={{ fontSize: ".75rem", color: C.green, fontWeight: 600 }}>
-            ✓ Đã chọn tọa độ
+          <span style={{ fontSize: ".75rem", color: C.green, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+            <Check size={13} /> Đã chọn tọa độ
           </span>
         )}
       </div>
@@ -223,7 +224,7 @@ export function BranchLocationPicker({ value, onChange }) {
           {isExpanded && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, padding: "0 4px" }}>
               <b style={{ color: C.brown }}>Chốt vị trí chi nhánh (Phóng to)</b>
-              <button type="button" onClick={() => setIsExpanded(false)} style={S.btnGold}>✓ Xác nhận & Đóng</button>
+              <button type="button" onClick={() => setIsExpanded(false)} style={S.btnGold}><Check size={14} style={{ verticalAlign: "-2px" }} /> Xác nhận & Đóng</button>
             </div>
           )}
 
@@ -239,7 +240,7 @@ export function BranchLocationPicker({ value, onChange }) {
 
           {!isExpanded && (
             <p style={{ fontSize: ".72rem", color: C.muted, marginTop: 4 }}>
-              📍 Click trên bản đồ hoặc kéo ghim để cập nhật kinh/vĩ độ.
+              <MapPin size={13} style={{ verticalAlign: "-2px" }} /> Click trên bản đồ hoặc kéo ghim để cập nhật kinh/vĩ độ.
             </p>
           )}
         </div>
@@ -332,7 +333,7 @@ function BranchImageManager({ images = [], onChange }) {
                   {img.imageUrl}
                 </div>
                 <div style={{ fontSize: ".72rem", color: C.muted }}>
-                  Thứ tự: #{img.displayOrder} {img.isCover === 1 ? "• ⭐ Ảnh Bìa (Banner)" : ""}
+                  Thứ tự: #{img.displayOrder} {img.isCover === 1 ? <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>• <Star size={12} /> Ảnh Bìa (Banner)</span> : ""}
                 </div>
               </div>
 
@@ -344,8 +345,8 @@ function BranchImageManager({ images = [], onChange }) {
               )}
 
               {/* Nút xóa */}
-              <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}>
-                ✕
+              <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold", display: "inline-flex" }}>
+                <X size={16} />
               </button>
             </div>
           ))}
@@ -434,7 +435,7 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
           <div style={{ display: "flex", gap: ".75rem", justifyContent: "flex-end", paddingTop: ".5rem" }}>
             <button type="button" onClick={() => setNewBranchModal(false)} style={S.btnOut}>Huỷ</button>
             <button type="submit" disabled={creatingBranch} style={S.btnGold}>
-              {creatingBranch ? "Đang tạo..." : "✦ Tạo chi nhánh"}
+              {creatingBranch ? "Đang tạo..." : <span style={{ display: "inline-flex", alignItems: "center", gap: ".4rem" }}><Sparkles size={14} /> Tạo chi nhánh</span>}
             </button>
           </div>
         </form>

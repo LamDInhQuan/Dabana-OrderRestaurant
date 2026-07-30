@@ -1,4 +1,5 @@
 import React from 'react'
+import { TriangleAlert, X } from 'lucide-react'
 
 // Hàm quét toàn bộ chuỗi message và chuyển đổi các mốc giờ dạng "HH:mm" -> tiếng Việt
 const formatMessageTimes = (msg) => {
@@ -37,9 +38,9 @@ export default function ErrorDetailsModal({ isOpen, title, errorDetails, onClose
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, color: '#DC2626', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-            ⚠️ {formatMessageTimes(title)}
+            <TriangleAlert size={18} /> {formatMessageTimes(title)}
           </h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6B7280' }}>✕</button>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6B7280', display: 'inline-flex' }}><X size={18} /></button>
         </div>
 
         {/* Table Details */}

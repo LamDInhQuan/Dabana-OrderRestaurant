@@ -1,3 +1,4 @@
+import { Armchair, Clock, Users, Utensils } from 'lucide-react'
 import { TABLE_STATUS_META, DEFAULT_TABLE_STATUS_META, BOOKING_STATUS_LABEL, formatMoney, formatTime } from './statusMeta'
 
 export default function TableCard({ table, onClick }) {
@@ -31,7 +32,7 @@ export default function TableCard({ table, onClick }) {
       </div>
 
       <div style={{ fontSize: '.78rem', color: 'var(--text-muted, #8A6E57)' }}>
-        🪑 Sức chứa: <strong>{table.capacity}</strong> khách
+        <Armchair size={14} style={{ verticalAlign: '-2px' }} /> Sức chứa: <strong>{table.capacity}</strong> khách
       </div>
 
       {/* Thong tin khach (neu co booking dang active) */}
@@ -40,7 +41,7 @@ export default function TableCard({ table, onClick }) {
           <div style={{ fontWeight: 600 }}>{booking.contactName}</div>
           <div style={{ color: 'var(--text-muted, #8A6E57)' }}>{booking.contactPhone}</div>
           <div style={{ color: 'var(--text-muted, #8A6E57)', marginTop: '.2rem' }}>
-            🕐 {formatTime(booking.reservationTime)} · 👥 {booking.guestCount} khách
+            <Clock size={14} style={{ verticalAlign: '-2px' }} /> {formatTime(booking.reservationTime)} · <Users size={14} style={{ verticalAlign: '-2px' }} /> {booking.guestCount} khách
             {' · '}
             <span style={{ fontWeight: 600 }}>{BOOKING_STATUS_LABEL[booking.status] || booking.status}</span>
           </div>
@@ -56,7 +57,7 @@ export default function TableCard({ table, onClick }) {
         <div className="flex items-center justify-between" style={{
           fontSize: '.82rem', borderTop: '1px dashed #E8DECE', paddingTop: '.5rem',
         }}>
-          <span style={{ color: 'var(--text-muted, #8A6E57)' }}>🍽️ {orderCount} món</span>
+          <span style={{ color: 'var(--text-muted, #8A6E57)' }}><Utensils size={14} style={{ verticalAlign: '-2px' }} /> {orderCount} món</span>
           <span style={{ fontWeight: 700, color: '#8B6914' }}>{formatMoney(table.estimatedTotal)}</span>
         </div>
       )}

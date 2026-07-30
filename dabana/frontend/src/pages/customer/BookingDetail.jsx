@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentApi, bookingApi } from '../../api';
+import { Check, Soup, Printer, ClipboardList, TriangleAlert, RefreshCw, Hourglass } from 'lucide-react';
 
 export default function BookingLockDetail({ booking, onTimeOut }) {
     const [timeLeft, setTimeLeft] = useState(booking.remainSeconds || 0);
@@ -72,7 +73,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
     };
 
     useEffect(() => {
-        // 💡 Nếu đơn không yêu cầu tiền cọc (0đ) hoặc trạng thái đã CONFIRMED sẵn
+        // Nếu đơn không yêu cầu tiền cọc (0đ) hoặc trạng thái đã CONFIRMED sẵn
         if (Number(booking?.estimatedTotal || 0) === 0 || booking?.status === 'CONFIRMED') {
             setIsPaidSuccess(true); // Nhảy thẳng sang màn hình Hóa đơn xác nhận
             setConfirmedBooking(booking);
@@ -83,7 +84,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
         fetchOrCreateQRCode();
     }, [booking.id]);
 
-    // 3. 🔄 POLLING: Tự động kiểm tra trạng thái thanh toán mỗi 3 giây
+    // 3. POLLING: Tự động kiểm tra trạng thái thanh toán mỗi 3 giây
     useEffect(() => {
         if (!booking?.id || isPaidSuccess) return;
 
@@ -100,9 +101,9 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                 if (deposit?.status === 'PAID') {
                     clearInterval(checkStatusTimer);
                     setIsPaidSuccess(true);
-                    toast.success("🎉 Thanh toán thành công! Đơn giữ bàn đã được xác nhận.");
+                    toast.success("Thanh toán thành công! Đơn giữ bàn đã được xác nhận.");
                     // Không tự chuyển hướng nữa - card hóa đơn hiện ra và ở lại,
-                    // khách tự bấm nút "📋 Danh sách đơn đặt" khi nào muốn rời trang.
+                    // khách tự bấm nút "Danh sách đơn đặt" khi nào muốn rời trang.
                 }
             } catch (err) {
                 // 404 (chưa có lệnh cọc active, hoặc lệnh cũ đã CANCELLED/EXPIRED) - bỏ qua, đợi lượt poll sau.
@@ -121,7 +122,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
     };
 
     // =========================================================
-    // 📄 GIAO DIỆN HÓA ĐƠN KHI THANH TOÁN THÀNH CÔNG
+    // GIAO DIỆN HÓA ĐƠN KHI THANH TOÁN THÀNH CÔNG
     // =========================================================
     if (isPaidSuccess) {
         const detail = confirmedBooking || booking;
@@ -133,8 +134,8 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
                     {/* Header thông báo thành công */}
                     <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                        <div style={{ width: 64, height: 64, background: '#dcfce7', color: '#16a34a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', fontSize: '2rem' }}>
-                            ✓
+                        <div style={{ width: 64, height: 64, background: '#dcfce7', color: '#16a34a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                            <Check size={32} />
                         </div>
                         <h2 style={{ color: '#15803d', fontWeight: 800, fontSize: '1.5rem', marginBottom: '.25rem' }}>
                             THANH TOÁN THÀNH CÔNG!
@@ -190,13 +191,13 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                             </div>
                         </div>
 
-                        {/* 🍱 DANH SÁCH MÓN ĂN ĐẶT TRƯỚC (NẾU CÓ) */}
+                        {/* DANH SÁCH MÓN ĂN ĐẶT TRƯỚC (NẾU CÓ) */}
                         {detail.items && detail.items.length > 0 && (
                             <>
                                 <hr style={{ border: 0, borderTop: '1px dashed #cbd5e1', margin: '1rem 0' }} />
                                 <div style={{ marginBottom: '.5rem' }}>
                                     <span style={{ fontSize: '.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
-                                        🍲 Món ăn đặt trước ({detail.items.length})
+                                        <Soup size={14} style={{ verticalAlign: '-2px' }} /> Món ăn đặt trước ({detail.items.length})
                                     </span>
                                 </div>
 
@@ -233,13 +234,13 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                             style={{ flex: 1, padding: '.75rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', color: '#334155' }}
                             onClick={() => window.print()}
                         >
-                            🖨️ In hóa đơn
+                            <Printer size={16} style={{ verticalAlign: '-3px' }} /> In hóa đơn
                         </button>
                         <button
                             style={{ flex: 1.5, padding: '.75rem', borderRadius: 8, border: 'none', background: '#0284c7', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
                             onClick={() => navigate('/my-bookings')}
                         >
-                            📋 Danh sách đơn đặt
+                            <ClipboardList size={16} style={{ verticalAlign: '-3px' }} /> Danh sách đơn đặt
                         </button>
                     </div>
 
@@ -249,7 +250,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
     }
 
     // =========================================================
-    // ⏳ GIAO DIỆN GIỮ BÀN & QUÉT MÃ QR THANH TOÁN
+    // GIAO DIỆN GIỮ BÀN & QUÉT MÃ QR THANH TOÁN
     // =========================================================
     return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', padding: '1rem' }}>
@@ -257,7 +258,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
                 {/* Cảnh báo giữ bàn */}
                 <div style={{ background: '#FFFDF5', border: '1px solid #FCD34D', padding: '0.75rem', borderRadius: 8, marginBottom: '1.25rem', textAlign: 'center' }}>
-                    <span style={{ color: '#D97706', fontWeight: 600, fontSize: '.9rem' }}>⚠️ Bàn của bạn đang được giữ tạm thời!</span>
+                    <span style={{ color: '#D97706', fontWeight: 600, fontSize: '.9rem' }}><TriangleAlert size={15} style={{ verticalAlign: '-2px' }} /> Bàn của bạn đang được giữ tạm thời!</span>
                 </div>
 
                 {/* Đồng hồ đếm ngược */}
@@ -274,7 +275,7 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                 <div style={{ textAlign: 'center', background: '#f8fafc', padding: '1.25rem', borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
                     {loadingPayment ? (
                         <div style={{ padding: '2rem 0', color: '#64748b' }}>
-                            <p>⏳ Đang tải mã QR thanh toán...</p>
+                            <p><Hourglass size={15} style={{ verticalAlign: '-2px' }} /> Đang tải mã QR thanh toán...</p>
                         </div>
                     ) : paymentInfo?.qrCodeString ? (
                         <div>
@@ -285,14 +286,14 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                                 Quét mã bằng app Ngân hàng (MB, VCB, Techcombank...)
                             </p>
                             <p style={{ fontSize: '.75rem', color: '#0284c7', marginTop: '.25rem' }}>
-                                🔄 Hệ thống sẽ tự chuyển sang hóa đơn khi nhận chuyển khoản
+                                <RefreshCw size={13} style={{ verticalAlign: '-2px' }} /> Hệ thống sẽ tự chuyển sang hóa đơn khi nhận chuyển khoản
                             </p>
                         </div>
                     ) : (
                         <div>
                             <p style={{ color: '#ef4444', fontSize: '.9rem', marginBottom: '.5rem' }}>Chưa lấy được mã QR thanh toán.</p>
                             <button onClick={fetchOrCreateQRCode} style={{ padding: '.4rem .8rem', fontSize: '.85rem', background: '#e2e8f0', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                                🔄 Thử lại
+                                <RefreshCw size={14} style={{ verticalAlign: '-3px' }} /> Thử lại
                             </button>
                         </div>
                     )}
