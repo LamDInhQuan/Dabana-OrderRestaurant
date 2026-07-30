@@ -1,3 +1,5 @@
+import { translateLabel } from '../../utils/labelTranslator'
+
 // Bảng màu dùng chung cho các series/cột — bám theo design token của app (xem styles/global.css)
 const SERIES_COLORS = [
   'var(--gold)',
@@ -8,12 +10,12 @@ const SERIES_COLORS = [
   '#3B82F6',
 ]
 
-const CHART_HEIGHT = 200
+const CHART_HEIGHT = 220
 const CHART_WIDTH = 560
-const PADDING_LEFT = 8
-const PADDING_RIGHT = 8
+const PADDING_LEFT = 40
+const PADDING_RIGHT = 12
 const PADDING_TOP = 16
-const PADDING_BOTTOM = 34
+const PADDING_BOTTOM = 60
 
 function toNumber(v) {
   const n = Number(v)
@@ -65,6 +67,23 @@ export default function MiniBarChart({ data = [], colorBy }) {
         role="img"
         aria-label="Biểu đồ cột"
       >
+        {/* Lưới ngang (Y-axis grid & labels) */}
+        {[0, 0.5, 1].map((ratio) => {
+          const y = CHART_HEIGHT - PADDING_BOTTOM - (ratio * plotHeight)
+          const labelVal = Math.round(ratio * maxValue)
+          return (
+            <g key={`grid-${ratio}`}>
+              <line
+                x1={PADDING_LEFT} y1={y} x2={CHART_WIDTH - PADDING_RIGHT} y2={y}
+                stroke="var(--cream-dark)" strokeWidth="1" strokeDasharray="4 4"
+              />
+              <text x={PADDING_LEFT - 8} y={y + 4} textAnchor="end" fontSize="10" fill="var(--text-muted)">
+                {formatNumber(labelVal)}
+              </text>
+            </g>
+          )
+        })}
+
         {/* trục ngang */}
         <line
           x1={PADDING_LEFT}
@@ -98,18 +117,19 @@ export default function MiniBarChart({ data = [], colorBy }) {
                       fill={SERIES_COLORS[si % SERIES_COLORS.length]}
                       rx="2"
                     >
-                      <title>{`${key}: ${formatNumber(val)}`}</title>
+                      <title>{`${translateLabel(key)}: ${formatNumber(val)}`}</title>
                     </rect>
                   )
                 })}
                 <text
                   x={slotX + slotWidth / 2}
                   y={CHART_HEIGHT - PADDING_BOTTOM + 16}
-                  textAnchor="middle"
+                  textAnchor="end"
                   fontSize="10"
                   fill="var(--text-muted)"
+                  transform={`rotate(-45, ${slotX + slotWidth / 2}, ${CHART_HEIGHT - PADDING_BOTTOM + 16})`}
                 >
-                  {d.label}
+                  {translateLabel(d.label)}
                 </text>
               </g>
             )
@@ -128,16 +148,17 @@ export default function MiniBarChart({ data = [], colorBy }) {
                 fill="var(--gold)"
                 rx="2"
               >
-                <title>{`${d.label}: ${formatNumber(val)}`}</title>
+                <title>{`${translateLabel(d.label)}: ${formatNumber(val)}`}</title>
               </rect>
               <text
                 x={slotX + slotWidth / 2}
                 y={CHART_HEIGHT - PADDING_BOTTOM + 16}
-                textAnchor="middle"
+                textAnchor="end"
                 fontSize="10"
                 fill="var(--text-muted)"
+                transform={`rotate(-45, ${slotX + slotWidth / 2}, ${CHART_HEIGHT - PADDING_BOTTOM + 16})`}
               >
-                {d.label}
+                {translateLabel(d.label)}
               </text>
             </g>
           )
@@ -152,7 +173,7 @@ export default function MiniBarChart({ data = [], colorBy }) {
                 width: 10, height: 10, borderRadius: 2,
                 background: SERIES_COLORS[si % SERIES_COLORS.length], display: 'inline-block',
               }} />
-              {key}
+              {translateLabel(key)}
             </span>
           ))}
         </div>

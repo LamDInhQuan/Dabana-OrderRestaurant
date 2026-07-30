@@ -255,30 +255,13 @@ public class PartnerReportService {
                             r, ids)) {
                     processing.add(slice((String) row[0], bd(row[1])));
             }
-            processing.forEach(p -> {
-                p.setLabel(depositConvertLabel(p.getLabel()));
-            });
+            // label is kept as raw enum string
 
             return PartnerDepositReportResponse.builder()
                             .kpis(kpis).cashflowByTime(cashflow).depositProcessingBreakdown(processing).build();
     }
 
-    private String depositConvertLabel(String label) {
-        switch (label) {
-                case "PENDING":
-                        return "Chờ thanh toán";
-                case "PROCESSING":
-                        return "Đang xử lý";
-                case "PAID":
-                        return "Đã thanh toán";
-                case "CANCELLED":
-                        return "Đã hủy";
-                case "EXPIRED":
-                        return "Hết hạn";
-                default:
-                        return "chưa sửa" + label;
-        }
-    }
+
 
     // ==================================================================
     //  RESERVATIONS
@@ -328,29 +311,12 @@ public class PartnerReportService {
             for (Object[] row : rows("SELECT r.status, COUNT(*)" + base + " GROUP BY r.status", r, ids)) {
                     status.add(slice((String) row[0], bd(row[1])));
             }
-            status.forEach(s -> s.setLabel(reservationsconvertLabel(s.getLabel())));
+            // label is kept as raw enum string
 
             return PartnerReservationReportResponse.builder()
                             .kpis(kpis).reservationsByTime(byTime).statusBreakdown(status).build();
     }
-    private String reservationsconvertLabel(String label) {
-        switch (label) {
-                case "COMPLETED":
-                        return "Hoàn thành";
-                case "NO_SHOW":
-                        return "Không đến";
-                case "CANCELLED_BY_CUSTOMER":
-                        return "Khách hàng hủy";
-                case "CHECKED_IN":
-                        return "Check In";
-                case "CONFIRMED":
-                        return "Xác nhận";
-                case "CANCELLED_BY_RESTAURANT":
-                        return "Nhà hàng Hủy";
-                default:
-                        return "chưa dịch: "+label;
-        }
-    }
+
     
 
     // ==================================================================
