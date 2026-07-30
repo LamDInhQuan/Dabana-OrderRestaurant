@@ -20,7 +20,7 @@ public class BranchMapper {
         branch.setName(request.getName());
         branch.setProvince(request.getProvince());
         branch.setPhone(request.getPhone());
-        branch.setAddress(request.getPhone());
+        branch.setAddress(request.getAddress());
         branch.setLatitude(request.getLatitude());
         branch.setLongitude(request.getLongitude());
         return branch;

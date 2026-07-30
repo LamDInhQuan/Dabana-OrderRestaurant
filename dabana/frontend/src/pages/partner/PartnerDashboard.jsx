@@ -263,6 +263,7 @@ export default function PartnerDashboard() {
       province: activeBranch.province || '',
       latitude: activeBranch.latitude ?? '',
       longitude: activeBranch.longitude ?? '',
+      branchImageDtos: activeBranch.branchImageDtos || []
     })
     // B04: khung giờ hoạt động của chi nhánh
     operatingHourApi.getByBranch(bid)
@@ -534,7 +535,13 @@ export default function PartnerDashboard() {
     try {
       const payload = {
         ...branchForm, latitude: branchForm.latitude === '' ? null : Number(branchForm.latitude),
-        longitude: branchForm.longitude === '' ? null : Number(branchForm.longitude)
+        longitude: branchForm.longitude === '' ? null : Number(branchForm.longitude),
+        branchImages: (branchForm.branchImageDtos || []).map((img, index) => ({
+          id: img.id || null,
+          imageUrl: img.imageUrl,
+          isCover: img.isCover ?? 0,
+          displayOrder: img.displayOrder || index + 1
+        }))
       }
       const { data: res } = await branchApi.update(activeBranch.id, payload)
       const updated = res.data
@@ -671,6 +678,12 @@ export default function PartnerDashboard() {
         longitude: newBranchForm.longitude === '' || newBranchForm.longitude === null
           ? null
           : Number(newBranchForm.longitude),
+        branchImages: (newBranchForm.branchImageDtos || []).map((img, index) => ({
+          id: img.id || null,
+          imageUrl: img.imageUrl,
+          isCover: img.isCover ?? 0,
+          displayOrder: img.displayOrder || index + 1
+        }))
       };
       const { data: res } = await branchApi.create(payload)
       const created = res.data || { id: Date.now(), ...newBranchForm, status: 3 }
