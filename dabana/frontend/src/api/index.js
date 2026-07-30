@@ -2,6 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api', timeout: 10000 })
 
+const api = axios.create({ baseURL: '/api', timeout: 10000 })
 // Request interceptor: tự động đính kèm JWT vào header
 api.interceptors.request.use((config) => {
   const stored = localStorage.getItem('dabana_auth')
@@ -182,9 +183,9 @@ export const reviewApi = {
 
 // ===== Notification API (B09) =====
 export const notificationApi = {
-  getUnread: () => api.get('/notifications/unread'),
-  getUnreadCount: () => api.get('/notifications/unread-count'),
-  getHistory: (params) => api.get('/notifications', { params }),
+  getUnread: (branchId) => api.get('/notifications/unread' + (branchId ? `?branchId=${branchId}` : '')),
+  getUnreadCount: (branchId) => api.get('/notifications/unread-count' + (branchId ? `?branchId=${branchId}` : '')),
+  getHistory: (params, branchId) => api.get('/notifications' + (branchId ? `?branchId=${branchId}` : ''), { params }),
   markAsRead: (id) => api.patch(`/notifications/${id}/read`),
   markAllAsRead: () => api.post('/notifications/read-all'),
 }
@@ -394,10 +395,13 @@ export const adminApi = {
   // F46: giám sát hoạt động
   recentActivity: (limit) => api.get('/admin/activity/recent', { params: { limit } }),
 
-  // Dùng bởi AdminDashboard (top summary). Endpoint BE hiện tạm tắt → 404 được
-  // Promise.allSettled nuốt gọn, dashboard vẫn render (summary rỗng). Giữ binding
-  // để không vỡ caller; thay bằng /admin/reports/* khi cần số liệu thật.
-  platformSummary: () => api.get('/admin/statistics/platform/summary'),
+  // F47-F49: thống kê & báo cáo
+  platformSummary: () => api.get('/admin/statistics/platform/summary').then(res => res.data),
+  revenueByRestaurant: () => api.get('/admin/statistics/revenue-by-restaurant'),
+  bookingsDaily: (days) => api.get('/admin/statistics/bookings-daily', { params: { days } }),
+
+  // F50: xuất báo cáo
+  exportReportUrl: (type) => `/api/admin/reports/export?type=${type}`,
   getRestaurantByUser: (userId) => api.get(`/restaurants/by-user/${userId}`),
 }
 

@@ -4,6 +4,7 @@ import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.util.BranchStatus;
 import com.dabana.backend.modules.notification.NotificationService;
+import com.dabana.backend.modules.notification.NotificationType;
 import com.dabana.backend.modules.subscription.entity.BranchSuspension;
 import com.dabana.backend.modules.subscription.entity.RestaurantSubscription;
 import com.dabana.backend.modules.subscription.entity.SubscriptionInvoice;
@@ -120,10 +121,10 @@ public class SubscriptionBillingScheduler {
 
             notificationService.sendImmediate(
                     subscription.getRestaurant().getOwner(),
-                    "SUBSCRIPTION_RENEWAL_DUE",
-                    "Hoa don gia han goi " + planToRenew.getName() + " da duoc tao, han thanh toan "
+                    NotificationType.SUB_RENEWAL_DUE,
+                    "Hoá đơn gia hạn gói " + planToRenew.getName() + " đã được tạo, hạn thanh toán "
                             + subscription.getCurrentPeriodEnd() + ".",
-                    "IN_APP");
+                    "IN_APP", null);
         }
     }
 
@@ -154,11 +155,11 @@ public class SubscriptionBillingScheduler {
 
                 notificationService.sendImmediate(
                         subscription.getRestaurant().getOwner(),
-                        "SUBSCRIPTION_PAST_DUE",
-                        "Hoa don goi " + invoice.getPlanSnapshotName() + " da qua han thanh toan. "
-                                + "Vui long thanh toan truoc " + subscription.getGracePeriodEnd()
-                                + " de tranh bi tam ngung chi nhanh.",
-                        "IN_APP");
+                        NotificationType.SUB_PAST_DUE,
+                        "Hoá đơn gói " + invoice.getPlanSnapshotName() + " đã quá hạn thanh toán. "
+                                + "Vui lòng thanh toán trước " + subscription.getGracePeriodEnd()
+                                + " để tránh bị tạm ngưng chi nhánh.",
+                        "IN_APP", null);
             }
         }
     }
@@ -177,10 +178,10 @@ public class SubscriptionBillingScheduler {
 
             notificationService.sendImmediate(
                     subscription.getRestaurant().getOwner(),
-                    "SUBSCRIPTION_EXPIRED_BRANCH_SUSPENDED",
-                    "Goi dich vu da het han qua thoi gian an han. Da tam ngung " + suspendedBranchIds.size()
-                            + " chi nhanh (id: " + suspendedBranchIds + "). Thanh toan lai de khoi phuc.",
-                    "IN_APP");
+                    NotificationType.SUB_EXPIRED_SUSPEND,
+                    "Gói dịch vụ đã hết hạn qua thời gian ân hạn. Đã tạm ngưng " + suspendedBranchIds.size()
+                            + " chi nhánh (id: " + suspendedBranchIds + "). Thanh toán lại để khôi phục.",
+                    "IN_APP", null);
         }
     }
 

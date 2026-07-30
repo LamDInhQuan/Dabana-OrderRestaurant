@@ -255,9 +255,14 @@ public class BookingService implements IBookingService {
         // coc PAID, xem PayosWebhookService.
         if (booking.getStatus() == BookingStatus.CONFIRMED) {
             String content = String.format(
-                    "Dat ban thanh cong tai %s luc %s.",
+                    "Đặt bàn thành công tại %s lúc %s.",
                     branch.getName(), booking.getReservationTime());
             notifyCustomer(booking, NotificationType.BOOKING_CONFIRMED, content);
+
+            String restaurantContent = String.format(
+                    "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s.",
+                    branch.getName(), booking.getReservationTime(), booking.getContactName());
+            notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
         }
         // Ví dụ gom nhóm các bàn theo Zone ID trong Java Service
         List<Long> zoneIds = tables.stream()
@@ -282,6 +287,7 @@ public class BookingService implements IBookingService {
                 )
         );
 
+        eventPublisher.publishEvent(new BookingChangedEvent(booking.getBranch().getId(), booking.getCustomer() != null ? booking.getCustomer().getId().longValue() : 0L, booking.getId()));
         return bookingMapper.toResponse(booking);
     }
 
@@ -544,7 +550,7 @@ public class BookingService implements IBookingService {
 
         // B09: moi khach danh gia sau khi don hoan tat (B13)
         notifyCustomer(booking, NotificationType.REVIEW_INVITATION,
-                String.format("Cam on ban da dung bua tai %s. Hay danh gia trai nghiem cua ban!",
+                String.format("Cảm ơn bạn đã dùng bữa tại %s. Hãy đánh giá trải nghiệm của bạn!",
                         booking.getBranch().getName()));
 
         return bookingMapper.toResponse(booking);
@@ -582,7 +588,7 @@ public class BookingService implements IBookingService {
 
         // B09: bao ket qua no-show cho khach (B11 buoc 8)
         notifyCustomer(booking, NotificationType.NO_SHOW_WARNING,
-                String.format("Don dat ban tai %s luc %s da duoc ghi nhan la khong den (no-show).",
+                String.format("Đơn đặt bàn tại %s lúc %s đã được ghi nhận là không đến (no-show).",
                         booking.getBranch().getName(), booking.getReservationTime()));
 
         return bookingMapper.toResponse(booking);
@@ -631,14 +637,20 @@ public class BookingService implements IBookingService {
 
         // B09: bao ket qua huy don (va hoan coc neu co) cho khach (B11)
         String cancelContent = byRestaurant
-                ? String.format("Nha hang %s da huy don dat ban cua ban luc %s.",
+                ? String.format("Nhà hàng %s đã hủy đơn đặt bàn của bạn lúc %s.",
                 booking.getBranch().getName(), booking.getReservationTime())
-                : String.format("Don dat ban tai %s luc %s da duoc huy thanh cong.",
+                : String.format("Đơn đặt bàn tại %s lúc %s đã được hủy thành công.",
                 booking.getBranch().getName(), booking.getReservationTime());
         if (booking.getRefundStatus() == RefundStatus.PENDING) {
-            cancelContent += String.format(" So tien hoan coc: %s VND.", booking.getRefundAmount());
+            cancelContent += String.format(" Số tiền hoàn cọc: %s VND.", booking.getRefundAmount());
         }
         notifyCustomer(booking, NotificationType.BOOKING_CANCELLED, cancelContent);
+
+        if (!byRestaurant) {
+            String restaurantContent = String.format("Khách hàng %s đã huỷ đơn đặt bàn tại %s lúc %s.",
+                    booking.getContactName(), booking.getBranch().getName(), booking.getReservationTime());
+            notifyRestaurant(booking, NotificationType.BOOKING_CANCELLED, restaurantContent);
+        }
 
         return bookingMapper.toResponse(booking);
     }
@@ -734,7 +746,13 @@ public class BookingService implements IBookingService {
         if (booking == null || booking.getCustomer() == null) {
             return;
         }
-        notificationService.sendImmediate(booking.getCustomer(), type, content, "IN_APP");
+        notificationService.sendImmediate(booking.getCustomer(), type, content, "IN_APP", booking.getBranch().getId());
+    }
+
+    private void notifyRestaurant(Booking booking, NotificationType type, String content) {
+        if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null && booking.getBranch().getRestaurant().getOwner() != null) {
+            notificationService.sendImmediate(booking.getBranch().getRestaurant().getOwner(), type, content, "IN_APP", booking.getBranch().getId());
+        }
     }
 
     // ============================================================
@@ -773,7 +791,7 @@ public class BookingService implements IBookingService {
 
             // B09: bao ket qua no-show cho khach (tu dong chot, khong co xac nhan nhan vien)
             notifyCustomer(booking, NotificationType.NO_SHOW_WARNING,
-                    String.format("Don dat ban tai %s luc %s da duoc ghi nhan la khong den (no-show).",
+                    String.format("Đơn đặt bàn tại %s lúc %s đã được ghi nhận là không đến (no-show).",
                             booking.getBranch().getName(), booking.getReservationTime()));
         }
     }

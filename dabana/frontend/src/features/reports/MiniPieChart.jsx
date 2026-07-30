@@ -1,3 +1,5 @@
+import { translateLabel } from '../../utils/labelTranslator'
+
 const SLICE_COLORS = [
   'var(--gold)',
   'var(--brown-mid)',
@@ -57,7 +59,7 @@ export default function MiniPieChart({ data = [] }) {
     const val = toNumber(d.value)
     const angle = (val / total) * 360
     const slice = {
-      label: d.label,
+      label: translateLabel(d.label),
       value: val,
       percent: (val / total) * 100,
       color: SLICE_COLORS[i % SLICE_COLORS.length],
