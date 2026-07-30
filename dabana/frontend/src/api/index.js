@@ -183,6 +183,10 @@ export const reviewApi = {
 // ===== Notification API (B09) =====
 export const notificationApi = {
   getUnread: () => api.get('/notifications/unread'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  getHistory: (params) => api.get('/notifications', { params }),
+  markAsRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/notifications/read-all'),
 }
 
 // ===== Subscription API (thu phí nền tảng theo gói) =====

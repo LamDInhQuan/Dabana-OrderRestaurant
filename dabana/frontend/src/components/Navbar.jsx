@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import NotificationBell from './NotificationBell'
 
 export default function Navbar({ solid = false }) {
   const { auth, logout, isRole } = useAuth()
@@ -94,6 +95,7 @@ export default function Navbar({ solid = false }) {
             </>
           ) : (
             <>
+              <NotificationBell color={linkColor} />
               {isRole('CUSTOMER') && (
                 <Link to="/my-bookings">
                   <button style={{
