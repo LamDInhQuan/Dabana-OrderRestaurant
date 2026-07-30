@@ -89,74 +89,6 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         }, 3000) // Call lại mỗi 3 giây
     }
 
-    const handleConfirmClick = async () => {
-        if (!agreed) return
-
-        // Validate thông tin ngân hàng nếu có tiền cọc
-        if (depositAmount > 0 && (!selectedBankId || !toAccountNumber.trim() || !accountName.trim())) {
-            toast.error('Vui lòng chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản nhận tiền hoàn!')
-            return
-        }
-
-        setSubmitting(true)
-        let reachedPollingStep = false
-
-        try {
-            // 1. Nếu có cọc cần hoàn: lưu tài khoản nhận tiền TRƯỚC khi hủy đơn.
-            // PayoutAutoCreateListener ở BE sẽ đọc lại thông tin này khi tự động
-            // tạo lệnh chi, nên phải có sẵn trong DB trước khi booking chuyển
-            // trạng thái CANCELLED_* (không đi qua nữa).
-            if (depositAmount > 0) {
-                console.log('[CancelBookingModal] Bước 1: lưu refund-bank-info...')
-                await refundBankInfoApi.createOrUpdate({
-                    reservationId: booking.id,
-                    bankId: Number(selectedBankId), // BankCatalog.id, KHÔNG phải bin
-                    accountNumber: toAccountNumber.trim(),
-                    accountHolderName: accountName.trim(),
-                })
-                console.log('[CancelBookingModal] Bước 1 xong.')
-            }
-
-            // 2. Hủy đơn qua đúng luồng nghiệp vụ (BookingService.cancel) - BE tự
-            // tính % hoàn theo policy và tự publish event tạo lệnh chi payOS,
-            // KHÔNG gọi thẳng /api/payment/{id}/cancel-refund (endpoint test cũ).
-            console.log('[CancelBookingModal] Bước 2: gọi bookingApi.cancel...')
-            const cancelRes = await bookingApi.cancel(booking.id, {
-                reason: cancelReason,
-                cancelledByRestaurant: false,
-            })
-            console.log('[CancelBookingModal] Bước 2 xong, response:', cancelRes?.data)
-
-            if (depositAmount > 0) {
-                toast('Đã hủy đơn. Đang chờ hệ thống tự động hoàn cọc...')
-                reachedPollingStep = true
-                console.log('[CancelBookingModal] Bước 3: bắt đầu polling trạng thái...')
-                // Nếu có cọc -> Bắt đầu bật chế độ Polling chờ kết quả Refund
-                startStatusPolling(booking.id)
-            } else {
-                // Nếu không có cọc -> Hủy thành công ngay lập tức
-                toast.success('Hủy bàn thành công!')
-                if (onRefresh) onRefresh()
-                onClose()
-            }
-
-        } catch (err) {
-            // Nếu log KHÔNG in ra "Bước 3" ở trên nhưng vẫn rơi vào đây, nghĩa là
-            // lỗi xảy ra TRƯỚC khi polling kịp bắt đầu - xem message/response bên
-            // dưới trong console để biết chính xác nguyên nhân.
-            console.error("[CancelBookingModal] Lỗi hủy đơn (reachedPollingStep=" + reachedPollingStep + "):", err)
-            console.error("[CancelBookingModal] err.response?.data:", err?.response?.data)
-            toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy đơn!')
-        } finally {
-            // Luôn tắt trạng thái "đang gửi" nếu KHÔNG rơi vào nhánh polling (polling
-            // tự tắt submitting/isRefunding riêng khi có kết quả cuối) - tránh nút bị
-            // kẹt ở trạng thái disable mãi nếu có lỗi bất ngờ không được catch đúng chỗ.
-            if (!reachedPollingStep) {
-                setSubmitting(false)
-            }
-        }
-    }
-
     const now = new Date()
     const reservationTime = new Date(booking.reservationTime)
     const createdAt = booking.createdAt ? new Date(booking.createdAt) : null
@@ -185,6 +117,74 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
 
     const refundAmount = (depositAmount * refundPercent) / 100
     const penaltyAmount = depositAmount - refundAmount
+
+    const handleConfirmClick = async () => {
+        if (!agreed) return
+
+        // Validate thông tin ngân hàng nếu có tiền cọc
+        if (depositAmount > 0 && refundPercent > 0 && (!selectedBankId || !toAccountNumber.trim() || !accountName.trim())) {
+            toast.error('Vui lòng chọn ngân hàng, nhập số tài khoản và tên chủ tài khoản nhận tiền hoàn!')
+            return
+        }
+
+        setSubmitting(true)
+        let reachedPollingStep = false
+
+        try {
+            // 1. Nếu có cọc cần hoàn: lưu tài khoản nhận tiền TRƯỚC khi hủy đơn.
+            // PayoutAutoCreateListener ở BE sẽ đọc lại thông tin này khi tự động
+            // tạo lệnh chi, nên phải có sẵn trong DB trước khi booking chuyển
+            // trạng thái CANCELLED_* (không đi qua nữa).
+            if (depositAmount > 0 && refundPercent > 0) {
+                console.log('[CancelBookingModal] Bước 1: lưu refund-bank-info...')
+                await refundBankInfoApi.createOrUpdate({
+                    reservationId: booking.id,
+                    bankId: Number(selectedBankId), // BankCatalog.id, KHÔNG phải bin
+                    accountNumber: toAccountNumber.trim(),
+                    accountHolderName: accountName.trim(),
+                })
+                console.log('[CancelBookingModal] Bước 1 xong.')
+            }
+
+            // 2. Hủy đơn qua đúng luồng nghiệp vụ (BookingService.cancel) - BE tự
+            // tính % hoàn theo policy và tự publish event tạo lệnh chi payOS,
+            // KHÔNG gọi thẳng /api/payment/{id}/cancel-refund (endpoint test cũ).
+            console.log('[CancelBookingModal] Bước 2: gọi bookingApi.cancel...')
+            const cancelRes = await bookingApi.cancel(booking.id, {
+                reason: cancelReason,
+                cancelledByRestaurant: false,
+            })
+            console.log('[CancelBookingModal] Bước 2 xong, response:', cancelRes?.data)
+
+            if (depositAmount > 0 && refundPercent > 0) {
+                toast('Đã hủy đơn. Đang chờ hệ thống tự động hoàn cọc...')
+                reachedPollingStep = true
+                console.log('[CancelBookingModal] Bước 3: bắt đầu polling trạng thái...')
+                // Nếu có cọc -> Bắt đầu bật chế độ Polling chờ kết quả Refund
+                startStatusPolling(booking.id)
+            } else {
+                // Nếu không có cọc -> Hủy thành công ngay lập tức
+                toast.success('Hủy bàn thành công!')
+                if (onRefresh) onRefresh()
+                onClose()
+            }
+
+        } catch (err) {
+            // Nếu log KHÔNG in ra "Bước 3" ở trên nhưng vẫn rơi vào đây, nghĩa là
+            // lỗi xảy ra TRƯỚC khi polling kịp bắt đầu - xem message/response bên
+            // dưới trong console để biết chính xác nguyên nhân.
+            console.error("[CancelBookingModal] Lỗi hủy đơn (reachedPollingStep=" + reachedPollingStep + "):", err)
+            console.error("[CancelBookingModal] err.response?.data:", err?.response?.data)
+            toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy đơn!')
+        } finally {
+            // Luôn tắt trạng thái "đang gửi" nếu KHÔNG rơi vào nhánh polling (polling
+            // tự tắt submitting/isRefunding riêng khi có kết quả cuối) - tránh nút bị
+            // kẹt ở trạng thái disable mãi nếu có lỗi bất ngờ không được catch đúng chỗ.
+            if (!reachedPollingStep) {
+                setSubmitting(false)
+            }
+        }
+    }
 
     return (
         <div style={{
@@ -248,50 +248,53 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                         </div>
 
                         {/* Khung điền thông tin tài khoản ngân hàng nhận hoàn tiền */}
-                        <div style={{ background: '#F9FAFB', border: '1px solid var(--border)', padding: '1rem', borderRadius: 8, marginBottom: '1rem' }}>
-                            <div style={{ fontSize: '.85rem', fontWeight: 700, color: '#374151', marginBottom: '.5rem' }}>
-                                <Landmark size={15} style={{ verticalAlign: '-2px' }} /> Thông tin tài khoản nhận tiền hoàn
-                            </div>
+                        {refundPercent > 0 && (
+                            <div style={{ background: '#F9FAFB', border: '1px solid var(--border)', padding: '1rem', borderRadius: 8, marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '.85rem', fontWeight: 700, color: '#374151', marginBottom: '.5rem' }}>
+                                    <Landmark size={15} style={{ verticalAlign: '-2px' }} /> Thông tin tài khoản nhận tiền hoàn
+                                </div>
 
-                            <div style={{ marginBottom: '.75rem' }}>
-                                <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Chọn Ngân hàng:</label>
-                                <select
-                                    value={selectedBankId}
-                                    onChange={e => setSelectedBankId(e.target.value)}
-                                    disabled={loadingBanks}
-                                    style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', fontSize: '.87rem' }}
-                                >
-                                    <option value="">{loadingBanks ? 'Đang tải danh sách ngân hàng...' : '-- Chọn ngân hàng thụ hưởng --'}</option>
-                                    {banks.map((bank) => (
-                                        <option key={bank.id} value={bank.id}>
-                                            {bank.name} {bank.shortName ? `(${bank.shortName})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                                <div style={{ marginBottom: '.75rem' }}>
+                                    <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Chọn Ngân hàng:</label>
+                                    <select
+                                        value={selectedBankId}
+                                        onChange={e => setSelectedBankId(e.target.value)}
+                                        disabled={loadingBanks}
+                                        style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', fontSize: '.87rem' }}
+                                    >
+                                        <option value="">{loadingBanks ? 'Đang tải danh sách ngân hàng...' : '-- Chọn ngân hàng thụ hưởng --'}</option>
+                                        {banks.map((bank) => (
+                                            <option key={bank.id} value={bank.id}>
+                                                {bank.name} {bank.shortName ? `(${bank.shortName})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                            <div style={{ marginBottom: '.75rem' }}>
-                                <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Số tài khoản nhận:</label>
-                                <input
-                                    type="text"
-                                    placeholder="Nhập số tài khoản ngân hàng..."
-                                    value={toAccountNumber}
-                                    onChange={e => setToAccountNumber(e.target.value)}
-                                    style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', fontSize: '.87rem' }}
-                                />
-                            </div>
+                                <div style={{ marginBottom: '.75rem' }}>
+                                    <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Số tài khoản nhận:</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Nhập số tài khoản ngân hàng..."
+                                        value={toAccountNumber}
+                                        onChange={e => setToAccountNumber(e.target.value)}
+                                        style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', fontSize: '.87rem' }}
+                                    />
+                                </div>
 
-                            <div>
-                                <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Tên chủ tài khoản (Không dấu):</label>
-                                <input
-                                    type="text"
-                                    placeholder="NGUYEN VAN A"
-                                    value={accountName}
-                                    onChange={e => setAccountName(e.target.value.toUpperCase())}
-                                    style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', fontSize: '.87rem', textTransform: 'uppercase' }}
-                                />
+                                <div>
+                                    <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Tên chủ tài khoản (Không dấu):</label>
+                                    <input
+                                        type="text"
+                                        placeholder="NGUYEN VAN A"
+                                        value={accountName}
+                                        onChange={e => setAccountName(e.target.value.toUpperCase())}
+                                        style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', fontSize: '.87rem', textTransform: 'uppercase' }}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
+
                     </>
                 )}
 

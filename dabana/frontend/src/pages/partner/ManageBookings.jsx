@@ -34,7 +34,7 @@ export default function ManageBookings({ bookings }) {
   
   const [filter, setFilter] = useState('ALL')
   const [typeFilter, setTypeFilter] = useState('ALL')
-  const [dateFilter, setDateFilter] = useState('ALL')
+  const [dateFilter, setDateFilter] = useState('ALL') // State lọc theo ngày
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 5
 
@@ -44,7 +44,7 @@ export default function ManageBookings({ bookings }) {
   const [selectedBookingForCancel, setSelectedBookingForCancel] = useState(null)
   const [cancellationInfo, setCancellationInfo] = useState(null)
 
-  // Lọc danh sách booking theo Trạng thái, Loại cọc/chính sách và Ngày check-in
+  // Lọc danh sách theo trạng thái, loại cọc và ngày check-in
   const filteredbookings = useMemo(() => {
     let list = bookings || []
     
@@ -53,16 +53,17 @@ export default function ManageBookings({ bookings }) {
       list = list.filter(b => b.status === filter)
     }
 
-    // 2. Lọc theo loại cọc / chính sách hủy
+    // 2. Lọc theo loại cọc / chính sách
     if (typeFilter === 'HAS_DEPOSIT') {
-      list = list.filter(b => Number(b.depositAmount || b.deposit || 0) > 0)
+      list = list.filter(b => {
+        const deposit = b.depositAmount ?? b.policySnapshotDto?.depositValue ?? b.policySnapshot?.depositValue ?? 0
+        return Number(deposit) > 0
+      })
     } else if (typeFilter === 'WITH_CANCELLATION_POLICY') {
       list = list.filter(b => {
-        console.log("b");
-        
-        const s = b.policySnapshot || b.depositPolicy
-        const depositVal = Number(b.depositAmount || b.deposit || 0)
-        return depositVal > 0 && s && (
+        const s = b.policySnapshotDto || b.policySnapshot
+        const deposit = b.depositAmount ?? s?.depositValue ?? 0
+        return Number(deposit) > 0 && s && (
           s.freeCancellationHours !== null || 
           s.freeRefundPercent !== null || 
           s.lateRefundPercent !== null || 
@@ -71,15 +72,15 @@ export default function ManageBookings({ bookings }) {
       })
     } else if (typeFilter === 'NO_CANCELLATION_POLICY') {
       list = list.filter(b => {
-        const s = b.policySnapshot || b.depositPolicy
-        const depositVal = Number(b.depositAmount || b.deposit || 0)
+        const s = b.policySnapshotDto || b.policySnapshot
+        const deposit = b.depositAmount ?? s?.depositValue ?? 0
         const hasPolicy = s && (
           s.freeCancellationHours !== null || 
           s.freeRefundPercent !== null || 
           s.lateRefundPercent !== null || 
           s.noShowRefundPercent !== null
         )
-        return depositVal > 0 && !hasPolicy
+      return Number(deposit) > 0 && !hasPolicy
       })
     }
 
@@ -117,10 +118,7 @@ export default function ManageBookings({ bookings }) {
   const handleOpenCancelModal = (booking) => {
     setSelectedBookingForCancel(booking)
     
-    // Hứng đúng dữ liệu chính sách từ Backend (hỗ trợ cả policySnapshot hoặc depositPolicy)
-    const snapshot = booking.policySnapshot || booking.depositPolicy
-    const depositAmount = Number(booking.depositAmount || booking.deposit || 0)
-
+    const snapshot = booking.policySnapshotDto || booking.policySnapshot
     const hasPolicy = snapshot && (
       snapshot.freeCancellationHours !== null || 
       snapshot.freeRefundPercent !== null || 
@@ -128,7 +126,9 @@ export default function ManageBookings({ bookings }) {
       snapshot.noShowRefundPercent !== null
     )
 
-    if (hasPolicy && depositAmount > 0) {
+    const deposit = booking.depositAmount ?? snapshot?.depositValue ?? 0
+
+    if (hasPolicy && Number(deposit) > 0) {
       const reservationTime = new Date(booking.reservationTime).getTime()
       const now = new Date().getTime()
       const diffHours = (reservationTime - now) / (1000 * 60 * 60)
@@ -139,20 +139,20 @@ export default function ManageBookings({ bookings }) {
 
       if (diffHours >= freeHours) {
         refundPercent = snapshot.freeRefundPercent || 0
-        ruleType = `Trước giờ hẹn trên ${freeHours} tiếng (Hoàn ${refundPercent}%)`
+        ruleType = `Trước giờ hẹn trên ${freeHours} tiếng (Miễn phí / Hoàn tiền theo chính sách)`
       } else {
         refundPercent = snapshot.lateRefundPercent || 0
-        ruleType = `Hủy muộn dưới ${freeHours} tiếng trước giờ hẹn (Hoàn ${refundPercent}%)`
+        ruleType = `Hủy muộn (Dưới ${freeHours} tiếng trước giờ hẹn)`
       }
 
-      const refundAmount = (depositAmount * refundPercent) / 100
+      const refundAmount = (deposit * refundPercent) / 100
 
       setCancellationInfo({
         hasPolicy: true,
         diffHours: diffHours.toFixed(1),
         refundPercent,
         refundAmount,
-        deposit: depositAmount,
+        deposit,
         ruleType,
         snapshot
       })
@@ -193,7 +193,7 @@ export default function ManageBookings({ bookings }) {
       <div className="page-container" style={{ padding: '2rem 1rem' }}>
         <h1 style={{ fontWeight: 800, fontSize: '1.4rem', marginBottom: '1.5rem' }}>Quản lý đặt bàn</h1>
 
-        {/* 1. Bộ lọc trạng thái */}
+        {/* Status filter */}
         <div className="flex gap-2" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
           {Object.entries(STATUS_META).map(([k, { label }]) => (
             <button key={k} onClick={() => setFilter(k)}
@@ -206,7 +206,7 @@ export default function ManageBookings({ bookings }) {
           ))}
         </div>
 
-        {/* 2. Bộ lọc loại cọc / chính sách */}
+        {/* Sub-filter theo loại cọc / chính sách hủy */}
         <div className="flex gap-2" style={{ marginBottom: '.75rem', flexWrap: 'wrap' }}>
           {TYPE_FILTERS.map(tf => (
             <button key={tf.key} onClick={() => setTypeFilter(tf.key)}
@@ -219,7 +219,7 @@ export default function ManageBookings({ bookings }) {
           ))}
         </div>
 
-        {/* 3. Bộ lọc theo thời gian / ngày check-in */}
+        {/* Sub-filter theo thời gian / ngày check-in */}
         <div className="flex gap-2" style={{ marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Thời gian:</span>
           {DATE_FILTERS.map(df => (
@@ -244,9 +244,9 @@ export default function ManageBookings({ bookings }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
           {paginatedBookings.map(b => {
             const meta = STATUS_META[b.status] || { label: b.status, badge: 'badge-gray', actions: [] }
-            const s = b.policySnapshot || b.depositPolicy
-            const depositVal = Number(b.depositAmount || b.deposit || 0)
+            const s = b.policySnapshotDto || b.policySnapshot
             const hasPolicy = s && (s.freeCancellationHours !== null || s.freeRefundPercent !== null || s.lateRefundPercent !== null || s.noShowRefundPercent !== null)
+            const depositAmount = b.depositAmount ?? s?.depositValue ?? 0
 
             return (
               <div key={b.id} className="card" style={{ border: '1px solid var(--border)' }}>
@@ -272,12 +272,12 @@ export default function ManageBookings({ bookings }) {
                   </p>
                   <p><Users size={16} style={{ verticalAlign: '-3px' }} /> Khách: <strong>{b.guestCount}</strong></p>
                   <p><Clock size={16} style={{ verticalAlign: '-3px' }} /> <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
-                  {depositVal > 0 && (
+                  {depositAmount > 0 && (
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span><Wallet size={16} style={{ verticalAlign: '-3px' }} /> Cọc: <strong>{depositVal.toLocaleString('vi-VN')}₫</strong></span>
+                      <span><Wallet size={16} style={{ verticalAlign: '-3px' }} /> Cọc: <strong>{Number(depositAmount).toLocaleString('vi-VN')}₫</strong></span>
                       {hasPolicy ? (
                         <span style={{ fontSize: '.78rem', background: '#ecfdf5', color: '#047857', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                          Có chính sách hủy ({s.policyDepositName || 'Chính sách cọc'}) - Miễn phí trước {s.freeCancellationHours}h
+                          Có chính sách hủy (Miễn phí trước {s.freeCancellationHours}h - Hoàn {s.freeRefundPercent}%)
                         </span>
                       ) : (
                         <span style={{ fontSize: '.78rem', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
@@ -315,7 +315,7 @@ export default function ManageBookings({ bookings }) {
           })}
         </div>
 
-        {/* Phân trang */}
+        {/* Thanh phân trang FE */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between" style={{ marginTop: '1.5rem', padding: '0.5rem 0' }}>
             <span style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>
@@ -343,7 +343,7 @@ export default function ManageBookings({ bookings }) {
         )}
       </div>
 
-      {/* --- MODAL XÁC NHẬN HỦY & HOÀN CỌC --- */}
+      {/* --- MODAL XÁC NHẬN HỦY VÀ HOÀN CỌC --- */}
       {cancelModalOpen && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',

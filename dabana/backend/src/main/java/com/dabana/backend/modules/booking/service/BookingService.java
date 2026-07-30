@@ -15,6 +15,7 @@ import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.event.BookingCancelledForRefundEvent;
 import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
+import com.dabana.backend.modules.booking.event.BookingChangedEvent;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.util.CancelledBy;
 import com.dabana.backend.modules.booking.util.RefundStatus;
@@ -241,7 +242,7 @@ public class BookingService implements IBookingService {
             policySnapshot = toPolicySnapShotDto(branchPolicy, cancellationPolicy);
         }
         booking.setPolicySnapshot(policySnapshot);
-
+        booking.setReservationTime(req.getReservationTime());
         booking = bookingRepository.save(booking);
 
         // 9. Lưu bàn
@@ -261,7 +262,7 @@ public class BookingService implements IBookingService {
                     branch.getName(), booking.getReservationTime());
             notifyCustomer(booking, NotificationType.BOOKING_CONFIRMED, content);
         }
-
+        eventPublisher.publishEvent(new BookingChangedEvent(booking.getBranch().getId(), booking.getCustomer().getId().longValue(), booking.getId()));
         return bookingMapper.toResponse(booking);
     }
 
@@ -293,7 +294,6 @@ public class BookingService implements IBookingService {
         Booking booking = new Booking();
         booking.setBranch(branch);
         booking.setCustomer(staff);
-        booking.setReservationTime(LocalDateTime.now());
         booking.setGuestCount(req.getGuestCount().byteValue());
         booking.setStatus(BookingStatus.CHECKED_IN);
         booking.setContactName(StringUtils.hasText(req.getContactName())
@@ -612,9 +612,9 @@ public class BookingService implements IBookingService {
         // B09: bao ket qua huy don (va hoan coc neu co) cho khach (B11)
         String cancelContent = byRestaurant
                 ? String.format("Nha hang %s da huy don dat ban cua ban luc %s.",
-                        booking.getBranch().getName(), booking.getReservationTime())
+                booking.getBranch().getName(), booking.getReservationTime())
                 : String.format("Don dat ban tai %s luc %s da duoc huy thanh cong.",
-                        booking.getBranch().getName(), booking.getReservationTime());
+                booking.getBranch().getName(), booking.getReservationTime());
         if (booking.getRefundStatus() == RefundStatus.PENDING) {
             cancelContent += String.format(" So tien hoan coc: %s VND.", booking.getRefundAmount());
         }
@@ -628,14 +628,14 @@ public class BookingService implements IBookingService {
      * NGAY LUC TAO booking (KHONG doc lai BranchCancellationPolicy hien tai cua
      * chi nhanh - vi chinh sach co the da thay doi sau khi khach dat, phai tinh
      * theo chinh sach da cam ket voi khach luc dat ban).
-     *
+     * <p>
      * - Neu chua co lenh coc nao PAID -> khong co gi de hoan (refundStatus=NONE).
      * - Neu huy tu luc con >= freeCancellationHours gio truoc gio hen -> ap dung
-     *   freeRefundPercent (thuong 100%).
+     * freeRefundPercent (thuong 100%).
      * - Neu huy trong khoang duoi freeCancellationHours gio -> ap dung
-     *   lateRefundPercent (thuong < 100%, phan con lai la penaltyAmount).
+     * lateRefundPercent (thuong < 100%, phan con lai la penaltyAmount).
      * - Ket qua duoc luu vao Booking.refundAmount/penaltyAmount/refundStatus=PENDING,
-     *   PayoutOrderService se doc refundAmount nay de tao lenh chi qua payOS.
+     * PayoutOrderService se doc refundAmount nay de tao lenh chi qua payOS.
      */
     private void applyCancellationRefundPolicy(Booking booking) {
         Optional<DepositPayment> paidDepositOpt = depositPaymentRepository
@@ -667,7 +667,9 @@ public class BookingService implements IBookingService {
         booking.setRefundStatus(refundAmount.compareTo(BigDecimal.ZERO) > 0 ? RefundStatus.PENDING : RefundStatus.NONE);
     }
 
-    /** % hoan tien ap dung, dua tren khoang cach tu luc huy toi gio hen (reservationTime). */
+    /**
+     * % hoan tien ap dung, dua tren khoang cach tu luc huy toi gio hen (reservationTime).
+     */
     private BigDecimal resolveRefundPercent(Booking booking, PolicySnapshotDto policy) {
         if (policy == null || policy.getFreeCancellationHours() == null) {
             // Khong co snapshot chinh sach huy (vd du lieu cu truoc khi co tinh nang
