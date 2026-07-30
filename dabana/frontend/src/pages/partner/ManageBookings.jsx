@@ -55,11 +55,15 @@ export default function ManageBookings({ bookings }) {
 
     // 2. Lọc theo loại cọc / chính sách
     if (typeFilter === 'HAS_DEPOSIT') {
-      list = list.filter(b => Number(b.depositAmount) > 0)
+      list = list.filter(b => {
+        const deposit = b.depositAmount ?? b.policySnapshotDto?.depositValue ?? b.policySnapshot?.depositValue ?? 0
+        return Number(deposit) > 0
+      })
     } else if (typeFilter === 'WITH_CANCELLATION_POLICY') {
       list = list.filter(b => {
-        const s = b.policySnapshot
-        return Number(b.depositAmount) > 0 && s && (
+        const s = b.policySnapshotDto || b.policySnapshot
+        const deposit = b.depositAmount ?? s?.depositValue ?? 0
+        return Number(deposit) > 0 && s && (
           s.freeCancellationHours !== null || 
           s.freeRefundPercent !== null || 
           s.lateRefundPercent !== null || 
@@ -68,14 +72,15 @@ export default function ManageBookings({ bookings }) {
       })
     } else if (typeFilter === 'NO_CANCELLATION_POLICY') {
       list = list.filter(b => {
-        const s = b.policySnapshot
+        const s = b.policySnapshotDto || b.policySnapshot
+        const deposit = b.depositAmount ?? s?.depositValue ?? 0
         const hasPolicy = s && (
           s.freeCancellationHours !== null || 
           s.freeRefundPercent !== null || 
           s.lateRefundPercent !== null || 
           s.noShowRefundPercent !== null
         )
-      return Number(b.depositAmount) > 0 && !hasPolicy
+      return Number(deposit) > 0 && !hasPolicy
       })
     }
 
@@ -113,7 +118,7 @@ export default function ManageBookings({ bookings }) {
   const handleOpenCancelModal = (booking) => {
     setSelectedBookingForCancel(booking)
     
-    const snapshot = booking.policySnapshot
+    const snapshot = booking.policySnapshotDto || booking.policySnapshot
     const hasPolicy = snapshot && (
       snapshot.freeCancellationHours !== null || 
       snapshot.freeRefundPercent !== null || 
@@ -121,14 +126,15 @@ export default function ManageBookings({ bookings }) {
       snapshot.noShowRefundPercent !== null
     )
 
-    if (hasPolicy && Number(booking.depositAmount) > 0) {
+    const deposit = booking.depositAmount ?? snapshot?.depositValue ?? 0
+
+    if (hasPolicy && Number(deposit) > 0) {
       const reservationTime = new Date(booking.reservationTime).getTime()
       const now = new Date().getTime()
       const diffHours = (reservationTime - now) / (1000 * 60 * 60)
 
       let refundPercent = 0
       let ruleType = ''
-      const deposit = booking.depositAmount || 0
       const freeHours = snapshot.freeCancellationHours || 0
 
       if (diffHours >= freeHours) {
@@ -238,8 +244,9 @@ export default function ManageBookings({ bookings }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.875rem' }}>
           {paginatedBookings.map(b => {
             const meta = STATUS_META[b.status] || { label: b.status, badge: 'badge-gray', actions: [] }
-            const s = b.policySnapshot
+            const s = b.policySnapshotDto || b.policySnapshot
             const hasPolicy = s && (s.freeCancellationHours !== null || s.freeRefundPercent !== null || s.lateRefundPercent !== null || s.noShowRefundPercent !== null)
+            const depositAmount = b.depositAmount ?? s?.depositValue ?? 0
 
             return (
               <div key={b.id} className="card" style={{ border: '1px solid var(--border)' }}>
@@ -265,9 +272,9 @@ export default function ManageBookings({ bookings }) {
                   </p>
                   <p><Users size={16} style={{ verticalAlign: '-3px' }} /> Khách: <strong>{b.guestCount}</strong></p>
                   <p><Clock size={16} style={{ verticalAlign: '-3px' }} /> <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
-                  {b.depositAmount > 0 && (
+                  {depositAmount > 0 && (
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span><Wallet size={16} style={{ verticalAlign: '-3px' }} /> Cọc: <strong>{Number(b.depositAmount).toLocaleString('vi-VN')}₫</strong></span>
+                      <span><Wallet size={16} style={{ verticalAlign: '-3px' }} /> Cọc: <strong>{Number(depositAmount).toLocaleString('vi-VN')}₫</strong></span>
                       {hasPolicy ? (
                         <span style={{ fontSize: '.78rem', background: '#ecfdf5', color: '#047857', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
                           Có chính sách hủy (Miễn phí trước {s.freeCancellationHours}h - Hoàn {s.freeRefundPercent}%)
