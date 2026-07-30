@@ -393,10 +393,13 @@ export const adminApi = {
   // F46: giám sát hoạt động
   recentActivity: (limit) => api.get('/admin/activity/recent', { params: { limit } }),
 
-  // Dùng bởi AdminDashboard (top summary). Endpoint BE hiện tạm tắt → 404 được
-  // Promise.allSettled nuốt gọn, dashboard vẫn render (summary rỗng). Giữ binding
-  // để không vỡ caller; thay bằng /admin/reports/* khi cần số liệu thật.
-  platformSummary: () => api.get('/admin/statistics/platform/summary'),
+  // F47-F49: thống kê & báo cáo
+  platformSummary: () => api.get('/admin/statistics/platform/summary').then(res => res.data),
+  revenueByRestaurant: () => api.get('/admin/statistics/revenue-by-restaurant'),
+  bookingsDaily: (days) => api.get('/admin/statistics/bookings-daily', { params: { days } }),
+
+  // F50: xuất báo cáo
+  exportReportUrl: (type) => `/api/admin/reports/export?type=${type}`,
   getRestaurantByUser: (userId) => api.get(`/restaurants/by-user/${userId}`),
 }
 
