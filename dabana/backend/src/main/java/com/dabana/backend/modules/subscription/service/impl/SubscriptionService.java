@@ -467,7 +467,7 @@ public class SubscriptionService implements ISubscriptionService {
      * CHI goi khi subscription vua tu EXPIRED chuyen ve - bo sot hoan toan truong
      * hop ha cap lam vuot han muc chi nhanh dang hoat dong.
      */
-    private void reconcileBranchLimitAfterPlanChange(RestaurantSubscription subscription) {
+    private void    reconcileBranchLimitAfterPlanChange(RestaurantSubscription subscription) {
         Long restaurantId = subscription.getRestaurant().getId();
         List<Branch> allBranches = branchRepository.findByRestaurantId(restaurantId);
         int maxBranches = subscription.getMaxBranchesSnapshot();
