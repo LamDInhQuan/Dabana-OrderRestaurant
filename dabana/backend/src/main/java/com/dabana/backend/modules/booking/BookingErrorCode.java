@@ -33,6 +33,10 @@ public enum BookingErrorCode implements ErrorCode {
             "BOOKING_CANNOT_CHECK_IN",
             "Chỉ có thể check-in đơn đang ở trạng thái Đã xác nhận hoặc Nghi No-show"),
 
+    BOOKING_CANNOT_CHECK_IN_TOO_EARLY(
+            "BOOKING_CANNOT_CHECK_IN_TOO_EARLY",
+            "Chỉ có thể check-in cho khách đến sớm tối đa 1 tiếng so với giờ hẹn"),
+
     BOOKING_CANNOT_CHECK_OUT(
             "BOOKING_CANNOT_CHECK_OUT",
             "Chỉ có thể check-out đơn đang phục vụ (Đã check-in)"),

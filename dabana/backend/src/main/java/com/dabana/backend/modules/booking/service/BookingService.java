@@ -287,7 +287,6 @@ public class BookingService implements IBookingService {
                 )
         );
 
-        eventPublisher.publishEvent(new BookingChangedEvent(booking.getBranch().getId(), booking.getCustomer() != null ? booking.getCustomer().getId().longValue() : 0L, booking.getId()));
         return bookingMapper.toResponse(booking);
     }
 
@@ -518,6 +517,12 @@ public class BookingService implements IBookingService {
                 && booking.getStatus() != BookingStatus.PENDING_NO_SHOW) {
             throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_IN);
         }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(booking.getReservationTime().minusHours(1))) {
+            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_IN_TOO_EARLY);
+        }
+
         booking.setStatus(BookingStatus.CHECKED_IN);
         booking = bookingRepository.save(booking);
         applyTableStatus(booking, DiningTableStatus.OCCUPIED);
