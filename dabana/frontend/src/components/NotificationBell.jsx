@@ -15,6 +15,14 @@ const TYPE_LABEL = {
   REVIEW_INVITATION: 'Mời đánh giá',
   PARTNER_APPROVED: 'Hồ sơ được duyệt',
   PARTNER_REJECTED: 'Hồ sơ bị từ chối',
+  SUB_REGISTERED: 'Đăng ký dịch vụ',
+  SUB_RENEWAL_DUE: 'Đến hạn gia hạn nền tảng',
+  SUB_PAST_DUE: 'Quá hạn thanh toán nền tảng',
+  SUB_EXPIRED_SUSPEND: 'Tạm ngưng chi nhánh (hết hạn)',
+  SUB_PAY_CONFIRMED: 'Thanh toán dịch vụ thành công',
+  SUB_DOWN_SUSPEND: 'Tạm ngưng chi nhánh (hạ cấp)',
+  PAYMENT_SUCCESS: 'Thanh toán thành công',
+  PAYMENT_FAILED: 'Thanh toán thất bại',
 }
 
 const TYPE_DOT = {
@@ -26,6 +34,14 @@ const TYPE_DOT = {
   REVIEW_INVITATION: '#1E40AF',
   PARTNER_APPROVED: '#166534',
   PARTNER_REJECTED: 'var(--accent)',
+  SUB_REGISTERED: '#1E40AF',
+  SUB_RENEWAL_DUE: 'var(--gold-dark)',
+  SUB_PAST_DUE: 'var(--accent)',
+  SUB_EXPIRED_SUSPEND: 'var(--accent)',
+  SUB_PAY_CONFIRMED: '#166534',
+  SUB_DOWN_SUSPEND: 'var(--accent)',
+  PAYMENT_SUCCESS: '#166534',
+  PAYMENT_FAILED: 'var(--accent)',
 }
 
 function formatRelativeTime(isoString) {

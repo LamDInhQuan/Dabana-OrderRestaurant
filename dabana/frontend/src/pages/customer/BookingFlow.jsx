@@ -12,6 +12,7 @@ import DecorationDoor from '../partner/tab/table_layout/floorPlanManagement/comp
 import { parseZoneDecorations } from '../partner/tab/table_layout/floorPlanManagement/components/decorationPresets'
 import ReservationPolicyBanner from './step/ReservationPolicyBanner'
 import { Sparkles, MapPin, Armchair, Clock, Calendar, Users, TriangleAlert, Utensils, Check, Hourglass } from 'lucide-react'
+import { resizedImageUrl, IMAGE_PRESETS } from '../partner/tab/menu/utils/imageProxy'
 
 const STEPS = ['Thời gian & bàn', 'Thông tin', 'Đặt món', 'Xác nhận & cọc']
 
@@ -357,21 +358,21 @@ export default function BookingFlow() {
           zIndex: 0,
           pointerEvents: 'none',
         }}>
-          {/* Giữ nguyên độ sáng cao (0.85) và giảm blur xuống (8px) để nhìn rõ hoa văn, hình ảnh của banner */}
+          {/* Giảm blur và tăng độ sáng để nhìn rõ ảnh bìa hơn */}
           <div style={{
             position: 'absolute',
             inset: 0,
             backgroundImage: `url(${coverImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            filter: 'blur(8px) brightness(0.85)',
+            filter: 'blur(3px) brightness(0.95)',
             transform: 'scale(1.1)',
           }} />
           {/* Lớp phủ cực mỏng để tách biệt chữ với ảnh nền, hoàn toàn không bị đục */}
           <div style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(250, 249, 246, 0.25)'
+            background: 'rgba(250, 249, 246, 0.15)'
           }} />
         </div>
       )}
@@ -1197,7 +1198,15 @@ function StepMenu({ categories, menuLoading, activeCategory, setActiveCategory, 
                   width: 52, height: 52, borderRadius: 8, flexShrink: 0, overflow: 'hidden',
                   background: 'var(--brand-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem'
                 }}>
-                  {m.imageUrl ? <img src={m.imageUrl} alt={m.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Utensils size={22} />}
+                  {m.imageUrl
+                    ? <img
+                      src={resizedImageUrl(m.imageUrl, IMAGE_PRESETS.thumbnail)}
+                      alt={m.itemName}
+                      loading="lazy"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = m.imageUrl }}
+                    />
+                    : <Utensils size={22} />}
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontWeight: 600, fontSize: '.9rem' }}>{m.itemName}</p>

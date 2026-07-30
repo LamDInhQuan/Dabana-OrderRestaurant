@@ -21,26 +21,27 @@ public class NotificationController {
 
     /** Thong bao chua doc cua nguoi dung hien tai (in-app), moi nhat truoc. */
     @GetMapping("/unread")
-    public ResponseEntity<List<?>> getUnread() {
+    public ResponseEntity<List<?>> getUnread(@RequestParam(required = false) Long branchId) {
         Long userId = currentUserProvider.getCurrentUserId();
-        return ResponseEntity.ok(notificationService.getUnread(userId));
+        return ResponseEntity.ok(notificationService.getUnread(userId, branchId));
     }
 
     /** So thong bao chua doc, dung de hien so badge tren chuong thong bao. */
     @GetMapping("/unread-count")
-    public ResponseEntity<Map<String, Long>> getUnreadCount() {
+    public ResponseEntity<Map<String, Long>> getUnreadCount(@RequestParam(required = false) Long branchId) {
         Long userId = currentUserProvider.getCurrentUserId();
-        return ResponseEntity.ok(Map.of("count", notificationService.countUnread(userId)));
+        return ResponseEntity.ok(Map.of("count", notificationService.countUnread(userId, branchId)));
     }
 
     /** Lich su thong bao (da doc + chua doc) cua nguoi dung, co phan trang. */
     @GetMapping
     public ResponseEntity<Page<?>> getHistory(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long branchId) {
         Long userId = currentUserProvider.getCurrentUserId();
         Page<?> data = notificationService.getHistory(
-                userId, PageRequest.of(page, size, Sort.by("createdAt").descending()));
+                userId, branchId, PageRequest.of(page, size, Sort.by("createdAt").descending()));
         return ResponseEntity.ok(data);
     }
 

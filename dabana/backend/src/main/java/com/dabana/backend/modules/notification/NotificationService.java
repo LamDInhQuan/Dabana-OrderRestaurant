@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,9 @@ class Notification extends BaseEntity {
     @Column(nullable = false, length = 30)
     private NotificationType type;
 
+    @Column(name = "branch_id")
+    private Long branchId;
+
     @Column(columnDefinition = "TEXT")
     private String content;
 
@@ -57,11 +61,20 @@ class Notification extends BaseEntity {
 
 // ===== Repository =====
 interface NotificationRepository extends JpaRepository<Notification, Long> {
-    List<Notification> findByRecipientIdAndReadByUserFalseOrderByCreatedAtDesc(Long userId);
-    List<Notification> findBySendStatusAndRetryCountLessThan(String status, int maxRetry);
+    
+    @Query("SELECT n FROM Notification n WHERE n.recipient.id = :userId AND (:branchId IS NULL OR n.branchId = :branchId OR n.branchId IS NULL) AND n.readByUser = false ORDER BY n.createdAt DESC")
+    List<Notification> findUnreadForUser(Long userId, Long branchId);
 
-    long countByRecipientIdAndReadByUserFalse(Long userId);
-    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.recipient.id = :userId AND (:branchId IS NULL OR n.branchId = :branchId OR n.branchId IS NULL) AND n.readByUser = false")
+    long countUnreadForUser(Long userId, Long branchId);
+
+    @Query("SELECT n FROM Notification n WHERE n.recipient.id = :userId AND (:branchId IS NULL OR n.branchId = :branchId OR n.branchId IS NULL) ORDER BY n.createdAt DESC")
+    Page<Notification> findHistoryForUser(Long userId, Long branchId, Pageable pageable);
+
+    @Query("SELECT n FROM Notification n WHERE n.recipient.id = :userId AND n.readByUser = false")
+    List<Notification> findAllUnreadForUser(Long userId);
+    
+    List<Notification> findBySendStatusAndRetryCountLessThan(String status, int maxRetries);
 }
 
 /**
@@ -81,13 +94,17 @@ public class NotificationService {
 
     /** Gui thong bao tuc thi (B09 buoc 3 - su kien co tinh tuc thi) */
     @Transactional
-    public void sendImmediate(User recipient, NotificationType type, String content, String channel) {
+    public void sendImmediate(User recipient, NotificationType type, String content, String channel, Long branchId) {
+        if (recipient == null)
+            return;
+
         Notification notif = new Notification();
         notif.setRecipient(recipient);
         notif.setType(type);
         notif.setContent(content);
         notif.setChannel(channel);
-        notificationRepository.save(notif);
+        notif.setBranchId(branchId);
+        notif = notificationRepository.save(notif);
         doSend(notif); // gui ngay
     }
 
@@ -154,12 +171,12 @@ public class NotificationService {
             }
 
             String content = String.format(
-                    "Nhac lich: Ban co dat ban tai %s vao luc %s. Ban: %s",
+                    "Nhắc lịch: Bạn có đặt bàn tại %s vào lúc %s. Bàn: %s",
                     booking.getBranch().getName(),
                     booking.getReservationTime(),
                     resolveTableLabel(booking));
 
-            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
+            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP", booking.getBranch().getId());
 
             booking.setReminderSent(true);
             bookingRepository.save(booking);
@@ -200,20 +217,18 @@ public class NotificationService {
 
     /** Lay thong bao chua doc cua nguoi dung (in-app) */
     @Transactional(readOnly = true)
-    public List<Notification> getUnread(Long userId) {
-        return notificationRepository.findByRecipientIdAndReadByUserFalseOrderByCreatedAtDesc(userId);
+    public List<Notification> getUnread(Long userId, Long branchId) {
+        return notificationRepository.findUnreadForUser(userId, branchId);
     }
 
-    /** Lich su thong bao (da doc + chua doc) cua nguoi dung, moi nhat truoc, co phan trang. */
     @Transactional(readOnly = true)
-    public Page<Notification> getHistory(Long userId, Pageable pageable) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable);
+    public long countUnread(Long userId, Long branchId) {
+        return notificationRepository.countUnreadForUser(userId, branchId);
     }
 
-    /** Dem so thong bao chua doc, dung de hien so badge tren chuong thong bao. */
     @Transactional(readOnly = true)
-    public long countUnread(Long userId) {
-        return notificationRepository.countByRecipientIdAndReadByUserFalse(userId);
+    public Page<Notification> getHistory(Long userId, Long branchId, Pageable pageable) {
+        return notificationRepository.findHistoryForUser(userId, branchId, pageable);
     }
 
     /**
@@ -238,11 +253,10 @@ public class NotificationService {
     /** Danh dau toan bo thong bao chua doc cua nguoi dung la da doc. */
     @Transactional
     public void markAllAsRead(Long userId) {
-        List<Notification> unread = notificationRepository
-                .findByRecipientIdAndReadByUserFalseOrderByCreatedAtDesc(userId);
-        for (Notification notif : unread) {
-            notif.setReadByUser(true);
+        List<Notification> unreadList = notificationRepository.findAllUnreadForUser(userId);
+        for (Notification n : unreadList) {
+            n.setReadByUser(true);
         }
-        notificationRepository.saveAll(unread);
+        notificationRepository.saveAll(unreadList);
     }
 }

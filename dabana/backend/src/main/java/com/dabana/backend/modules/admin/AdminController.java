@@ -196,17 +196,17 @@ public class AdminController {
             notificationService.sendImmediate(
                     saved,
                     NotificationType.PARTNER_APPROVED,
-                    String.format("Ho so doi tac%s cua ban da duoc phe duyet.",
+                    String.format("Hồ sơ đối tác%s của bạn đã được phê duyệt.",
                             restaurantName != null ? " \"" + restaurantName + "\"" : ""),
-                    "IN_APP");
+                    "IN_APP", null);
         } else {
             notificationService.sendImmediate(
                     saved,
                     NotificationType.PARTNER_REJECTED,
-                    String.format("Ho so doi tac%s cua ban da bi tu choi.%s",
+                    String.format("Hồ sơ đối tác%s của bạn đã bị từ chối.%s",
                             restaurantName != null ? " \"" + restaurantName + "\"" : "",
-                            req.getReason() != null ? " Ly do: " + req.getReason() : ""),
-                    "IN_APP");
+                            req.getReason() != null ? " Lý do: " + req.getReason() : ""),
+                    "IN_APP", null);
         }
 
         return ResponseEntity.ok(userMapper.userResponse(saved));

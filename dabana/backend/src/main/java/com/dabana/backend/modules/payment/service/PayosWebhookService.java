@@ -135,10 +135,17 @@ public class PayosWebhookService {
                 // thong bao qua Notification (recipient bat buoc la User).
                 if (booking.getCustomer() != null) {
                     String content = String.format(
-                            "Dat ban thanh cong tai %s luc %s.",
-                            booking.getBranch().getName(), booking.getReservationTime());
+                            "Thanh toán tiền cọc thành công cho đơn đặt bàn lúc %s tại %s.",
+                            booking.getReservationTime(), booking.getBranch().getName());
                     notificationService.sendImmediate(
-                            booking.getCustomer(), NotificationType.BOOKING_CONFIRMED, content, "IN_APP");
+                            booking.getCustomer(), NotificationType.PAYMENT_SUCCESS, content, "IN_APP", booking.getBranch().getId());
+                }
+                if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null && booking.getBranch().getRestaurant().getOwner() != null) {
+                    String restaurantContent = String.format(
+                            "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s (Đã cọc).",
+                            booking.getBranch().getName(), booking.getReservationTime(), booking.getContactName());
+                    notificationService.sendImmediate(
+                            booking.getBranch().getRestaurant().getOwner(), NotificationType.BOOKING_CONFIRMED, restaurantContent, "IN_APP", booking.getBranch().getId());
                 }
             }
         }

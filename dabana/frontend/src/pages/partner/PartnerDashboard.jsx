@@ -305,15 +305,16 @@ export default function PartnerDashboard() {
     // }).catch(() => { })
   }, [activeBranch])
 
-  // notifications (B09) — nạp 1 lần khi vào trang
+  // notifications (B09) — nạp lại khi activeBranch thay đổi
   useEffect(() => {
-    notificationApi.getUnread()
+    if (!activeBranch?.id) return;
+    notificationApi.getUnread(activeBranch.id)
       .then(r => {
         const unread = r.data || []
-        setNotifications(unread.length ? unread.map(n => ({ ...n, read: false })) : [])
+        setNotifications(unread.length ? unread.map(n => ({ ...n, readByUser: false })) : [])
       })
       .catch(() => setNotifications([]))
-  }, [])
+  }, [activeBranch?.id])
 
   useEffect(() => {
     const fetchDashboardStats = async () => {
@@ -477,10 +478,10 @@ export default function PartnerDashboard() {
 
   // ── B09: xử lý thông báo ─────────────────────────────
   const markNotificationRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, readByUser: true } : n))
   }
   const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setNotifications(prev => prev.map(n => ({ ...n, readByUser: true })))
     toast.success('Đã đánh dấu tất cả đã đọc')
   }
 
@@ -1350,21 +1351,31 @@ export default function PartnerDashboard() {
                   <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>Không có thông báo</div>
                 )}
                 {notifications.map(n => {
-                  const iconMap = { BOOKING_NEW: ClipboardList, WAITLIST_ACCEPTED: Hourglass, CANCEL: Ban, REVIEW_NEW: Star, NO_SHOW: CircleAlert }
+                  const TYPE_LABEL = {
+                    BOOKING_CONFIRMED: 'Đặt bàn thành công',
+                    BOOKING_REMINDER: 'Nhắc lịch hẹn',
+                    BOOKING_CANCELLED: 'Hủy đặt bàn',
+                    PAYMENT_SUCCESS: 'Thanh toán thành công',
+                    SUB_RENEWAL_DUE: 'Đến hạn gia hạn',
+                    SUB_PAST_DUE: 'Quá hạn thanh toán',
+                    SUB_EXPIRED_SUSPEND: 'Tạm ngưng chi nhánh',
+                    WAITLIST_INVITED: 'Mời từ hàng chờ'
+                  }
+                  const iconMap = { BOOKING_CONFIRMED: ClipboardList, WAITLIST_INVITED: Hourglass, BOOKING_CANCELLED: Ban, PAYMENT_SUCCESS: Check, NO_SHOW_WARNING: CircleAlert }
                   const NIcon = iconMap[n.type] || Bell
                   return (
                     <div key={n.id} onClick={() => markNotificationRead(n.id)} style={{
                       ...S.card, cursor: 'pointer', display: 'flex', gap: '.875rem', alignItems: 'flex-start',
-                      border: `1px solid ${n.read ? C.border : C.goldBorder}`,
-                      background: n.read ? C.white : C.goldSubtle,
+                      border: `1px solid ${n.readByUser ? C.border : C.goldBorder}`,
+                      background: n.readByUser ? C.white : C.goldSubtle,
                     }}>
                       <div style={{ display: 'flex', color: C.goldDark }}><NIcon size={22} /></div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '.5rem' }}>
-                          <p style={{ fontWeight: 700, fontSize: '.87rem', color: C.text }}>{n.title}</p>
-                          {!n.read && <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, flexShrink: 0, marginTop: 5 }} />}
+                          <p style={{ fontWeight: 700, fontSize: '.87rem', color: C.text }}>{TYPE_LABEL[n.type] || n.type}</p>
+                          {!n.readByUser && <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, flexShrink: 0, marginTop: 5 }} />}
                         </div>
-                        <p style={{ fontSize: '.82rem', color: C.muted, marginTop: '.15rem' }}>{n.message}</p>
+                        <p style={{ fontSize: '.82rem', color: C.muted, marginTop: '.15rem' }}>{n.content}</p>
                         <p style={{ fontSize: '.7rem', color: C.muted, marginTop: '.3rem' }}>
                           {new Date(n.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
                         </p>

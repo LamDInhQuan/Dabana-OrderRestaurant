@@ -6,6 +6,7 @@ import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.branch2.util.BranchStatus;
 import com.dabana.backend.modules.notification.NotificationService;
+import com.dabana.backend.modules.notification.NotificationType;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.modules.subscription.dto.request.ScheduleDowngradeRequest;
@@ -271,7 +272,15 @@ public class SubscriptionService implements ISubscriptionService {
         subscription = subscriptionRepository.save(subscription);
 
         SubscriptionInvoice invoice = buildInvoice(subscription, plan, InvoiceType.INITIAL, today, periodEnd);
-        return invoiceMapper.toResponse(invoiceRepository.save(invoice));
+        invoice = invoiceRepository.save(invoice);
+
+        notificationService.sendImmediate(
+                subscription.getRestaurant().getOwner(),
+                NotificationType.SUB_REGISTERED,
+                "Bạn đã đăng ký thành công gói " + plan.getName() + ". Vui lòng thanh toán để kích hoạt.",
+                "IN_APP", null);
+
+        return invoiceMapper.toResponse(invoice);
     }
 
     @Override
@@ -357,9 +366,9 @@ public class SubscriptionService implements ISubscriptionService {
 
         notificationService.sendImmediate(
                 subscription.getRestaurant().getOwner(),
-                "SUBSCRIPTION_PAYMENT_CONFIRMED",
-                "Thanh toan hoa don goi " + invoice.getPlanSnapshotName() + " thanh cong.",
-                "IN_APP");
+                NotificationType.SUB_PAY_CONFIRMED,
+                "Thanh toán hoá đơn gói " + invoice.getPlanSnapshotName() + " thành công.",
+                "IN_APP", null);
 
         // Doi soat lai han muc chi nhanh SAU MOI lan xac nhan thanh toan (khong chi rieng truong hop
         // EXPIRED) - vi ha cap xuong goi co han muc thap hon so chi nhanh dang co CUNG can xu ly y het,
@@ -524,10 +533,10 @@ public class SubscriptionService implements ISubscriptionService {
 
         notificationService.sendImmediate(
                 subscription.getRestaurant().getOwner(),
-                "SUBSCRIPTION_BRANCH_SUSPENDED_AFTER_DOWNGRADE",
-                "Goi dich vu vua chuyen sang han muc " + maxBranches + " chi nhanh, thap hon so chi nhanh "
-                        + "dang hoat dong. He thong da tu dong tam ngung " + overLimitCount
-                        + " chi nhanh tao gan day nhat.",
-                "IN_APP");
+                NotificationType.SUB_DOWN_SUSPEND,
+                "Gói dịch vụ vừa chuyển sang hạn mức " + maxBranches + " chi nhánh, thấp hơn số chi nhánh "
+                        + "đang hoạt động. Hệ thống đã tự động tạm ngưng " + overLimitCount
+                        + " chi nhánh tạo gần đây nhất.",
+                "IN_APP", null);
     }
 }

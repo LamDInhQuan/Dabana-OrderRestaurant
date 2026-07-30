@@ -181,9 +181,9 @@ export const reviewApi = {
 
 // ===== Notification API (B09) =====
 export const notificationApi = {
-  getUnread: () => api.get('/notifications/unread'),
-  getUnreadCount: () => api.get('/notifications/unread-count'),
-  getHistory: (params) => api.get('/notifications', { params }),
+  getUnread: (branchId) => api.get('/notifications/unread' + (branchId ? `?branchId=${branchId}` : '')),
+  getUnreadCount: (branchId) => api.get('/notifications/unread-count' + (branchId ? `?branchId=${branchId}` : '')),
+  getHistory: (params, branchId) => api.get('/notifications' + (branchId ? `?branchId=${branchId}` : ''), { params }),
   markAsRead: (id) => api.patch(`/notifications/${id}/read`),
   markAllAsRead: () => api.post('/notifications/read-all'),
 }

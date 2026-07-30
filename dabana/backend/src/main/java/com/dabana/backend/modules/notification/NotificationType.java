@@ -8,5 +8,17 @@ public enum NotificationType {
     WAITLIST_INVITED,    // B10 buoc 4
     REVIEW_INVITATION,   // Sau B12 hoan tat
     PARTNER_APPROVED,    // B03/B04 duoc duyet
-    PARTNER_REJECTED     // B03/B04 bi tu choi
+    PARTNER_REJECTED,    // B03/B04 bi tu choi
+
+    // --- SUBSCRIPTION ---
+    SUB_REGISTERED,
+    SUB_RENEWAL_DUE,
+    SUB_PAST_DUE,
+    SUB_EXPIRED_SUSPEND,
+    SUB_PAY_CONFIRMED,
+    SUB_DOWN_SUSPEND,
+
+    // --- PAYMENT ---
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED
 }

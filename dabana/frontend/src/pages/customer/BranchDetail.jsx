@@ -4,6 +4,7 @@ import Navbar from '../../components/Navbar'
 import { branchApi, menuApi, reviewApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import { MapPin, Star, Search, Phone, Map, Soup, Home, ChefHat, Utensils, Calendar } from 'lucide-react'
+import { resizedImageUrl, IMAGE_PRESETS } from '../partner/tab/menu/utils/imageProxy'
 
 function unwrap(res) {
   const d = res?.data
@@ -37,7 +38,7 @@ export default function BranchDetail() {
     menuApi.getByBranch(id).then(r => setCategories(
       (unwrap(r) || []).map(c => ({ ...c, items: (c.items || []).filter(i => i.status === 'SELLING') }))
     )).catch(() => setCategories([]))
-    
+
     reviewApi.getByBranch(id, { page: 0, size: 10 }).then(r => {
       const d = unwrap(r)
       setReviews(d?.content || d || [])
@@ -56,8 +57,8 @@ export default function BranchDetail() {
     : null
 
   // Lọc lấy ảnh bìa (isCover === 1) làm background Hero, nếu không có lấy ảnh đầu tiên
-  const coverImage = branch.branchImageDtos?.find(img => img.isCover === 1)?.imageUrl 
-    || branch.branchImageDtos?.[0]?.imageUrl 
+  const coverImage = branch.branchImageDtos?.find(img => img.isCover === 1)?.imageUrl
+    || branch.branchImageDtos?.[0]?.imageUrl
     || null
 
   const galleryImages = branch.branchImageDtos || []
@@ -115,7 +116,7 @@ export default function BranchDetail() {
           </div>
 
           {coverImage && (
-            <button 
+            <button
               onClick={() => setActiveImage(coverImage)}
               style={{
                 background: 'rgba(0,0,0,0.6)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
@@ -146,7 +147,7 @@ export default function BranchDetail() {
         {/* TAB: Thông tin */}
         {tab === 'info' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            
+
             {/* Giới thiệu chi nhánh */}
             <div className="card" style={{ padding: '1.25rem', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <h2 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '.75rem', color: '#111827' }}>Về chi nhánh</h2>
@@ -165,9 +166,9 @@ export default function BranchDetail() {
               <div className="card" style={{ padding: '1.25rem', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.75rem' }}>
                   <h2 style={{ fontWeight: 700, fontSize: '1.1rem', color: '#111827', margin: 0 }}>Vị trí bản đồ</h2>
-                  <a 
-                    href={`https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`} 
-                    target="_blank" 
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`}
+                    target="_blank"
                     rel="noopener noreferrer"
                     style={{ fontSize: '.82rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}
                   >
@@ -193,11 +194,11 @@ export default function BranchDetail() {
                 <h2 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '.75rem', color: '#111827' }}>Không gian nhà hàng</h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
                   {galleryImages.map((img) => (
-                    <div 
-                      key={img.id} 
+                    <div
+                      key={img.id}
                       onClick={() => setActiveImage(img.imageUrl)}
-                      style={{ 
-                        position: 'relative', height: 105, borderRadius: 8, overflow: 'hidden', 
+                      style={{
+                        position: 'relative', height: 105, borderRadius: 8, overflow: 'hidden',
                         border: '1px solid var(--border)', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
@@ -252,7 +253,7 @@ export default function BranchDetail() {
                   <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
                     {cat.items.map(item => (
                       <div key={item.id} className="card flex gap-3" style={{ padding: '.85rem', borderRadius: 10, alignItems: 'center' }}>
-                        <div 
+                        <div
                           onClick={() => item.imageUrl && setActiveImage(item.imageUrl)}
                           style={{
                             width: 68, height: 68, borderRadius: 8, flexShrink: 0, overflow: 'hidden',
@@ -260,7 +261,15 @@ export default function BranchDetail() {
                             cursor: item.imageUrl ? 'pointer' : 'default'
                           }}
                         >
-                          {item.imageUrl ? <img src={item.imageUrl} alt={item.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Soup size={24} />}
+                          {item.imageUrl
+                            ? <img
+                              src={resizedImageUrl(item.imageUrl, IMAGE_PRESETS.thumbnail)}
+                              alt={item.itemName}
+                              loading="lazy"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = item.imageUrl }}
+                            />
+                            : <Soup size={24} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <h4 style={{ fontWeight: 700, fontSize: '.92rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.itemName}</h4>
@@ -283,7 +292,7 @@ export default function BranchDetail() {
               {[['ALL', 'Tất cả'], ['MY', 'Đánh giá của tôi'], ['5', '5 sao'], ['4', '4 sao'], ['3', '3 sao'], ['2', '2 sao'], ['1', '1 sao']].map(([k, l]) => (
                 <button key={k} onClick={() => setReviewFilter(k)} style={{
                   padding: '0.4rem 0.8rem', borderRadius: 8, fontSize: '.82rem', fontWeight: 600, cursor: 'pointer',
-                  background: reviewFilter === k ? 'var(--brand)' : '#f3f4f6', 
+                  background: reviewFilter === k ? 'var(--brand)' : '#f3f4f6',
                   color: reviewFilter === k ? '#fff' : '#4b5563',
                   border: 'none', transition: 'all 0.2s'
                 }}>{l}</button>
