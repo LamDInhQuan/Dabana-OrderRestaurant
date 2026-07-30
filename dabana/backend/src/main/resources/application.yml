@@ -12,6 +12,13 @@ spring:
     username: root
     password: zzwolfmoi
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000 
 
   jpa:
     hibernate:
@@ -19,7 +26,7 @@ spring:
       # local MySQL schema in sync with the JPA entities so newly added admin
       # fields/tables do not make every repository query fail with HTTP 500.
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -78,3 +85,5 @@ logging:
       com.dabana: DEBUG
       org.springframework.security: INFO
       org.hibernate.SQL: DEBUG
+      org.hibernate.orm.jdbc.bind: TRACE   # xem cả giá trị tham số bind (Hibernate 6+)
+      com.zaxxer.hikari: DEBUG             # để thấy rõ hoạt động của pool khi debug sự cố
