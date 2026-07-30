@@ -16,6 +16,7 @@ import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterReque
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.service.RestaurantService;
+import com.dabana.backend.modules.report.partner.export.ReportExcelExportService;
 import com.dabana.backend.security.CustomUserDetail;
 
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 public class RestaurantController {
 
      private final RestaurantService restaurantService;
+     private final ReportExcelExportService reportExcelExportService;
      private Authentication authentication;
 
      @GetMapping("")
@@ -87,10 +89,15 @@ public class RestaurantController {
      public ResponseEntity<InputStreamResource> exportExcel(
                @RequestParam(required = false) List<Long> branchIds,
                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) throws IOException {
+               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+               @RequestParam(defaultValue = "BOOKING") String type) throws IOException {
           User owner = getLoggedOwner();
-          ByteArrayInputStream stream = restaurantService.exportToExcel(owner.getId(), branchIds, from, to);
-          String fileName = "BookingsReport_" + LocalDate.now() + ".xlsx";
+          // type=BOOKING giữ nguyên hành vi cũ; REVENUE/DEPOSIT/INVOICE dùng exporter mới.
+          ByteArrayInputStream stream = "BOOKING".equalsIgnoreCase(type)
+                    ? restaurantService.exportToExcel(owner.getId(), branchIds, from, to)
+                    : reportExcelExportService.export(type, owner.getId(), branchIds, from, to);
+          String prefix = "BOOKING".equalsIgnoreCase(type) ? "BookingsReport_" : type.toUpperCase() + "Report_";
+          String fileName = prefix + LocalDate.now() + ".xlsx";
           HttpHeaders headers = new HttpHeaders();
 
           headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileName);

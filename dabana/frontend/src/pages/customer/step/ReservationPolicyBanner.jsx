@@ -1,63 +1,44 @@
 import React, { useMemo } from 'react';
+import { Wallet, Check, TriangleAlert, Armchair, Utensils, Pin } from 'lucide-react';
 
-function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, formatVND }) {
-  // 1. Logic xác định Rule phù hợp & lọc Schedule theo timeSlot (Đồng bộ tuyệt đối với Backend)
-  const { activeRule, isFallback, appliedSchedule } = useMemo(() => {
+function ReservationPolicyBanner({ policyLoading, policy, guestCount, formatVND }) {
+  // 1. Logic xác định Rule phù hợp (bao gồm logic Fallback)
+  const { activeRule, isFallback, maxSupportedGuest } = useMemo(() => {
     if (!policy?.depositRules?.length || !guestCount) {
-      return { activeRule: null, isFallback: false, appliedSchedule: null };
-    }
-
-    // Lọc schedule khớp với timeSlot hiện tại để hiển thị đúng khung giờ thực tế
-    let validSchedule = policy.schedules?.[0];
-    if (timeSlot && policy.schedules) {
-      const matched = policy.schedules.find(sch => {
-        if (!sch.timeFrom || !sch.timeTo) return true;
-        const from = sch.timeFrom.slice(0, 5);
-        const to = sch.timeTo.slice(0, 5);
-        return timeSlot >= from && timeSlot <= to;
-      });
-      if (matched) validSchedule = matched;
+      return { activeRule: null, isFallback: false, maxSupportedGuest: 0 };
     }
 
     const sortedRules = [...policy.depositRules].sort((a, b) => a.minGuest - b.minGuest);
+    const maxSupported = sortedRules[sortedRules.length - 1]?.maxGuest || 0;
 
-    // Kiểm tra trường hợp match chuẩn xác (min <= guestCount <= max, max có thể là null = vô tận)
+    // Tìm rule khớp chính xác khoảng khách
     let exactMatch = sortedRules.find(
-      (r) => guestCount >= r.minGuest && (r.maxGuest === null || guestCount <= r.maxGuest)
+      (r) => guestCount >= r.minGuest && guestCount <= r.maxGuest
     );
 
     if (exactMatch) {
-      return { activeRule: exactMatch, isFallback: false, appliedSchedule: validSchedule };
+      return { activeRule: exactMatch, isFallback: false, maxSupportedGuest: maxSupported };
     }
 
-    // Fallback khi vượt quá mốc lớn nhất hoặc lọt khe
-    let fallbackRule = sortedRules
+    // Nếu không khớp trực tiếp (VD: vượt maxGuest hoặc lọt khe), lùi về rule nhỏ hơn gần nhất
+    const fallbackRule = sortedRules
       .filter((r) => r.minGuest <= guestCount)
-      .sort((a, b) => b.minGuest - a.minGuest)[0];
-
-    // Nếu guestCount vượt quá tất cả các mốc cấu hình, tự động gán về rule lớn nhất
-    if (!fallbackRule && sortedRules.length > 0) {
-      fallbackRule = sortedRules[sortedRules.length - 1];
-    }
+      .pop() || sortedRules[sortedRules.length - 1]; // Lấy rule cao nhất nếu vượt quá
 
     return {
       activeRule: fallbackRule,
       isFallback: true,
-      appliedSchedule: validSchedule,
+      maxSupportedGuest: maxSupported,
     };
-  }, [policy, guestCount, timeSlot]);
+  }, [policy, guestCount]);
 
-  // 2. Tính toán nhãn hiển thị số tiền cọc (Hỗ trợ Fixed, Per Person)
+  // 计算 deposit label
   const depositLabel = useMemo(() => {
     if (!activeRule) return '';
-    let baseDeposit = 0;
     if (activeRule.depositType === 'PER_PERSON') {
-      baseDeposit = Number(activeRule.depositValue || 0) * guestCount;
-      return `${formatVND(baseDeposit)} (${formatVND(activeRule.depositValue)}/người)`;
-    } else {
-      baseDeposit = Number(activeRule.depositValue || 0);
-      return formatVND(baseDeposit);
+      return `${formatVND(activeRule.depositValue * guestCount)} (${formatVND(activeRule.depositValue)}/người)`;
     }
+    return formatVND(activeRule.depositValue);
   }, [activeRule, guestCount, formatVND]);
 
   if (policyLoading) {
@@ -98,7 +79,7 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, 
             color: '#fff',
           }}
         >
-          {activeRule ? '💰' : '✓'}
+          {activeRule ? <Wallet size={16} /> : <Check size={16} />}
         </span>
         <div>
           <strong style={{ fontSize: '.92rem', color: '#1F2937' }}>
@@ -125,12 +106,9 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, 
             gap: '.4rem',
           }}
         >
-          <span>⚠️</span>
+          <span style={{ display: 'inline-flex' }}><TriangleAlert size={14} /></span>
           <span>
-            Số lượng <strong>{guestCount} khách</strong> nằm ngoài định mức chuẩn. Hệ thống tự động áp dụng quy tắc đặt cọc của mốc{' '}
-            <strong>
-              {activeRule.minGuest}–{activeRule.maxGuest ? activeRule.maxGuest : 'trở lên'} khách
-            </strong>.
+            Số lượng <strong>{guestCount} khách</strong> nằm ngoài định mức thiết lập tiêu chuẩn. Hệ thống áp dụng quy tắc đặt cọc của mốc <strong>{activeRule.minGuest}–{activeRule.maxGuest} khách</strong>.
           </span>
         </div>
       )}
@@ -146,9 +124,7 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, 
               const rangeLabel =
                 rule.minGuest === rule.maxGuest
                   ? `${rule.minGuest} khách`
-                  : rule.maxGuest 
-                    ? `${rule.minGuest}–${rule.maxGuest} khách`
-                    : `Từ ${rule.minGuest} khách`;
+                  : `${rule.minGuest}–${rule.maxGuest} khách`;
 
               const amountLabel =
                 rule.depositType === 'PER_PERSON'
@@ -202,9 +178,9 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, 
                       marginTop: 3,
                     }}
                   >
-                    {rule.maxTables && <div>🪑 Tối đa {rule.maxTables} bàn</div>}
+                    {rule.maxTables && <div><Armchair size={12} style={{ verticalAlign: '-2px' }} /> Tối đa {rule.maxTables} bàn</div>}
                     {rule.preorderDepositPercent ? (
-                      <div style={{ fontWeight: 600 }}>🍽️ Cọc {rule.preorderDepositPercent}% món</div>
+                      <div style={{ fontWeight: 600 }}><Utensils size={12} style={{ verticalAlign: '-2px' }} /> Cọc {rule.preorderDepositPercent}% món</div>
                     ) : null}
                   </div>
                 </div>
@@ -227,7 +203,7 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, 
           }}
         >
           <div style={{ fontWeight: 600, color: '#C2410C', marginBottom: '.25rem' }}>
-            📌 Quy định áp dụng cho đoàn của bạn:
+            <Pin size={14} style={{ verticalAlign: '-2px' }} /> Quy định áp dụng cho đoàn của bạn:
           </div>
           <ul style={{ margin: 0, paddingLeft: '1.1rem', lineHeight: 1.5 }}>
             {activeRule.maxTables && (
@@ -245,14 +221,14 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, timeSlot, 
         </div>
       )}
 
-      {/* Footer chính sách & Khung giờ đúng theo timeSlot đang chọn */}
+      {/* Footer chính sách & Khung giờ */}
       <p style={{ fontSize: '.76rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
         Áp dụng theo chính sách <strong>{policy.policy?.name}</strong>
-        {appliedSchedule && appliedSchedule.timeFrom && (
+        {policy.schedules?.[0] && (
           <>
             {' '}trong khung giờ{' '}
             <strong>
-              {appliedSchedule.timeFrom.slice(0, 5)}–{appliedSchedule.timeTo.slice(0, 5)}
+              {policy.schedules[0].timeFrom?.slice(0, 5)}–{policy.schedules[0].timeTo?.slice(0, 5)}
             </strong>
           </>
         )}. Hủy trước 2 giờ được hoàn 100% cọc; hủy trong vòng 2 giờ hoặc không đến sẽ không hoàn cọc.

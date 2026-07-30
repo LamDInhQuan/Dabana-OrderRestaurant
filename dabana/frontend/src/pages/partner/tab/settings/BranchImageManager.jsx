@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Star, X } from "lucide-react";
 import { C, S } from "../../theme";
 
 // ─── Component Quản lý danh sách ảnh chi nhánh ───────────────────
@@ -74,7 +75,7 @@ export default function BranchImageManager({ images = [], onChange }) {
                                     {img.imageUrl}
                                 </div>
                                 <div style={{ fontSize: ".72rem", color: C.muted }}>
-                                    Thứ tự: #{img.displayOrder} {img.isCover === 1 ? "• ⭐ Ảnh Bìa (Banner)" : ""}
+                                    Thứ tự: #{img.displayOrder} {img.isCover === 1 ? <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>• <Star size={12} /> Ảnh Bìa (Banner)</span> : ""}
                                 </div>
                             </div>
 
@@ -86,8 +87,8 @@ export default function BranchImageManager({ images = [], onChange }) {
                             )}
 
                             {/* Nút xóa */}
-                            <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}>
-                                ✕
+                            <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold", display: "inline-flex" }}>
+                                <X size={16} />
                             </button>
                         </div>
                     ))}

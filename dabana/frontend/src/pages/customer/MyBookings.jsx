@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { bookingApi, reviewApi } from '../../api'
+import { ClipboardList, Armchair, Users, Clock, Wallet, CreditCard, ReceiptText, Star } from 'lucide-react'
 
 // Import các modal đã được tách ra file riêng (điều chỉnh lại đường dẫn cho khớp thư mục của bạn)
 import CancelBookingModal from './modal/CancelBookingModal'
@@ -105,7 +106,7 @@ export default function MyBookings() {
         {loading && <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p>}
         {!loading && filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📋</div>
+            <div style={{ marginBottom: '1rem' }}><ClipboardList size={48} /></div>
             <p>Chưa có đặt bàn nào trong mục này.</p>
           </div>
         )}
@@ -145,14 +146,14 @@ export default function MyBookings() {
 
                 <div className="grid-2" style={{ marginBottom: '.875rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.5rem' }}>
                   {[
-                    ['🪑 Vị trí bàn', tableDisplay],
-                    ['👥 Số khách', `${b.guestCount} người`],
-                    ['🕒 Ngày đặt', b.createdAt ? new Date(b.createdAt).toLocaleString('vi-VN') : '---'],
-                    ['🕐 Giờ check-in', new Date(b.reservationTime).toLocaleString('vi-VN')],
-                    ['💰 Tiền đặt cọc', b.depositAmount || b.totalPreOrderAmount ? `${Number(b.depositAmount || b.totalPreOrderAmount).toLocaleString('vi-VN')}₫` : 'Không cọc'],
-                  ].map(([k, v]) => (
+                    [Armchair, 'Vị trí bàn', tableDisplay],
+                    [Users, 'Số khách', `${b.guestCount} người`],
+                    [Clock, 'Ngày đặt', b.createdAt ? new Date(b.createdAt).toLocaleString('vi-VN') : '---'],
+                    [Clock, 'Giờ check-in', new Date(b.reservationTime).toLocaleString('vi-VN')],
+                    [Wallet, 'Tiền đặt cọc', b.depositAmount || b.totalPreOrderAmount ? `${Number(b.depositAmount || b.totalPreOrderAmount).toLocaleString('vi-VN')}₫` : 'Không cọc'],
+                  ].map(([Icon, k, v]) => (
                     <div key={k} style={{ fontSize: '.87rem' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>{k}: </span>
+                      <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Icon size={14} /> {k}: </span>
                       <span style={{ fontWeight: 600 }}>{v}</span>
                     </div>
                   ))}
@@ -169,7 +170,7 @@ export default function MyBookings() {
                         navigate(`/my-bookings/${b.id}/lock`);
                       }}
                     >
-                      💳 Thanh toán / Xem bộ đếm
+                      <CreditCard size={15} style={{ verticalAlign: '-3px' }} /> Thanh toán / Xem bộ đếm
                     </button>
                   ) : (
                     <button
@@ -181,7 +182,7 @@ export default function MyBookings() {
                         navigate(`/my-bookings/${b.id}/invoice`);
                       }}
                     >
-                      🧾 Xem chi tiết hóa đơn
+                      <ReceiptText size={15} style={{ verticalAlign: '-3px' }} /> Xem chi tiết hóa đơn
                     </button>
                   )}
 
@@ -197,7 +198,7 @@ export default function MyBookings() {
                         setReviewing(b);
                       }}
                     >
-                      ⭐ Đánh giá
+                      <Star size={15} fill="currentColor" style={{ verticalAlign: '-3px' }} /> Đánh giá
                     </button>
                   )}
                 </div>

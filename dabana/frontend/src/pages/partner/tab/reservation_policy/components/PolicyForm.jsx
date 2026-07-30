@@ -1,4 +1,5 @@
 import React from "react";
+import { Lock, Sparkles } from "lucide-react";
 import { C, S, GoldDivider } from "../../../theme";
 
 const DEFAULT_POLICY = {
@@ -36,7 +37,7 @@ export default function PolicyForm({
         </div>
         {isDisabled && (
           <span style={{ fontSize: "0.75rem", background: "#FEF3C7", color: "#92400E", padding: "0.25rem 0.6rem", borderRadius: 4, fontWeight: 600 }}>
-            🔒 Chế độ xem (Không thể sửa)
+            <Lock size={14} style={{ verticalAlign: '-2px' }} /> Chế độ xem (Không thể sửa)
           </span>
         )}
       </div>
@@ -147,7 +148,7 @@ export default function PolicyForm({
           
           {!isDisabled && (
             <button type="submit" style={{ ...S.btnGold, padding: ".75rem 2rem" }}>
-              ✦ Lưu chính sách
+              <Sparkles size={16} style={{ verticalAlign: '-2px' }} /> Lưu chính sách
             </button>
           )}
         </div>

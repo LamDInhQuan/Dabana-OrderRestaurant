@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import BranchImageManager from "./BranchImageManager";
+import { MapPin, ChevronUp, Map, Minimize2, Maximize2, Check, X, Star, Sparkles } from "lucide-react";
 
 const C = {
   brown: "#5C3A1E",
@@ -177,7 +177,7 @@ export function BranchLocationPicker({ value, onChange }) {
                 <div key={i} onClick={() => selectSuggestion(item)}
                   style={{ padding: "8px 12px", cursor: "pointer", fontSize: ".82rem", borderBottom: `1px solid ${C.border}` }}
                 >
-                  📍 {item.display_name}
+                  <MapPin size={14} style={{ verticalAlign: "-2px" }} /> {item.display_name}
                 </div>
               ))}
             </div>
@@ -188,18 +188,18 @@ export function BranchLocationPicker({ value, onChange }) {
       {/* Buttons */}
       <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" onClick={() => setShowMap(v => !v)} style={{ ...S.btnOut, fontSize: ".8rem", padding: "6px 12px" }}>
-          {showMap ? "▲ Ẩn bản đồ" : "🗺 Mở bản đồ chọn vị trí"}
+          {showMap ? <><ChevronUp size={14} style={{ verticalAlign: "-2px" }} /> Ẩn bản đồ</> : <><Map size={14} style={{ verticalAlign: "-2px" }} /> Mở bản đồ chọn vị trí</>}
         </button>
 
         {showMap && (
           <button type="button" onClick={() => setIsExpanded(v => !v)} style={{ ...S.btnOut, fontSize: ".8rem", padding: "6px 12px", borderColor: C.gold, color: C.brownMid }}>
-            {isExpanded ? "🗗 Thu nhỏ" : "⤢ Phóng to bản đồ"}
+            {isExpanded ? <><Minimize2 size={14} style={{ verticalAlign: "-2px" }} /> Thu nhỏ</> : <><Maximize2 size={14} style={{ verticalAlign: "-2px" }} /> Phóng to bản đồ</>}
           </button>
         )}
 
         {hasCoords && (
-          <span style={{ fontSize: ".75rem", color: C.green, fontWeight: 600 }}>
-            ✓ Đã chọn tọa độ
+          <span style={{ fontSize: ".75rem", color: C.green, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px" }}>
+            <Check size={13} /> Đã chọn tọa độ
           </span>
         )}
       </div>
@@ -224,7 +224,7 @@ export function BranchLocationPicker({ value, onChange }) {
           {isExpanded && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, padding: "0 4px" }}>
               <b style={{ color: C.brown }}>Chốt vị trí chi nhánh (Phóng to)</b>
-              <button type="button" onClick={() => setIsExpanded(false)} style={S.btnGold}>✓ Xác nhận & Đóng</button>
+              <button type="button" onClick={() => setIsExpanded(false)} style={S.btnGold}><Check size={14} style={{ verticalAlign: "-2px" }} /> Xác nhận & Đóng</button>
             </div>
           )}
 
@@ -240,7 +240,7 @@ export function BranchLocationPicker({ value, onChange }) {
 
           {!isExpanded && (
             <p style={{ fontSize: ".72rem", color: C.muted, marginTop: 4 }}>
-              📍 Click trên bản đồ hoặc kéo ghim để cập nhật kinh/vĩ độ.
+              <MapPin size={13} style={{ verticalAlign: "-2px" }} /> Click trên bản đồ hoặc kéo ghim để cập nhật kinh/vĩ độ.
             </p>
           )}
         </div>
@@ -262,7 +262,103 @@ export function BranchLocationPicker({ value, onChange }) {
     </div>
   );
 }
+// ─── Component Quản lý danh sách ảnh chi nhánh ───────────────────
+function BranchImageManager({ images = [], onChange }) {
+  const [urlInput, setUrlInput] = useState("");
 
+  const handleAddImage = () => {
+    if (!urlInput.trim()) return;
+    const newImage = {
+      id: null,
+      imageUrl: urlInput.trim(),
+      // Nếu là ảnh đầu tiên thì mặc định làm ảnh bìa (isCover = 1), còn lại là 0
+      isCover: images.length === 0 ? 1 : 0,
+      displayOrder: images.length + 1,
+    };
+    onChange([...images, newImage]);
+    setUrlInput("");
+  };
+
+  const handleRemove = (index) => {
+    const updated = images.filter((_, i) => i !== index);
+    // Tự động sắp xếp lại displayOrder và đảm bảo luôn có ít nhất 1 ảnh làm cover nếu còn ảnh
+    const reordered = updated.map((img, i) => ({
+      ...img,
+      displayOrder: i + 1,
+      isCover: i === 0 ? 1 : 0 // Lấy ảnh đầu tiên làm cover mặc định nếu xóa ảnh cũ
+    }));
+    onChange(reordered);
+  };
+
+  const handleSetCover = (index) => {
+    const updated = images.map((img, i) => ({
+      ...img,
+      isCover: i === index ? 1 : 0 // Đổi cờ isCover cho đúng ảnh được chọn
+    }));
+    onChange(updated);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <label style={S.label}>Hình ảnh chi nhánh & Banner</label>
+
+      {/* Input thêm URL ảnh */}
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <input
+          style={{ ...S.input, flex: 1 }}
+          placeholder="Dán đường dẫn URL hình ảnh vào đây..."
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddImage(); } }}
+        />
+        <button type="button" onClick={handleAddImage} style={S.btnGold}>
+          + Thêm ảnh
+        </button>
+      </div>
+
+      {/* Danh sách ảnh đã thêm */}
+      {images.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "200px", overflowY: "auto", paddingRight: "4px" }}>
+          {images.map((img, index) => (
+            <div key={index} style={{
+              display: "flex", alignItems: "center", gap: "0.75rem",
+              background: C.bg, padding: "8px", borderRadius: 6, border: `1px solid ${C.border}`
+            }}>
+              {/* Xem trước ảnh nhỏ */}
+              <img src={img.imageUrl} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.border}` }}
+                onError={(e) => { e.target.src = "https://via.placeholder.com/40?text=Lỗi"; }} />
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: ".8rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#333" }}>
+                  {img.imageUrl}
+                </div>
+                <div style={{ fontSize: ".72rem", color: C.muted }}>
+                  Thứ tự: #{img.displayOrder} {img.isCover === 1 ? <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>• <Star size={12} /> Ảnh Bìa (Banner)</span> : ""}
+                </div>
+              </div>
+
+              {/* Nút chọn làm Cover */}
+              {img.isCover !== 1 && (
+                <button type="button" onClick={() => handleSetCover(index)} style={{ ...S.btnOut, fontSize: ".75rem", padding: "4px 8px" }}>
+                  Đặt làm bìa
+                </button>
+              )}
+
+              {/* Nút xóa */}
+              <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold", display: "inline-flex" }}>
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p style={{ fontSize: ".75rem", color: C.muted, fontStyle: "italic", margin: 0 }}>
+          Chưa có hình ảnh nào được thêm. (Khuyến nghị thêm ít nhất 1 ảnh làm banner chi nhánh).
+        </p>
+      )}
+    </div>
+  );
+}
 // ─── Modal Thêm Chi Nhánh (Cấu trúc Layout Chuẩn) ───────────────
 // ─── Modal Thêm Chi Nhánh (Đã tích hợp quản lý List Ảnh) ───────────────
 export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch, newBranchForm, setNewBranchForm, creatingBranch }) {
@@ -339,7 +435,7 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
           <div style={{ display: "flex", gap: ".75rem", justifyContent: "flex-end", paddingTop: ".5rem" }}>
             <button type="button" onClick={() => setNewBranchModal(false)} style={S.btnOut}>Huỷ</button>
             <button type="submit" disabled={creatingBranch} style={S.btnGold}>
-              {creatingBranch ? "Đang tạo..." : "✦ Tạo chi nhánh"}
+              {creatingBranch ? "Đang tạo..." : <span style={{ display: "inline-flex", alignItems: "center", gap: ".4rem" }}><Sparkles size={14} /> Tạo chi nhánh</span>}
             </button>
           </div>
         </form>

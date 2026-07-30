@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { bookingApi, reviewApi } from '../../api';
 import Navbar from '../../components/Navbar';
 import toast from 'react-hot-toast';
+import { Home, ChefHat, Utensils, ShoppingCart, Star, Sparkles, Rocket } from 'lucide-react';
 
 const RATING_CATEGORIES = [
-    { key: 'spaceRating', label: '🏠 Không gian' },
-    { key: 'serviceRating', label: '👨‍🍳 Phục vụ' },
-    { key: 'foodRating', label: '🍴 Đồ ăn' },
+    { key: 'spaceRating', label: 'Không gian', icon: Home },
+    { key: 'serviceRating', label: 'Phục vụ', icon: ChefHat },
+    { key: 'foodRating', label: 'Đồ ăn', icon: Utensils },
 ];
 
 export default function BookingInvoicePage() {
@@ -95,7 +96,7 @@ export default function BookingInvoicePage() {
                     {/* Chi tiết món ăn */}
                     {booking.items && booking.items.length > 0 && (
                         <div style={{ marginTop: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
-                            <p style={{ fontWeight: 700 }}>🛒 Món đã đặt trước:</p>
+                            <p style={{ fontWeight: 700 }}><ShoppingCart size={16} style={{ verticalAlign: '-3px' }} /> Món đã đặt trước:</p>
                             {booking.items.map((item, idx) => (
                                 <div key={idx} className="flex justify-between" style={{ fontSize: '.9rem', margin: '.25rem 0' }}>
                                     <span>{item.name} x{item.quantity}</span>
@@ -126,7 +127,7 @@ export default function BookingInvoicePage() {
                                     fontSize: '.95rem',
                                     fontWeight: 500
                                 }}>
-                                    ⭐ Bạn đã đánh giá cho đơn đặt bàn này. Cảm ơn sự đồng hành của bạn!
+                                    <Star size={16} fill="currentColor" style={{ verticalAlign: '-2px' }} /> Bạn đã đánh giá cho đơn đặt bàn này. Cảm ơn sự đồng hành của bạn!
                                 </div>
                             ) : (
                                 <div style={{
@@ -137,12 +138,12 @@ export default function BookingInvoicePage() {
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
                                 }}>
                                     <h3 style={{ fontWeight: 750, fontSize: '1.1rem', marginBottom: '1.25rem', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '.5rem' }}>
-                                        <span>✨</span> Đánh giá trải nghiệm tại nhà hàng
+                                        <span style={{ display: 'inline-flex' }}><Sparkles size={18} /></span> Đánh giá trải nghiệm tại nhà hàng
                                     </h3>
 
                                     {/* Các tiêu chí đánh giá */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.25rem' }}>
-                                        {RATING_CATEGORIES.map(({ key, label }) => (
+                                        {RATING_CATEGORIES.map(({ key, label, icon: Icon }) => (
                                             <div key={key} style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
@@ -152,7 +153,7 @@ export default function BookingInvoicePage() {
                                                 borderRadius: '10px',
                                                 border: '1px solid var(--border)'
                                             }}>
-                                                <span style={{ fontSize: '.9rem', fontWeight: 600, color: '#374151' }}>{label}</span>
+                                                <span style={{ fontSize: '.9rem', fontWeight: 600, color: '#374151', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Icon size={16} /> {label}</span>
                                                 <div style={{ display: 'flex', gap: '.35rem' }}>
                                                     {[1, 2, 3, 4, 5].map(v => (
                                                         <button
@@ -176,7 +177,7 @@ export default function BookingInvoicePage() {
                                                             }}
                                                             title={`${v} sao`}
                                                         >
-                                                            ★
+                                                            <Star size={18} fill="currentColor" />
                                                         </button>
                                                     ))}
                                                 </div>
@@ -222,7 +223,7 @@ export default function BookingInvoicePage() {
                                         disabled={submittingReview}
                                         onClick={handleSubmitReview}
                                     >
-                                        {submittingReview ? 'Đang gửi đánh giá...' : '🚀 Gửi đánh giá ngay'}
+                                        {submittingReview ? 'Đang gửi đánh giá...' : <><Rocket size={16} style={{ verticalAlign: '-3px' }} /> Gửi đánh giá ngay</>}
                                     </button>
                                 </div>
                             )}

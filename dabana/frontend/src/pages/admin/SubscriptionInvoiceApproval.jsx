@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import { subscriptionApi } from '../../api'
@@ -128,8 +129,9 @@ export default function SubscriptionInvoiceApproval() {
                           className="btn-primary btn-sm"
                           disabled={confirmingId === inv.id}
                           onClick={() => confirmPaid(inv)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '.35rem' }}
                         >
-                          {confirmingId === inv.id ? 'Đang xử lý...' : '✓ Xác nhận đã thu tiền'}
+                          {confirmingId === inv.id ? 'Đang xử lý...' : <><Check size={16} /> Xác nhận đã thu tiền</>}
                         </button>
                       )}
                     </td>

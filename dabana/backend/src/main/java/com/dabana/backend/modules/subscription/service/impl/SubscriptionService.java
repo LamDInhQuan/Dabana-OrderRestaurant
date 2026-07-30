@@ -39,7 +39,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
 import vn.payos.exception.PayOSException;
@@ -319,7 +318,6 @@ public class SubscriptionService implements ISubscriptionService {
     // Xac nhan thanh toan (TAM THOI: thu cong qua Admin, chua co payOS)
     // ---------------------------------------------------------------------
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
     public void markInvoicePaidManually(Long invoiceId) {
         SubscriptionInvoice invoice = invoiceRepository.findById(invoiceId)

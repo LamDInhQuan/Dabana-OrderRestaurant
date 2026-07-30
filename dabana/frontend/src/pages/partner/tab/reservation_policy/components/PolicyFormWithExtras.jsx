@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Eye, X } from "lucide-react";
 // Import các sub-components dùng chung
 import PolicyForm from "./PolicyForm";
 import PolicyDateSchedules from "./PolicyDateSchedules";
@@ -83,7 +84,7 @@ export default function PolicyFormWithExtras({
               }}
             >
               {isReadOnly
-                ? "👁️ Chi tiết chính sách mẫu (Chỉ xem)"
+                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Eye size={18} /> Chi tiết chính sách mẫu (Chỉ xem)</span>
                 : isBranchMode
                   ? "Chi tiết chính sách Chi nhánh"
                   : "Cấu hình chính sách Nhà hàng"}
@@ -104,7 +105,7 @@ export default function PolicyFormWithExtras({
               lineHeight: 1,
             }}
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 

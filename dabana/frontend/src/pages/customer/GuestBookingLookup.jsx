@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { bookingApi, authApi } from '../../api'
+import { Search, TriangleAlert, ClipboardList, Home, Calendar, Users, Wallet } from 'lucide-react'
 
 // 1. Khai báo STATUS_META đồng bộ với MyBookings
 const STATUS_META = {
@@ -86,7 +87,7 @@ export default function GuestBookingLookup() {
       
       setBookingList(data)
       
-      // ✅ Lưu vào localStorage để không phải gửi lại OTP khi reload
+      // Lưu vào localStorage để không phải gửi lại OTP khi reload
       localStorage.setItem(STORAGE_KEY_EMAIL, lookupEmail)
       localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(data))
 
@@ -141,7 +142,7 @@ export default function GuestBookingLookup() {
   return (
     <div style={{ marginBottom: '3rem', padding: '1.75rem 2rem', background: '#fdfbf7', border: '1px solid var(--gold, #D4AF37)', borderRadius: 8 }}>
       <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.4rem', fontWeight: 700, color: 'var(--brown, #4A2E19)', marginBottom: '.5rem' }}>
-        🔎 Tra Cứu Đơn Đặt Bàn Khách Hàng
+        <Search size={20} style={{ verticalAlign: '-3px' }} /> Tra Cứu Đơn Đặt Bàn Khách Hàng
       </h3>
       <p style={{ fontSize: '.85rem', color: '#6B7280', marginBottom: '1.25rem' }}>
         Nhập Email đặt bàn để nhận mã OTP xác thực trước khi xem lịch sử đơn.
@@ -149,7 +150,7 @@ export default function GuestBookingLookup() {
 
       {lookupError && (
         <div style={{ padding: '.75rem 1rem', background: '#FEE2E2', color: '#DC2626', fontSize: '.82rem', borderRadius: 4, marginBottom: '1rem' }}>
-          ⚠️ {lookupError}
+          <TriangleAlert size={15} style={{ verticalAlign: '-2px' }} /> {lookupError}
         </div>
       )}
 
@@ -218,7 +219,7 @@ export default function GuestBookingLookup() {
       {bookingList !== null && (
         <div style={{ marginTop: '1.5rem', borderTop: '1px solid #E5E7EB', paddingTop: '1.5rem' }}>
           <h4 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: '#4A2E19' }}>
-            📋 Danh Sách Đơn Đặt Bàn của ({lookupEmail})
+            <ClipboardList size={18} style={{ verticalAlign: '-3px' }} /> Danh Sách Đơn Đặt Bàn của ({lookupEmail})
           </h4>
 
           {bookingList.length === 0 ? (
@@ -250,10 +251,10 @@ export default function GuestBookingLookup() {
                     </div>
 
                     <div style={{ fontSize: '.85rem', color: '#4B5563', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '.6rem' }}>
-                      <div>🏠 Nhà hàng: <b style={{ color: '#111827' }}>{item.branchName || 'Dabana Branch'}</b></div>
-                      <div>📅 Thời gian: <b style={{ color: '#111827' }}>{item.bookingTime ? `${item.bookingTime} - ${item.bookingDate}` : (item.reservationTime ? new Date(item.reservationTime).toLocaleString('vi-VN') : '-')}</b></div>
-                      <div>👥 Số khách: <b style={{ color: '#111827' }}>{item.guestCount} người</b></div>
-                      <div>💰 Tiền cọc: <b style={{ color: '#4A2E19' }}>{item.depositAmount ? `${Number(item.depositAmount).toLocaleString('vi-VN')} đ` : 'Không cọc'}</b></div>
+                      <div><Home size={14} style={{ verticalAlign: '-2px' }} /> Nhà hàng: <b style={{ color: '#111827' }}>{item.branchName || 'Dabana Branch'}</b></div>
+                      <div><Calendar size={14} style={{ verticalAlign: '-2px' }} /> Thời gian: <b style={{ color: '#111827' }}>{item.bookingTime ? `${item.bookingTime} - ${item.bookingDate}` : (item.reservationTime ? new Date(item.reservationTime).toLocaleString('vi-VN') : '-')}</b></div>
+                      <div><Users size={14} style={{ verticalAlign: '-2px' }} /> Số khách: <b style={{ color: '#111827' }}>{item.guestCount} người</b></div>
+                      <div><Wallet size={14} style={{ verticalAlign: '-2px' }} /> Tiền cọc: <b style={{ color: '#4A2E19' }}>{item.depositAmount ? `${Number(item.depositAmount).toLocaleString('vi-VN')} đ` : 'Không cọc'}</b></div>
                     </div>
                   </div>
                 )

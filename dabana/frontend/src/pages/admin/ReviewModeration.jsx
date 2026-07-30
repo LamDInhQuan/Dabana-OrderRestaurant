@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
+import { Star, Eye, Ban, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import { adminApi } from '../../api'
 
 function Stars({ value }) {
-  return <span style={{ color: '#F59E0B' }}>{'★'.repeat(value)}{'☆'.repeat(5 - value)}</span>
+  return (
+    <span style={{ color: '#F59E0B', display: 'inline-flex', verticalAlign: 'middle' }}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star key={i} size={14} fill={i < value ? 'currentColor' : 'none'} />
+      ))}
+    </span>
+  )
 }
 
 export default function ReviewModeration() {
@@ -94,9 +101,9 @@ export default function ReviewModeration() {
               ) : (
                 <div className="flex gap-2">
                   {r.hidden
-                    ? <button className="btn-primary btn-sm" onClick={() => unhide(r.id)}>👁️ Hiện lại</button>
-                    : <button className="btn-danger btn-sm" onClick={() => setReasonFor(r.id)}>🚫 Ẩn đánh giá</button>}
-                  <button className="btn-outline btn-sm" onClick={() => remove(r.id)}>🗑️ Xoá vĩnh viễn</button>
+                    ? <button className="btn-primary btn-sm" onClick={() => unhide(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '.35rem' }}><Eye size={16} /> Hiện lại</button>
+                    : <button className="btn-danger btn-sm" onClick={() => setReasonFor(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '.35rem' }}><Ban size={16} /> Ẩn đánh giá</button>}
+                  <button className="btn-outline btn-sm" onClick={() => remove(r.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '.35rem' }}><Trash2 size={16} /> Xoá vĩnh viễn</button>
                 </div>
               )}
             </div>

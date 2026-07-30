@@ -11,6 +11,7 @@ import DecorationPath from '../partner/tab/table_layout/floorPlanManagement/comp
 import DecorationDoor from '../partner/tab/table_layout/floorPlanManagement/components/DecorationDoor'
 import { parseZoneDecorations } from '../partner/tab/table_layout/floorPlanManagement/components/decorationPresets'
 import ReservationPolicyBanner from './step/ReservationPolicyBanner'
+import { Sparkles, MapPin, Armchair, Clock, Calendar, Users, TriangleAlert, Utensils, Check, Hourglass } from 'lucide-react'
 
 const STEPS = ['Thời gian & bàn', 'Thông tin', 'Đặt món', 'Xác nhận & cọc']
 
@@ -86,30 +87,14 @@ function formatVND(n) {
 // Tính bậc cọc + có yêu cầu cọc theo khung giờ hay không, dùng chung ở bước 1 và bước 4
 function computeDepositInfo(policy, guestCount, timeSlot) {
   if (!policy?.depositRules?.length) return { rule: null, needsDeposit: false }
-
-  // Khung giờ có nằm trong lịch áp cọc không (nếu policy không có schedule nào thì coi như luôn áp dụng)
-  const matchesSchedule = policy.schedules?.some(sch => {
+  const rule = policy.depositRules.find(r => guestCount >= r.minGuest && guestCount <= r.maxGuest) || null
+  if (!rule) return { rule: null, needsDeposit: false }
+  const slotMin = toMinutes(timeSlot)
+  const inSchedule = policy.status === 'ACTIVE' && policy.schedules?.some(sch => {
     if (sch.status !== 'ACTIVE') return false
-    if (!sch.timeFrom || !sch.timeTo) return true
-    const slotMin = toMinutes(timeSlot)
-    return slotMin >= toMinutes(sch.timeFrom) && slotMin <= toMinutes(sch.timeTo)
+    return slotMin >= toMinutes(sch.timeFrom) && slotMin < toMinutes(sch.timeTo)
   })
-  if (policy.schedules?.length > 0 && !matchesSchedule) {
-    return { rule: null, needsDeposit: false }
-  }
-
-  // Tìm rule khớp bậc số khách — cho phép maxGuest = null (không giới hạn trên)
-  const sortedRules = [...policy.depositRules].sort((a, b) => a.minGuest - b.minGuest)
-  let rule = sortedRules.find(
-    r => guestCount >= r.minGuest && (r.maxGuest == null || guestCount <= r.maxGuest)
-  )
-  // Vượt mốc lớn nhất (vd: 9 khách > bậc 5-8) -> lấy bậc cao nhất làm fallback
-  if (!rule && sortedRules.length > 0) {
-    rule = sortedRules[sortedRules.length - 1]
-  }
-
-  const needsDeposit = !!rule && Number(rule.depositValue || 0) > 0
-  return { rule, needsDeposit }
+  return { rule, needsDeposit: !!inSchedule }
 }
 
 export default function BookingFlow() {
@@ -399,13 +384,13 @@ export default function BookingFlow() {
           {/* Tiêu đề hoặc thông tin chi nhánh */}
           <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
             <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 600, color: 'var(--brand)' }}>
-              ✦ Hệ thống đặt bàn trực tuyến
+              <Sparkles size={13} style={{ verticalAlign: '-2px' }} /> Hệ thống đặt bàn trực tuyến
             </span>
             <h1 style={{ fontWeight: 800, fontSize: '1.8rem', marginBottom: '.35rem', color: '#111827' }}>
               Đặt bàn tại {branch?.name || '...'}
             </h1>
             {branch?.address && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}>📍 {branch.address}</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}><MapPin size={14} style={{ verticalAlign: '-2px' }} /> {branch.address}</p>
             )}
           </div>
 
@@ -475,7 +460,6 @@ export default function BookingFlow() {
                   policy={policy} zones={zones}
                   loading={loading}
                   depositAmount={depositAmount}
-                  formatVND={formatVND}
                   onBack={goBack} onSubmit={confirm}
                 />
               )}
@@ -523,7 +507,7 @@ function SelectedTablesByZone({ selectedTables, zones }) {
       {grouped.map(zone => (
         <div key={zone.id}>
           <p style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '.35rem' }}>
-            📍 {zone.zoneName} · {zone.tables.length} bàn
+            <MapPin size={13} style={{ verticalAlign: '-2px' }} /> {zone.zoneName} · {zone.tables.length} bàn
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem' }}>
             {zone.tables.map(table => (
@@ -626,36 +610,10 @@ function StepTimeAndTable({
   )
 
   const isSlotUnderDeposit = (slotTime) => {
-    if (!policy?.depositRules || policy.depositRules.length === 0) return false;
-
-    // 1. Kiểm tra xem slotTime có nằm trong schedule nào của policy này không
-    const matchesSchedule = policy.schedules?.some(sch => {
-      if (!sch.timeFrom || !sch.timeTo) return true;
-      const from = sch.timeFrom.slice(0, 5);
-      const to = sch.timeTo.slice(0, 5);
-      return slotTime >= from && slotTime <= to;
-    });
-
-    // Nếu khung giờ này không nằm trong lịch trình áp dụng policy thì không tính cọc
-    if (policy.schedules?.length > 0 && !matchesSchedule) {
-      return false;
-    }
-
-    // 2. Tìm rule khớp chuẩn xác hoặc lấy rule lớn nhất làm fallback khi vượt mốc (ví dụ 9 khách > mốc 8)
-    const sortedRules = [...policy.depositRules].sort((a, b) => a.minGuest - b.minGuest);
-
-    let matchedRule = sortedRules.find(
-      (r) => guestCount >= r.minGuest && (r.maxGuest === null || guestCount <= r.maxGuest)
-    );
-
-    // Nếu vượt quá mốc lớn nhất (như 9 khách vượt mốc 5-8), ép lấy rule cuối cùng (mốc lớn nhất)
-    if (!matchedRule && sortedRules.length > 0) {
-      matchedRule = sortedRules[sortedRules.length - 1];
-    }
-
-    // Nếu tồn tại rule áp dụng và giá trị cọc > 0 thì khung giờ này bị tính cọc
-    return matchedRule && Number(matchedRule.depositValue || 0) > 0;
-  };
+    if (!policy?.depositRules?.length) return false
+    const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, slotTime)
+    return !!rule && needsDeposit
+  }
 
   const depositLabel = activeDepositRule
     ? activeDepositRule.depositType === 'PER_PERSON'
@@ -739,23 +697,19 @@ function StepTimeAndTable({
               {g.label && <p style={{ fontSize: '.78rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '.4rem' }}>{g.label}</p>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.5rem' }}>
                 {g.slots.map(s => {
-                  const needsDeposit = isSlotUnderDeposit(s);
+                  const needsDeposit = isSlotUnderDeposit(s)
                   return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        console.log('Slot được chọn:', s);
-                        setTimeSlot(s);
-                      }}
+                    <button key={s} type="button" onClick={() => {
+                      console.log('Slot được chọn:', s); // Log ra xem slot có đúng dạng "14:00" không
+                      setTimeSlot(s);
+                    }}
                       className="btn-sm"
                       style={{
                         position: 'relative', overflow: 'visible',
                         background: timeSlot === s ? 'var(--brand)' : needsDeposit ? '#FFFDF7' : 'var(--white)',
                         color: timeSlot === s ? '#fff' : 'var(--text-primary)',
                         border: `1.5px solid ${timeSlot === s ? 'var(--brand)' : needsDeposit ? '#FCD34D' : 'var(--border)'}`,
-                      }}
-                    >
+                      }}>
                       {s}
                       {needsDeposit && (
                         <span
@@ -779,28 +733,26 @@ function StepTimeAndTable({
                         </span>
                       )}
                     </button>
-                  );
+                  )
                 })}
+                {slotGroups.some(g => g.slots.some(isSlotUnderDeposit)) && activeDepositRule && (
+                  <div className="flex items-center gap-2" style={{ marginTop: '.6rem' }}>
+                    <span style={{
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #FBBF24, #F59E0B)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4M3 5v14a2 2 0 0 0 2 2h16v-5M18 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"
+                          stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <p style={{ fontSize: '.72rem', color: '#B45309', margin: 0 }}>
+                      Khung giờ có icon ví yêu cầu đặt cọc theo bậc số khách ở trên
+                    </p>
+                  </div>
+                )}
               </div>
-
-              {/* Chú thích icon cọc đặt đúng phạm vi bên trong nhóm slot hoặc toàn cục */}
-              {g.slots.some(isSlotUnderDeposit) && (
-                <div className="flex items-center gap-2" style={{ marginTop: '.6rem' }}>
-                  <span style={{
-                    width: 18, height: 18, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #FBBF24, #F59E0B)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4M3 5v14a2 2 0 0 0 2 2h16v-5M18 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"
-                        stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                  <p style={{ fontSize: '.72rem', color: '#B45309', margin: 0 }}>
-                    Khung giờ có icon ví yêu cầu đặt cọc theo bậc số khách ở trên
-                  </p>
-                </div>
-              )}
             </div>
           ))}
           {usingFallbackHours && (
@@ -818,7 +770,7 @@ function StepTimeAndTable({
             textAlign: 'left', padding: '.85rem', borderRadius: 10, background: method === 'manual' ? 'var(--brand-light)' : 'var(--white)',
             border: `1.5px solid ${method === 'manual' ? 'var(--brand)' : 'var(--border)'}`,
           }}>
-          <div style={{ fontWeight: 700, fontSize: '.9rem' }}>🪑 Tự chọn bàn</div>
+          <div style={{ fontWeight: 700, fontSize: '.9rem', display: 'flex', alignItems: 'center', gap: '.4rem' }}><Armchair size={16} /> Tự chọn bàn</div>
           <div style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: '.2rem' }}>Chọn trực tiếp trên sơ đồ chi nhánh, có thể chọn nhiều bàn</div>
         </button>
         <button type="button" onClick={() => setMethod('auto')}
@@ -826,7 +778,7 @@ function StepTimeAndTable({
             textAlign: 'left', padding: '.85rem', borderRadius: 10, background: method === 'auto' ? 'var(--brand-light)' : 'var(--white)',
             border: `1.5px solid ${method === 'auto' ? 'var(--brand)' : 'var(--border)'}`,
           }}>
-          <div style={{ fontWeight: 700, fontSize: '.9rem' }}>✨ Để hệ thống đề xuất</div>
+          <div style={{ fontWeight: 700, fontSize: '.9rem', display: 'flex', alignItems: 'center', gap: '.4rem' }}><Sparkles size={16} /> Để hệ thống đề xuất</div>
           <div style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: '.2rem' }}>Dabana chọn bàn phù hợp nhất giúp bạn</div>
         </button>
       </div>
@@ -853,7 +805,7 @@ function StepTimeAndTable({
                   .map(zone => (
                     <div key={zone.id}>
                       <p style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '.3rem' }}>
-                        📍 {zone.zoneName}
+                        <MapPin size={13} style={{ verticalAlign: '-2px' }} /> {zone.zoneName}
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem' }}>
                         {zone.tables.map(t => (
@@ -891,7 +843,7 @@ function StepTimeAndTable({
                     fontWeight: isActive ? 700 : 500, fontSize: '.9rem', cursor: 'pointer',
                     whiteSpace: 'nowrap', marginBottom: '-2px'
                   }}>
-                  📍 {zone.zoneName}{countInZone > 0 ? ` (${countInZone})` : ''}
+                  <MapPin size={13} style={{ verticalAlign: '-2px' }} /> {zone.zoneName}{countInZone > 0 ? ` (${countInZone})` : ''}
                 </button>
               );
             })}
@@ -899,7 +851,7 @@ function StepTimeAndTable({
 
           {!timeSlot ? (
             <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', padding: '.875rem', background: '#F8FAFC', borderRadius: 8 }}>
-              ⏰ Vui lòng chọn khung giờ đến ở trên để xem tình trạng bàn trống.
+              <Clock size={15} style={{ verticalAlign: '-2px' }} /> Vui lòng chọn khung giờ đến ở trên để xem tình trạng bàn trống.
             </p>
           ) : tablesLoading ? (
             <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>Đang tải tình trạng bàn...</p>
@@ -954,7 +906,7 @@ function StepContact({
   const [resendCooldown, setResendCooldown] = useState(0) // Cooldown nút Gửi lại (60s)
   const [isSendingOtp, setIsSendingOtp] = useState(false)
 
-  // 🔄 KHI LOAD/RELOAD TRANG (F5): Lấy lại thời gian còn lại từ sessionStorage
+  // KHI LOAD/RELOAD TRANG (F5): Lấy lại thời gian còn lại từ sessionStorage
   useEffect(() => {
     const savedOtpExpire = sessionStorage.getItem(OTP_EXPIRE_KEY)
     const savedResendExpire = sessionStorage.getItem(RESEND_EXPIRE_KEY)
@@ -972,7 +924,7 @@ function StepContact({
     }
   }, [])
 
-  // ⏱️ TIMER ĐẾM NGUỢC MỖI GIÂY
+  // TIMER ĐẾM NGUỢC MỖI GIÂY
   useEffect(() => {
     const timer = setInterval(() => {
       setOtpTtl(prev => (prev > 0 ? prev - 1 : 0))
@@ -990,7 +942,7 @@ function StepContact({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 🚀 XỬ LÝ GỬI OTP
+  // XỬ LÝ GỬI OTP
   const handleSendOtpClick = async () => {
     if (!contactEmail) {
       alert('Vui lòng nhập Email trước khi nhận mã OTP!')
@@ -1036,11 +988,11 @@ function StepContact({
         display: 'flex', flexWrap: 'wrap', gap: '.5rem', marginBottom: '.9rem',
         padding: '.75rem .9rem', background: 'var(--brand-light)', borderRadius: 8, fontSize: '.85rem'
       }}>
-        <span>📅 {d}/{m}/{y}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Calendar size={14} /> {d}/{m}/{y}</span>
         <span>·</span>
-        <span>🕐 {timeSlot}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Clock size={14} /> {timeSlot}</span>
         <span>·</span>
-        <span>👥 {guestCount} khách</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Users size={14} /> {guestCount} khách</span>
       </div>
 
       {method === 'manual' && selectedTables?.length > 0 && (
@@ -1050,7 +1002,7 @@ function StepContact({
       )}
       {method === 'auto' && (
         <p style={{ marginBottom: '1.1rem', fontSize: '.85rem', color: 'var(--text-muted)' }}>
-          🪑 Hệ thống sẽ tự động bố trí bàn phù hợp cho {guestCount} khách.
+          <Armchair size={14} style={{ verticalAlign: '-2px' }} /> Hệ thống sẽ tự động bố trí bàn phù hợp cho {guestCount} khách.
         </p>
       )}
 
@@ -1106,12 +1058,12 @@ function StepContact({
             {/* Thông báo thời gian OTP */}
             {otpTtl > 0 && (
               <small style={{ color: '#ff6600', display: 'block', marginTop: '4px', fontSize: '.75rem' }}>
-                ⏱️ Mã OTP có hiệu lực trong <b>{formatTime(otpTtl)}</b>
+                <Clock size={13} style={{ verticalAlign: '-2px' }} /> Mã OTP có hiệu lực trong <b>{formatTime(otpTtl)}</b>
               </small>
             )}
             {otpTtl === 0 && sessionStorage.getItem(OTP_EXPIRE_KEY) && (
               <small style={{ color: 'red', display: 'block', marginTop: '4px', fontSize: '.75rem' }}>
-                ⚠️ Mã OTP đã hết hạn. Vui lòng bấm "Gửi mã OTP" để nhận mã mới.
+                <TriangleAlert size={13} style={{ verticalAlign: '-2px' }} /> Mã OTP đã hết hạn. Vui lòng bấm "Gửi mã OTP" để nhận mã mới.
               </small>
             )}
           </div>
@@ -1146,7 +1098,7 @@ function StepContact({
                       fontWeight: isActive ? 700 : 500, fontSize: '.85rem', cursor: 'pointer',
                       whiteSpace: 'nowrap', marginBottom: '-2px'
                     }}>
-                    📍 {zone.zoneName}
+                    <MapPin size={13} style={{ verticalAlign: '-2px' }} /> {zone.zoneName}
                   </button>
                 )
               })}
@@ -1213,7 +1165,7 @@ function StepMenu({ categories, menuLoading, activeCategory, setActiveCategory, 
                   width: 52, height: 52, borderRadius: 8, flexShrink: 0, overflow: 'hidden',
                   background: 'var(--brand-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem'
                 }}>
-                  {m.imageUrl ? <img src={m.imageUrl} alt={m.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🍽️'}
+                  {m.imageUrl ? <img src={m.imageUrl} alt={m.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Utensils size={22} />}
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontWeight: 600, fontSize: '.9rem' }}>{m.itemName}</p>
@@ -1254,10 +1206,11 @@ function StepConfirm({
   contactName, contactPhone, note,
   allMenuItems, cart, itemsInCart, preOrderTotal,
   policy, zones,
-  loading, depositAmount, formatVND, // <-- Đã bổ sung formatVND ở đây
+  loading, depositAmount,
   onBack, onSubmit
 }) {
   const [y, m, d] = date.split('-')
+  const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, timeSlot)
 
   const cartItems = Object.entries(cart)
     .filter(([, q]) => q > 0)
@@ -1326,10 +1279,9 @@ function StepConfirm({
           </div>
         )}
 
-        {/* Thông tin chính sách cọc */}
-        {policy && (
-          <p style={{ fontSize: '.78rem', color: Number(depositAmount) > 0 ? '#B45309' : 'var(--text-muted)', marginTop: '1rem' }}>
-            {Number(depositAmount) > 0
+        {rule && (
+          <p style={{ fontSize: '.78rem', color: needsDeposit ? '#B45309' : 'var(--text-muted)', marginTop: '1rem' }}>
+            {needsDeposit
               ? `Khung giờ này yêu cầu đặt cọc theo chính sách ${policy?.policy?.name || ''}. Hủy trước 2 giờ được hoàn 100% cọc; hủy trong vòng 2 giờ hoặc không đến sẽ không hoàn cọc.`
               : 'Không yêu cầu đặt cọc cho lượt đặt bàn này.'}
           </p>
@@ -1452,7 +1404,7 @@ function BookingSuccess({ booking, branchId, zones, onGoToBookings, onGoHome }) 
           <span style={{
             width: 34, height: 34, borderRadius: '50%', background: '#22C55E',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0
-          }}>✓</span>
+          }}><Check size={18} /></span>
           <div>
             <h2 style={{ fontWeight: 700, fontSize: '1.15rem' }}>Đặt bàn thành công!</h2>
             <p style={{ fontSize: '.8rem', color: 'var(--text-muted)' }}>Mã đặt bàn #{booking?.id}</p>
@@ -1467,7 +1419,7 @@ function BookingSuccess({ booking, branchId, zones, onGoToBookings, onGoHome }) 
             border: `1.5px solid ${isExpiringSoon ? '#FCA5A5' : '#BFDBFE'}`,
           }}>
             <span style={{ fontSize: '.85rem', color: isExpiringSoon ? '#B91C1C' : '#1D4ED8', fontWeight: 600 }}>
-              {isExpired ? '⏰ Hết hạn giữ bàn' : '⏳ Bàn đang được giữ trong'}
+              {isExpired ? <><Clock size={14} style={{ verticalAlign: '-2px' }} /> Hết hạn giữ bàn</> : <><Hourglass size={14} style={{ verticalAlign: '-2px' }} /> Bàn đang được giữ trong</>}
             </span>
             {!isExpired && (
               <strong style={{ fontSize: '1.1rem', color: isExpiringSoon ? '#B91C1C' : '#1D4ED8', fontVariantNumeric: 'tabular-nums' }}>
@@ -1552,7 +1504,7 @@ function BookingSuccess({ booking, branchId, zones, onGoToBookings, onGoHome }) 
                         fontWeight: isActive ? 700 : 500, fontSize: '.85rem', cursor: 'pointer',
                         whiteSpace: 'nowrap', marginBottom: '-2px'
                       }}>
-                      📍 {zone.zoneName}
+                      <MapPin size={13} style={{ verticalAlign: '-2px' }} /> {zone.zoneName}
                     </button>
                   )
                 })}

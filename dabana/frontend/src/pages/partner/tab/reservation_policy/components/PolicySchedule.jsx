@@ -30,7 +30,7 @@ export default function PolicySchedule({
     }
   };
 
-  // 🎯 Tối ưu hàm đổi loại áp dụng: Clear sạch state không liên quan để tránh rác dữ liệu gửi lên Spring Boot
+  // Tối ưu hàm đổi loại áp dụng: Clear sạch state không liên quan để tránh rác dữ liệu gửi lên Spring Boot
   const handleTypeChange = (newType) => {
     onApplyTypeChange(newType);
     if (newType === "ALWAYS") {
@@ -72,7 +72,7 @@ export default function PolicySchedule({
               type="radio"
               name="applyType"
               checked={applyType === opt.value}
-              onChange={() => handleTypeChange(opt.value)} // ✅ Sử dụng hàm thay đổi an toàn mới
+              onChange={() => handleTypeChange(opt.value)} // Sử dụng hàm thay đổi an toàn mới
             />
             {opt.label}
           </label>
@@ -143,7 +143,7 @@ export default function PolicySchedule({
               type="date"
               style={S.input}
               value={dateTo || ""}
-              min={dateFrom || ""} // 🎯 Chặn không cho chọn ngày kết thúc nhỏ hơn ngày bắt đầu
+              min={dateFrom || ""} // Chặn không cho chọn ngày kết thúc nhỏ hơn ngày bắt đầu
               onChange={(e) => onDateToChange(e.target.value)}
               required={applyType === "DATE_RANGE"}
             />

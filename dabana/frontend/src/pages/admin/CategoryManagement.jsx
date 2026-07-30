@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
+import { Folder, Lightbulb, Pencil, Plus, Save, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import { adminApi } from '../../api'
 
-const DEFAULT_CONFIG = { color: '#6366f1', bg: '#e0e7ff', icon: '📁' }
+const DEFAULT_CONFIG = { color: '#6366f1', bg: '#e0e7ff', icon: <Folder size={18} /> }
 
 export default function CategoryManagement() {
   const [categories, setCategories] = useState([])
@@ -93,15 +94,15 @@ export default function CategoryManagement() {
     <AdminLayout title="Quản lý danh mục hệ thống">
       {/* Hướng dẫn người dùng */}
       <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '0.85rem 1.2rem', marginBottom: '1.5rem', color: '#1e40af', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span>💡</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}><Lightbulb size={18} /></span>
         <span><strong>Hướng dẫn:</strong> Chọn phân loại có sẵn hoặc bấm vào nút <em>"+ Thêm nhóm mới"</em> để tự nhập nhóm phân loại tùy ý (Backend sẽ tự động đính kèm tiền tố <code style={{ background: '#dbeafe', padding: '2px 6px', borderRadius: '4px', color: '#1d4ed8' }}>CUISINE_</code>).</span>
       </div>
 
       {/* Form Thêm / Sửa Danh mục */}
       <div className="card" style={{ marginBottom: '2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', borderRadius: '12px', padding: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <h3 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main, #1f2937)' }}>
-            {editing ? `✏️ Đang sửa: "${editing.categoryName}"` : '➕ Thêm danh mục mới'}
+          <h3 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main, #1f2937)', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}>
+            {editing ? <><Pencil size={18} /> Đang sửa: "{editing.categoryName}"</> : <><Plus size={18} /> Thêm danh mục mới</>}
           </h3>
           {editing && (
             <button 
@@ -173,9 +174,9 @@ export default function CategoryManagement() {
               className="btn-primary" 
               type="submit" 
               disabled={submitting}
-              style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}
+              style={{ padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}
             >
-              {submitting ? 'Đang lưu...' : (editing ? '💾 Lưu thay đổi' : '✨ Thêm mới')}
+              {submitting ? 'Đang lưu...' : (editing ? <><Save size={16} /> Lưu thay đổi</> : <><Sparkles size={16} /> Thêm mới</>)}
             </button>
             {editing && (
               <button 

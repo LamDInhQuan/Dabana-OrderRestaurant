@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Folder, Check, Plus } from 'lucide-react'
 import { S } from '../theme'
 
 // Component chọn Ngành ẩm thực phân cấp gọn gàng
@@ -82,7 +83,7 @@ export default function CuisineSelector({ systemCuisines = [], restaurantForm, s
                 transition: 'all 0.2s'
               }}
             >
-              📁 {group}
+              <Folder size={14} style={{ verticalAlign: '-2px' }} /> {group}
             </button>
           )
         })}
@@ -123,7 +124,7 @@ export default function CuisineSelector({ systemCuisines = [], restaurantForm, s
                   gap: '4px'
                 }}
               >
-                {isSelected ? '✓ ' : '+ '} {cat.categoryName}
+                {isSelected ? <Check size={14} /> : <Plus size={14} />} {cat.categoryName}
               </button>
             )
           })

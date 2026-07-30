@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Calendar, Clock, Eye, Lightbulb, Pencil, Plus, TriangleAlert } from "lucide-react";
 import toast from "react-hot-toast";
 // Import cả 2 api service để phân tách logic chi nhánh và template
 import { reservationPolicyApi, branchPolicyApi } from "../../../../../api";
@@ -379,15 +380,15 @@ function PolicyDateSchedules({
           )}
 
           {scheduleType === "DATE_RANGE" && (
-            <span style={ui.dateText}>📅 {formatDateRangeDisplay(s.dateFrom, s.dateTo)}</span>
+            <span style={ui.dateText}><Calendar size={14} style={{ verticalAlign: '-2px' }} /> {formatDateRangeDisplay(s.dateFrom, s.dateTo)}</span>
           )}
 
           {hasTime ? (
             <span style={ui.timeText}>
-              ⏰ {formatTimeVN(s.timeFrom)} - {formatTimeVN(s.timeTo)}
+              <Clock size={13} style={{ verticalAlign: '-2px' }} /> {formatTimeVN(s.timeFrom)} - {formatTimeVN(s.timeTo)}
             </span>
           ) : (
-            <span style={ui.allDayTag}>⏰ Cả ngày</span>
+            <span style={ui.allDayTag}><Clock size={13} style={{ verticalAlign: '-2px' }} /> Cả ngày</span>
           )}
         </div>
 
@@ -420,7 +421,7 @@ function PolicyDateSchedules({
     <section style={ui.panel}>
       <header style={ui.panelHeader}>
         <div style={ui.panelHeaderLeft}>
-          <span style={ui.panelIcon}>📅</span>
+          <span style={ui.panelIcon}><Calendar size={18} /></span>
           <div>
             <div style={ui.panelTitle}>
               Lịch áp dụng {scheduleType === "ALWAYS" ? "(Luôn luôn)" : scheduleType === "DAY_OF_WEEK" ? "(Theo thứ)" : "(Theo khoảng ngày / sự kiện)"}
@@ -428,7 +429,7 @@ function PolicyDateSchedules({
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
-          {readOnly && <span style={ui.readOnlyBadge}>👁️ Chỉ xem</span>}
+          {readOnly && <span style={ui.readOnlyBadge}><Eye size={13} style={{ verticalAlign: '-2px' }} /> Chỉ xem</span>}
           <span style={ui.countPill}>{items.length} bản ghi</span>
         </div>
       </header>
@@ -456,16 +457,18 @@ function PolicyDateSchedules({
         <>
           {shouldHideForm ? (
             <div style={ui.fullNotice}>
-              💡 Lịch cố định (Luôn luôn) chỉ cần 1 cấu hình chung. Bấm <b>"Sửa"</b> ở bản ghi trên nếu bạn muốn thay đổi.
+              <Lightbulb size={16} style={{ verticalAlign: '-2px' }} /> Lịch cố định (Luôn luôn) chỉ cần 1 cấu hình chung. Bấm <b>"Sửa"</b> ở bản ghi trên nếu bạn muốn thay đổi.
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={ui.form}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem" }}>
                 <span style={{ fontSize: ".82rem", fontWeight: 700, color: "#4B5563" }}>
-                  {isEditing ? "✏️ Chỉnh sửa lịch áp dụng" : "➕ Thêm lịch áp dụng mới"}
+                  {isEditing
+                    ? <><Pencil size={14} style={{ verticalAlign: '-2px' }} /> Chỉnh sửa lịch áp dụng</>
+                    : <><Plus size={14} style={{ verticalAlign: '-2px' }} /> Thêm lịch áp dụng mới</>}
                 </span>
                 <span style={{ fontSize: ".72rem", color: "#6B7280", fontStyle: "italic" }}>
-                  💡 Mẹo: Bỏ trống khung giờ nếu muốn áp dụng <b>Cả ngày</b>
+                  <Lightbulb size={13} style={{ verticalAlign: '-2px' }} /> Mẹo: Bỏ trống khung giờ nếu muốn áp dụng <b>Cả ngày</b>
                 </span>
               </div>
 
@@ -598,7 +601,7 @@ function PolicyDateSchedules({
       {!readOnly && deleteId && (
         <div style={ui.modalOverlay}>
           <div style={ui.modalCard}>
-            <div style={ui.modalIcon}>⚠️</div>
+            <div style={ui.modalIcon}><TriangleAlert size={36} color="#F59E0B" /></div>
             <h4 style={ui.modalTitle}>Xác nhận xóa lịch áp dụng</h4>
             <p style={ui.modalBody}>
               Bạn có chắc chắn muốn xóa cấu hình lịch áp dụng này không? Thao tác này không thể hoàn tác.

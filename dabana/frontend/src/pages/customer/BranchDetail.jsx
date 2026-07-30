@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import { branchApi, menuApi, reviewApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
+import { MapPin, Star, Search, Phone, Map, Soup, Home, ChefHat, Utensils, Calendar } from 'lucide-react'
 
 function unwrap(res) {
   const d = res?.data
@@ -104,11 +105,11 @@ export default function BranchDetail() {
               {branch.name}
             </h1>
             <p style={{ opacity: .95, fontSize: '.95rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              📍 {branch.address} {branch.province ? `(${branch.province})` : ''}
+              <MapPin size={16} /> {branch.address} {branch.province ? `(${branch.province})` : ''}
             </p>
             {avgRating && (
               <p style={{ opacity: .9, fontSize: '.9rem', marginTop: '.3rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ color: '#FBBF24' }}>⭐</span> <strong>{avgRating}</strong> · {reviews.length} đánh giá từ thực khách
+                <span style={{ color: '#FBBF24', display: 'inline-flex' }}><Star size={16} fill="currentColor" /></span> <strong>{avgRating}</strong> · {reviews.length} đánh giá từ thực khách
               </p>
             )}
           </div>
@@ -122,7 +123,7 @@ export default function BranchDetail() {
                 display: 'flex', alignItems: 'center', gap: '5px', transition: 'background 0.2s', flexShrink: 0
               }}
             >
-              🔍 Xem ảnh bìa
+              <Search size={16} /> Xem ảnh bìa
             </button>
           )}
         </div>
@@ -150,11 +151,11 @@ export default function BranchDetail() {
             <div className="card" style={{ padding: '1.25rem', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <h2 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '.75rem', color: '#111827' }}>Về chi nhánh</h2>
               <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, fontSize: '.92rem' }}>
-                📍 <strong>Địa chỉ chi tiết:</strong> {branch.address || 'Chưa cập nhật địa chỉ.'} {branch.province ? `- ${branch.province}` : ''}
+                <MapPin size={16} style={{ verticalAlign: '-3px' }} /> <strong>Địa chỉ chi tiết:</strong> {branch.address || 'Chưa cập nhật địa chỉ.'} {branch.province ? `- ${branch.province}` : ''}
               </p>
               {branch.phone && (
                 <p style={{ color: 'var(--text-muted)', marginTop: '.5rem', fontSize: '.92rem' }}>
-                  ☎️ <strong>Hotline liên hệ:</strong> <a href={`tel:${branch.phone}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{branch.phone}</a>
+                  <Phone size={16} style={{ verticalAlign: '-3px' }} /> <strong>Hotline liên hệ:</strong> <a href={`tel:${branch.phone}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{branch.phone}</a>
                 </p>
               )}
             </div>
@@ -170,7 +171,7 @@ export default function BranchDetail() {
                     rel="noopener noreferrer"
                     style={{ fontSize: '.82rem', color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}
                   >
-                    🗺️ Mở Google Maps lớn &rarr;
+                    <Map size={15} style={{ verticalAlign: '-2px' }} /> Mở Google Maps lớn &rarr;
                   </a>
                 </div>
                 <div style={{ width: '100%', height: 260, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)' }}>
@@ -259,7 +260,7 @@ export default function BranchDetail() {
                             cursor: item.imageUrl ? 'pointer' : 'default'
                           }}
                         >
-                          {item.imageUrl ? <img src={item.imageUrl} alt={item.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🍜'}
+                          {item.imageUrl ? <img src={item.imageUrl} alt={item.itemName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Soup size={24} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <h4 style={{ fontWeight: 700, fontSize: '.92rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.itemName}</h4>
@@ -301,7 +302,7 @@ export default function BranchDetail() {
                         <span style={{ fontWeight: 700, fontSize: '.9rem', marginRight: '8px' }}>
                           {r.customer?.fullName || r.customerName || 'Khách hàng ẩn danh'}
                         </span>
-                        <span style={{ color: '#FBBF24', fontSize: '.85rem' }}>{'⭐'.repeat(itemAvg)}</span>
+                        <span style={{ color: '#FBBF24', fontSize: '.85rem', display: 'inline-flex' }}>{Array.from({ length: itemAvg }, (_, i) => <Star key={i} size={13} fill="currentColor" />)}</span>
                       </div>
                       <span style={{ fontSize: '.78rem', color: 'var(--text-muted)' }}>
                         {r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN') : ''}
@@ -309,9 +310,9 @@ export default function BranchDetail() {
                     </div>
 
                     <div className="flex gap-3" style={{ marginBottom: '.5rem', fontSize: '.82rem', background: '#f9fafb', padding: '6px 10px', borderRadius: 6 }}>
-                      <span>🏠 Không gian: <strong>{r.spaceRating}/5</strong></span>
-                      <span>👨‍🍳 Phục vụ: <strong>{r.serviceRating}/5</strong></span>
-                      <span>🍴 Đồ ăn: <strong>{r.foodRating}/5</strong></span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.25rem' }}><Home size={13} /> Không gian: <strong>{r.spaceRating}/5</strong></span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.25rem' }}><ChefHat size={13} /> Phục vụ: <strong>{r.serviceRating}/5</strong></span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.25rem' }}><Utensils size={13} /> Đồ ăn: <strong>{r.foodRating}/5</strong></span>
                     </div>
 
                     {r.comment && <p style={{ color: 'var(--text-muted)', fontSize: '.88rem', lineHeight: 1.5, marginBottom: '.75rem' }}>{r.comment}</p>}
@@ -334,7 +335,7 @@ export default function BranchDetail() {
           <button className="btn-primary"
             style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', fontWeight: 700, borderRadius: 12, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
             onClick={() => navigate(`/booking/${id}`)}>
-            🗓️ Đặt bàn tại chi nhánh này
+            <Calendar size={18} style={{ verticalAlign: '-3px' }} /> Đặt bàn tại chi nhánh này
           </button>
         </div>
       </div>

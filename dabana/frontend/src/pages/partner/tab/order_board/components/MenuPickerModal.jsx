@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { X, ShoppingCart, Trash2, Check } from 'lucide-react'
 import { menuApi } from '../../../../../api'
 import { formatMoney } from './statusMeta'
 import { resizedImageUrl, IMAGE_PRESETS } from '../../menu/utils/imageProxy'
@@ -154,7 +155,7 @@ export default function MenuPickerModal({ open, branchId, tableName, onClose, on
                 {tableName ? `Chọn món cho ${tableName}` : 'Chọn món để thêm vào đơn'}
               </p>
             </div>
-            <button className="btn-outline btn-sm" onClick={onClose}>✕ Đóng</button>
+            <button className="btn-outline btn-sm" onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><X size={16} /> Đóng</button>
           </div>
         </div>
 
@@ -201,8 +202,8 @@ export default function MenuPickerModal({ open, branchId, tableName, onClose, on
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
-                  <button className="btn-outline btn-sm" onClick={() => setViewMode('cart')} disabled={cartCount === 0}>
-                    🛒 Xem giỏ món{cartCount > 0 ? ` (${cartCount})` : ''}
+                  <button className="btn-outline btn-sm" onClick={() => setViewMode('cart')} disabled={cartCount === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                    <ShoppingCart size={16} /> Xem giỏ món{cartCount > 0 ? ` (${cartCount})` : ''}
                   </button>
                 </div>
 
@@ -273,7 +274,7 @@ export default function MenuPickerModal({ open, branchId, tableName, onClose, on
                               <button className="btn-outline btn-sm" style={{ padding: '.15rem .5rem' }}
                                 onClick={() => changeCartQty(line.id, line.quantity + 1)}>+</button>
                               <button className="btn-outline btn-sm" style={{ padding: '.15rem .5rem', color: '#EF4444', borderColor: '#EF444455' }}
-                                onClick={() => removeFromCart(line.id)}>🗑</button>
+                                onClick={() => removeFromCart(line.id)}><Trash2 size={16} /></button>
                             </div>
                           </div>
                         </div>
@@ -295,8 +296,8 @@ export default function MenuPickerModal({ open, branchId, tableName, onClose, on
             <span style={{ fontSize: '.85rem', color: '#8A6E57' }}>
               {cartCount > 0 ? `${cartCount} món · ${formatMoney(cartTotal)}` : 'Chưa chọn món nào'}
             </span>
-            <button className="btn-primary btn-sm" disabled={cartCount === 0 || submitting} onClick={handleConfirm}>
-              {submitting ? 'Đang thêm...' : `✅ Xác nhận thêm món${cartCount > 0 ? ` (${cartCount})` : ''}`}
+            <button className="btn-primary btn-sm" disabled={cartCount === 0 || submitting} onClick={handleConfirm} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+              {submitting ? 'Đang thêm...' : <><Check size={16} /> Xác nhận thêm món{cartCount > 0 ? ` (${cartCount})` : ''}</>}
             </button>
           </div>
         </div>

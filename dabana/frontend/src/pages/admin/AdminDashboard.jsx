@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Users, Building2, Store, Calendar, Star, Wallet, User, TriangleAlert } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import { adminApi } from '../../api'
@@ -32,11 +33,11 @@ function timeAgo(iso) {
 }
 
 const ACTIVITY_ICON = {
-  USER_REGISTERED: '👤',
-  RESTAURANT_SUBMITTED: '🏢',
-  BRANCH_SUBMITTED: '🏪',
-  BOOKING_CREATED: '📅',
-  REVIEW_POSTED: '⭐',
+  USER_REGISTERED: <User size={16} />,
+  RESTAURANT_SUBMITTED: <Building2 size={16} />,
+  BRANCH_SUBMITTED: <Store size={16} />,
+  BOOKING_CREATED: <Calendar size={16} />,
+  REVIEW_POSTED: <Star size={16} />,
 }
 
 export default function AdminDashboard() {
@@ -64,14 +65,14 @@ export default function AdminDashboard() {
       {loading ? <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p> : (
         <>
           <div className="grid-3" style={{ marginBottom: '2rem' }}>
-            <StatCard icon="👥" label="Tổng người dùng"    value={summary?.totalUsers || 0}       color="var(--brand)" />
-            <StatCard icon="🏢" label="Tổng nhà hàng"      value={summary?.totalRestaurants || 0}  color="#8B5CF6" />
-            <StatCard icon="🏪" label="Tổng chi nhánh"     value={summary?.totalBranches || 0}     color="#22C55E" />
-            <StatCard icon="📅" label="Tổng lượt đặt bàn"  value={summary?.totalBookings || 0}     color="#3B82F6"
+            <StatCard icon={<Users size={26} color="var(--brand)" />} label="Tổng người dùng"    value={summary?.totalUsers || 0}       color="var(--brand)" />
+            <StatCard icon={<Building2 size={26} color="#8B5CF6" />} label="Tổng nhà hàng"      value={summary?.totalRestaurants || 0}  color="#8B5CF6" />
+            <StatCard icon={<Store size={26} color="#22C55E" />} label="Tổng chi nhánh"     value={summary?.totalBranches || 0}     color="#22C55E" />
+            <StatCard icon={<Calendar size={26} color="#3B82F6" />} label="Tổng lượt đặt bàn"  value={summary?.totalBookings || 0}     color="#3B82F6"
               sub={`${summary?.completedBookings || 0} hoàn tất · ${summary?.noShowBookings || 0} không đến`} />
-            <StatCard icon="⭐" label="Tổng đánh giá"       value={summary?.totalReviews || 0}      color="#F59E0B"
+            <StatCard icon={<Star size={26} color="#F59E0B" />} label="Tổng đánh giá"       value={summary?.totalReviews || 0}      color="#F59E0B"
               sub={`${summary?.hiddenReviews || 0} đã ẩn`} />
-            <StatCard icon="💰" label="Doanh thu (tạm tính)" value={formatVnd(summary?.totalRevenue)} color="#16A34A" />
+            <StatCard icon={<Wallet size={26} color="#16A34A" />} label="Doanh thu (tạm tính)" value={formatVnd(summary?.totalRevenue)} color="#16A34A" />
           </div>
 
           {/* Pending approvals */}
@@ -79,22 +80,22 @@ export default function AdminDashboard() {
           <div className="grid-3" style={{ marginBottom: '2rem' }}>
             <Link to="/admin/approvals?tab=users" style={{ textDecoration: 'none' }}>
               <div className="card" style={{ border: pending.users > 0 ? '2px solid var(--accent)' : '1px solid var(--border)', cursor: 'pointer' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '.4rem' }}>👤</div>
+                <div style={{ marginBottom: '.4rem' }}><User size={24} color="var(--accent)" /></div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent)' }}>{pending.users}</div>
                 <div style={{ fontSize: '.87rem', fontWeight: 600 }}>Tài khoản đối tác</div>
-                {pending.users > 0 && <div style={{ fontSize: '.78rem', color: 'var(--accent)', marginTop: '.2rem' }}>⚠️ Cần duyệt</div>}
+                {pending.users > 0 && <div style={{ fontSize: '.78rem', color: 'var(--accent)', marginTop: '.2rem', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><TriangleAlert size={14} /> Cần duyệt</div>}
               </div>
             </Link>
             <Link to="/admin/approvals?tab=restaurants" style={{ textDecoration: 'none' }}>
               <div className="card" style={{ border: pending.restaurants > 0 ? '2px solid #F59E0B' : '1px solid var(--border)', cursor: 'pointer' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '.4rem' }}>🏢</div>
+                <div style={{ marginBottom: '.4rem' }}><Building2 size={24} color="#F59E0B" /></div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F59E0B' }}>{pending.restaurants}</div>
                 <div style={{ fontSize: '.87rem', fontWeight: 600 }}>Hồ sơ nhà hàng</div>
               </div>
             </Link>
             <Link to="/admin/approvals?tab=branches" style={{ textDecoration: 'none' }}>
               <div className="card" style={{ border: pending.branches > 0 ? '2px solid #3B82F6' : '1px solid var(--border)', cursor: 'pointer' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '.4rem' }}>🏪</div>
+                <div style={{ marginBottom: '.4rem' }}><Store size={24} color="#3B82F6" /></div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#3B82F6' }}>{pending.branches}</div>
                 <div style={{ fontSize: '.87rem', fontWeight: 600 }}>Chi nhánh</div>
               </div>

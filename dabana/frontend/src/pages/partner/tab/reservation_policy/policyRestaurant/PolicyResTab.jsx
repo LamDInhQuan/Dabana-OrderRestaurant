@@ -26,7 +26,7 @@ function PolicyResTab({ restaurantId }) {
     }
   };
 
-  // 🟢 HÀM MỚI: Tải lại chi tiết của policy đang mở trong Modal
+  // HÀM MỚI: Tải lại chi tiết của policy đang mở trong Modal
   const fetchPolicyDetail = async () => {
     const policyIdToFetch = selectedPolicyId || policyDetail?.id;
     if (!restaurantId || !policyIdToFetch) return;
@@ -99,13 +99,13 @@ function PolicyResTab({ restaurantId }) {
 
       {isModalOpen && (
         <PolicyFormModal
-          // 🔴 BỎ KEY NÀY ĐI HOẶC CHỈ ĐỂ policyDetail?.id NẾU CẦN RESET
+          // BỎ KEY NÀY ĐI HOẶC CHỈ ĐỂ policyDetail?.id NẾU CẦN RESET
           // key={policyDetail?.id || "new"} 
           restaurantId={restaurantId}
           initialData={policyDetail}
           loading={loadingDetail}
           onSave={handleSavePolicy}
-          onRefresh={fetchPolicyDetail} // 🟢 ĐỔI THÀNH fetchPolicyDetail VÀO ĐÂY!
+          onRefresh={fetchPolicyDetail} // ĐỔI THÀNH fetchPolicyDetail VÀO ĐÂY!
           onClose={handleCloseModal}
         />
       )}

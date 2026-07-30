@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import { subscriptionApi } from '../../api'
@@ -57,8 +58,8 @@ export default function SubscriptionPayosConfigPage() {
         <>
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
-              <span className={`badge ${config?.configured ? 'badge-green' : 'badge-red'}`}>
-                {config?.configured ? '✓ Đã cấu hình' : '✗ Chưa cấu hình'}
+              <span className={`badge ${config?.configured ? 'badge-green' : 'badge-red'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                {config?.configured ? <><Check size={14} /> Đã cấu hình</> : <><X size={14} /> Chưa cấu hình</>}
               </span>
               {config?.isActive === false && <span className="badge badge-gray">Đang tắt</span>}
             </div>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Lightbulb, Users, Armchair, Pencil, Sparkles, Utensils, TriangleAlert } from "lucide-react";
 import toast from "react-hot-toast";
 import { branchPolicyApi, reservationPolicyApi } from "../../../../../api";
 
@@ -203,7 +204,7 @@ function PolicyDepositRules({
       {/* Bảng danh sách quy tắc */}
       {rules.length === 0 ? (
         <div style={ui.emptyBox}>
-          <span style={ui.emptyIcon}>💡</span>
+          <span style={ui.emptyIcon}><Lightbulb size={18} /></span>
           <span>Chưa có quy tắc riêng. Hệ thống sẽ áp dụng theo chính sách cọc mặc định của nhà hàng.</span>
         </div>
       ) : (
@@ -237,11 +238,11 @@ function PolicyDepositRules({
                         backgroundColor: isCurrentEditing ? "#FEFCE8" : "transparent",
                       }}
                     >
-                      <td style={ui.tdBold}>👥 {fmtGuestRange(r)}</td>
+                      <td style={ui.tdBold}><Users size={14} style={{ verticalAlign: '-2px' }} /> {fmtGuestRange(r)}</td>
 
                       <td style={ui.td}>
                         {r.maxTables ? (
-                          <span style={ui.tableTag}>🪑 Tối đa {r.maxTables} bàn</span>
+                          <span style={ui.tableTag}><Armchair size={13} style={{ verticalAlign: '-2px' }} /> Tối đa {r.maxTables} bàn</span>
                         ) : (
                           <span style={ui.textMuted}>K giới hạn</span>
                         )}
@@ -309,7 +310,7 @@ function PolicyDepositRules({
       {!readOnly && (
         <form onSubmit={handleSubmit} style={ui.formCard}>
           <div style={ui.formHeader}>
-            <span style={ui.formHeaderIcon}>{isEditing ? "✏️" : "✦"}</span>
+            <span style={ui.formHeaderIcon}>{isEditing ? <Pencil size={16} /> : <Sparkles size={16} />}</span>
             <span>{isEditing ? "Cập nhật quy tắc cọc" : "Thêm quy tắc cọc & điều kiện bàn mới"}</span>
             {isEditing && (
               <span style={ui.editingBadge}>Đang sửa ID: #{form.id}</span>
@@ -381,7 +382,7 @@ function PolicyDepositRules({
 
           {/* Khối điều kiện Cọc Đặt Món Trước */}
           <div style={ui.sectionBlock}>
-            <div style={ui.sectionTitle}>🍽️ Điều kiện cọc đặt món trước (Tùy chọn)</div>
+            <div style={ui.sectionTitle}><Utensils size={14} style={{ verticalAlign: '-2px' }} /> Điều kiện cọc đặt món trước (Tùy chọn)</div>
             <div style={ui.formGrid}>
               <div style={ui.fieldGroup}>
                 <label style={ui.label}>Giá trị đặt món tối thiểu</label>
@@ -477,7 +478,7 @@ function PolicyDepositRules({
       {deletingId && !readOnly && (
         <div style={ui.modalOverlay}>
           <div style={ui.modalCard}>
-            <div style={ui.modalTitle}>⚠️ Xác nhận xoá quy tắc</div>
+            <div style={ui.modalTitle}><TriangleAlert size={16} color="#F59E0B" style={{ verticalAlign: '-2px' }} /> Xác nhận xoá quy tắc</div>
             <p style={ui.modalText}>
               Bạn có chắc chắn muốn xoá quy tắc cọc này không? Hành động này không thể hoàn tác.
             </p>

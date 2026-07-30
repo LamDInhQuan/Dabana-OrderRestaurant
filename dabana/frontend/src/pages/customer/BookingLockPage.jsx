@@ -22,7 +22,7 @@ export default function BookingLockPage() {
                 return;
             }
 
-            // 🚨 BẢO VỆ TUYẾN ĐƯỜNG: Nếu trạng thái KHÔNG PHẢI đang chờ thanh toán/giữ bàn nữa
+            // BẢO VỆ TUYẾN ĐƯỜNG: Nếu trạng thái KHÔNG PHẢI đang chờ thanh toán/giữ bàn nữa
             if (data.status !== 'HOLDING' && data.status !== 'AWAITING_PAYMENT') {
                 // Tự động đẩy thẳng sang trang xem hóa đơn chi tiết của đơn hàng đó!
                 navigate(`/my-bookings/${id}/invoice`);

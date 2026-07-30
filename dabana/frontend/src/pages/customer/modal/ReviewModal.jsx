@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { X, Sparkles, Star, Rocket, Home, ChefHat, Utensils } from 'lucide-react';
 
 const RATING_CATEGORIES = [
-    { key: 'spaceRating', label: '🏠 Không gian' },
-    { key: 'serviceRating', label: '👨‍🍳 Phục vụ' },
-    { key: 'foodRating', label: '🍴 Đồ ăn' },
+    { key: 'spaceRating', label: 'Không gian', icon: Home },
+    { key: 'serviceRating', label: 'Phục vụ', icon: ChefHat },
+    { key: 'foodRating', label: 'Đồ ăn', icon: Utensils },
 ];
 
 export default function ReviewModal({ booking, onClose, onSubmit }) {
@@ -67,11 +68,11 @@ export default function ReviewModal({ booking, onClose, onSubmit }) {
                         fontWeight: 700
                     }}
                 >
-                    ✕
+                    <X size={18} />
                 </button>
 
                 <h3 style={{ fontWeight: 750, fontSize: '1.2rem', marginBottom: '.25rem', color: '#1f2937' }}>
-                    ✨ Đánh giá trải nghiệm
+                    <Sparkles size={18} style={{ verticalAlign: '-3px' }} /> Đánh giá trải nghiệm
                 </h3>
                 <p style={{ fontSize: '.85rem', color: 'var(--text-muted, #6b7280)', marginBottom: '1.25rem' }}>
                     Nhà hàng: <b>{booking.branchName}</b> (Mã đơn: #{booking.id})
@@ -80,7 +81,7 @@ export default function ReviewModal({ booking, onClose, onSubmit }) {
                 <form onSubmit={handleSubmit}>
                     {/* Các tiêu chí đánh giá dạng hàng ngang */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '.875rem', marginBottom: '1.25rem' }}>
-                        {RATING_CATEGORIES.map(({ key, label }) => (
+                        {RATING_CATEGORIES.map(({ key, label, icon: Icon }) => (
                             <div key={key} style={{ 
                                 display: 'flex', 
                                 justifyContent: 'space-between', 
@@ -90,7 +91,7 @@ export default function ReviewModal({ booking, onClose, onSubmit }) {
                                 borderRadius: '10px',
                                 border: '1px solid var(--border, #e5e7eb)'
                             }}>
-                                <span style={{ fontSize: '.9rem', fontWeight: 600, color: '#374151' }}>{label}</span>
+                                <span style={{ fontSize: '.9rem', fontWeight: 600, color: '#374151', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Icon size={16} /> {label}</span>
                                 <div style={{ display: 'flex', gap: '.3rem' }}>
                                     {[1, 2, 3, 4, 5].map(v => (
                                         <button 
@@ -114,7 +115,7 @@ export default function ReviewModal({ booking, onClose, onSubmit }) {
                                             }}
                                             title={`${v} sao`}
                                         >
-                                            ★
+                                            <Star size={18} fill="currentColor" />
                                         </button>
                                     ))}
                                 </div>
@@ -162,7 +163,7 @@ export default function ReviewModal({ booking, onClose, onSubmit }) {
                             style={{ flex: 1, padding: '.75rem', borderRadius: '10px', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
                             disabled={submitting}
                         >
-                            {submitting ? 'Đang gửi...' : '🚀 Gửi đánh giá'}
+                            {submitting ? 'Đang gửi...' : <><Rocket size={16} style={{ verticalAlign: '-3px' }} /> Gửi đánh giá</>}
                         </button>
                     </div>
                 </form>

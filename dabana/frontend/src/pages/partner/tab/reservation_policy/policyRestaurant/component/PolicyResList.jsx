@@ -1,5 +1,6 @@
 // src/reservation_policy/policyRestaurant/component/PolicyResList.jsx
 import React from "react";
+import { Settings } from "lucide-react";
 import { S } from "../../../../theme";
 
 function PolicyResList({ policies, onSelect, onAddNew }) {
@@ -123,7 +124,7 @@ function PolicyResList({ policies, onSelect, onAddNew }) {
                       cursor: "pointer"
                     }}
                   >
-                    ⚙️ Cấu hình chi tiết
+                    <Settings size={14} style={{ verticalAlign: '-2px' }} /> Cấu hình chi tiết
                   </button>
                 </div>
               </div>

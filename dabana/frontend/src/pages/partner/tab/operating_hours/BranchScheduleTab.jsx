@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { operatingHourApi, branchScheduleExceptionApi } from '../../../../api'
 import WeeklyHoursPanel from './WeeklyHoursPanel'
 import ExceptionsPanel from './ExceptionsPanel'
-import ErrorDetailsModal from './ErrorDetailsModal' // 👈 1. Import Modal báo lỗi
+import ErrorDetailsModal from './ErrorDetailsModal' // 1. Import Modal báo lỗi
+import { Calendar, TriangleAlert } from 'lucide-react'
 
 export default function BranchScheduleTab({ branch }) {
     const [tab, setTab] = useState('weekly')
@@ -107,7 +108,7 @@ export default function BranchScheduleTab({ branch }) {
             alert('Đã cập nhật khung giờ hoạt động thành công!')
         } catch (err) {
             console.error('Lỗi khi lưu giờ tuần:', err)
-            handleApiError(err) // 👈 2. Bắt lỗi để hiện Modal
+            handleApiError(err) // 2. Bắt lỗi để hiện Modal
         }
     }
 
@@ -134,7 +135,7 @@ export default function BranchScheduleTab({ branch }) {
             setEditingException(null)
         } catch (err) {
             console.error('Lỗi khi lưu ngoại lệ:', err)
-            handleApiError(err) // 👈 2. Bắt lỗi để hiện Modal
+            handleApiError(err) // 2. Bắt lỗi để hiện Modal
         }
     }
 
@@ -145,7 +146,7 @@ export default function BranchScheduleTab({ branch }) {
             setExceptions(prev => prev.filter(e => e.id !== id))
         } catch (err) {
             console.error('Lỗi khi xóa ngoại lệ:', err)
-            handleApiError(err) // 👈 2. Bắt lỗi để hiện Modal
+            handleApiError(err) // 2. Bắt lỗi để hiện Modal
         }
     }
 
@@ -192,10 +193,10 @@ export default function BranchScheduleTab({ branch }) {
             {/* Header Tabs */}
             <div style={{ display: 'flex', gap: '.5rem', borderBottom: '2px solid var(--border)', marginBottom: '1.5rem' }}>
                 <button onClick={() => setTab('weekly')} style={tabBtnStyle(tab === 'weekly')}>
-                    📅 Giờ hoạt động theo tuần
+                    <Calendar size={16} style={{ verticalAlign: '-3px' }} /> Giờ hoạt động theo tuần
                 </button>
                 <button onClick={() => setTab('exceptions')} style={tabBtnStyle(tab === 'exceptions')}>
-                    ⚠️ Ngoại lệ lịch hoạt động
+                    <TriangleAlert size={16} style={{ verticalAlign: '-3px' }} /> Ngoại lệ lịch hoạt động
                 </button>
             </div>
 
@@ -209,7 +210,7 @@ export default function BranchScheduleTab({ branch }) {
                     setActiveDays={setActiveDays}
                     setWeeklyHours={setWeeklyHours}
                     onSaveWeekly={handleSaveWeekly}
-                    formatTimeVN={formatTimeVN} // 👈 Truyền xuống đây
+                    formatTimeVN={formatTimeVN} // Truyền xuống đây
                     activeBranch={branch}
                 />
             ) : (
@@ -227,11 +228,11 @@ export default function BranchScheduleTab({ branch }) {
                     onCancelEdit={() => setEditingException(null)}
                     onSave={handleSaveException}
                     onDelete={handleDeleteException}
-                    formatTimeVN={formatTimeVN} // 👈 Truyền xuống đây
+                    formatTimeVN={formatTimeVN} // Truyền xuống đây
                 />
             )}
 
-            {/* 👈 3. Render Modal hiển thị bảng chi tiết lỗi */}
+            {/* 3. Render Modal hiển thị bảng chi tiết lỗi */}
             <ErrorDetailsModal
                 isOpen={errorModal.isOpen}
                 title={errorModal.title}

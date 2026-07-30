@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import TimeSelectVN from './TimeSelectVN' // Component chọn giờ
+import { Save } from 'lucide-react'
 // Giả định project dùng react-hot-toast hoặc thay bằng hàm thông báo của bạn
 import { toast } from 'react-hot-toast' 
 import { operatingHourApi } from '../../../../api'
@@ -237,7 +238,7 @@ export default function WeeklyHoursPanel({
           disabled={saving} 
           style={{ padding: '.75rem 1.8rem', cursor: 'pointer' }}
         >
-          {saving ? 'Đang lưu...' : '💾 LƯU KHUNG GIỜ HOẠT ĐỘNG'}
+          {saving ? 'Đang lưu...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Save size={16} /> LƯU KHUNG GIỜ HOẠT ĐỘNG</span>}
         </button>
       </div>
     </div>

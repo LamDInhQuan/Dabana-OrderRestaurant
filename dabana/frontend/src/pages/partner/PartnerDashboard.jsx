@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi, adminApi } from '../../api'
+import { BarChart3, ClipboardList, ConciergeBell, Armchair, Soup, Hourglass, User, Star, TrendingUp, Wallet, AlarmClock, CreditCard, Bell, Settings, Calendar, Users, X, Utensils, Globe, Send, Mail, Search, TriangleAlert, Check, Ban, CircleAlert, Sparkles, Circle, Pencil, Save } from 'lucide-react'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
 
@@ -73,7 +74,7 @@ function GoldDivider() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', margin: '1.25rem 0' }}>
       <div style={{ flex: 1, height: 1, background: `linear-gradient(to right,transparent,${C.goldLight},transparent)` }} />
-      <span style={{ color: C.gold, fontSize: '.8rem' }}>✦</span>
+      <span style={{ color: C.gold, fontSize: '.8rem', display: 'inline-flex' }}><Sparkles size={14} /></span>
       <div style={{ flex: 1, height: 1, background: `linear-gradient(to left,transparent,${C.goldLight},transparent)` }} />
     </div>
   )
@@ -102,7 +103,7 @@ function StatCard({ icon, label, value, sub, color, trend }) {
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(61,43,31,.12)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(61,43,31,.08)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.75rem' }}>
-        <div style={{ fontSize: '1.5rem' }}>{icon}</div>
+        <div style={{ display: 'flex', color }}>{icon}</div>
         {trend && <span style={{
           fontSize: '.72rem', fontWeight: 700, color: trend > 0 ? C.green : C.red,
           background: trend > 0 ? C.greenBg : C.redBg, padding: '.2rem .5rem', borderRadius: 99
@@ -118,6 +119,18 @@ function StatCard({ icon, label, value, sub, color, trend }) {
 }
 async function exportExcel(branchid) {
   const blob = restaurantApi.exportExcel(branchApi)
+}
+
+// ── Star rating row (lucide) ─────────────────────────────────────
+function Stars({ value, size = 16 }) {
+  const n = Math.round(value)
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map(i => (
+        <Star key={i} size={size} color={C.gold} fill={i < n ? C.gold : 'none'} />
+      ))}
+    </>
+  )
 }
 
 // ── Countdown for waitlist invite ────────────────────────────────
@@ -268,7 +281,7 @@ export default function PartnerDashboard() {
         price: Number(it.price),
         status: it.status,
         description: it.description || '',
-        emoji: '🍽️', // backend chua ho tro emoji, chi hien thi mac dinh
+        emoji: '', // backend chua ho tro emoji, chi hien thi mac dinh
       })))
       setMenu(flat.length ? flat : [])
     }).catch(() => { setMenuCategories([]); setMenu([]) })
@@ -709,21 +722,22 @@ export default function PartnerDashboard() {
 
   // ── TABS config ────────────────────────────────────
   const TABS = [
-    { id: 'dashboard', icon: '📊', label: 'Tổng quan' },
-    { id: 'bookings', icon: '📋', label: 'Đặt bàn' },
-    { id: 'order_board', icon: '🛎️', label: 'Gọi món' },
-    { id: 'tables', icon: '🪑', label: 'Sơ đồ bàn' },
-    { id: 'menu', icon: '🍜', label: 'Thực đơn' },
-    { id: 'waitlist', icon: '⏳', label: 'Hàng chờ' },
-    { id: 'customers', icon: '👤', label: 'Khách hàng' },
-    { id: 'reviews', icon: '⭐', label: 'Đánh giá', badge: reviews.filter(r => !r.reply && !r.hidden).length },
-    { id: 'reports', icon: '📈', label: 'Thống kê' },
-    { id: 'policy', icon: '💰', label: 'Chính sách' },
-    { id: 'operating-hours', icon: '⏰', label: 'Khung giờ hoạt động' },
-    { id: 'billing', icon: '💳', label: 'Gói dịch vụ' },
-    { id: 'notifications', icon: '🔔', label: 'Thông báo', badge: unreadCount },
-    { id: 'settings', icon: '⚙️', label: 'Cài đặt' },
+    { id: 'dashboard', icon: BarChart3, label: 'Tổng quan' },
+    { id: 'bookings', icon: ClipboardList, label: 'Đặt bàn' },
+    { id: 'order_board', icon: ConciergeBell, label: 'Gọi món' },
+    { id: 'tables', icon: Armchair, label: 'Sơ đồ bàn' },
+    { id: 'menu', icon: Soup, label: 'Thực đơn' },
+    { id: 'waitlist', icon: Hourglass, label: 'Hàng chờ' },
+    { id: 'customers', icon: User, label: 'Khách hàng' },
+    { id: 'reviews', icon: Star, label: 'Đánh giá', badge: reviews.filter(r => !r.reply && !r.hidden).length },
+    { id: 'reports', icon: TrendingUp, label: 'Thống kê' },
+    { id: 'policy', icon: Wallet, label: 'Chính sách' },
+    { id: 'operating-hours', icon: AlarmClock, label: 'Khung giờ hoạt động' },
+    { id: 'billing', icon: CreditCard, label: 'Gói dịch vụ' },
+    { id: 'notifications', icon: Bell, label: 'Thông báo', badge: unreadCount },
+    { id: 'settings', icon: Settings, label: 'Cài đặt' },
   ]
+  const activeMeta = TABS.find(t => t.id === activeTab)
 
   // ── Filtered bookings ──────────────────────────────
   const filteredBookings = bkFilter === 'ALL' ? branchBookingList : branchBookingList.filter(b => b.status === bkFilter)
@@ -830,7 +844,7 @@ export default function PartnerDashboard() {
               borderLeft: activeTab === tab.id ? `3px solid ${C.gold}` : '3px solid transparent',
               transition: 'all .15s', textAlign: 'left'
             }}>
-              <span style={{ fontSize: '1rem' }}>{tab.icon}</span>
+              <span style={{ display: 'inline-flex' }}><tab.icon size={18} /></span>
               <span style={{ flex: 1 }}>{tab.label}</span>
               {!!tab.badge && (
                 <span style={{
@@ -870,8 +884,8 @@ export default function PartnerDashboard() {
           position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(8px)'
         }}>
           <div>
-            <h1 style={{ fontWeight: 700, fontSize: '1.1rem', color: C.text }}>
-              {TABS.find(t => t.id === activeTab)?.icon} {TABS.find(t => t.id === activeTab)?.label}
+            <h1 style={{ fontWeight: 700, fontSize: '1.1rem', color: C.text, display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}>
+              {activeMeta?.icon && <activeMeta.icon size={20} />} {activeMeta?.label}
             </h1>
             <p style={{ fontSize: '.78rem', color: C.muted, marginTop: '.1rem' }}>
               {activeBranch?.name} · {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -883,11 +897,11 @@ export default function PartnerDashboard() {
                 background: C.amberBg, border: `1px solid ${C.amber}44`, borderRadius: 4,
                 padding: '.4rem .875rem', fontSize: '.78rem', fontWeight: 600, color: C.amber
               }}>
-                ⏳ Có lời mời hàng chờ đang chờ phản hồi
+                <Hourglass size={15} style={{ verticalAlign: '-2px' }} /> Có lời mời hàng chờ đang chờ phản hồi
               </div>
             )}
-            <button onClick={() => setActiveTab('notifications')} style={{ ...S.btnOut, padding: '.45rem .75rem', fontSize: '.9rem', position: 'relative' }}>
-              🔔
+            <button onClick={() => setActiveTab('notifications')} style={{ ...S.btnOut, padding: '.45rem .75rem', fontSize: '.9rem', position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <Bell size={18} />
               {unreadCount > 0 && <span style={{
                 position: 'absolute', top: -4, right: -4, background: C.red, color: '#fff',
                 fontSize: '.62rem', fontWeight: 800, borderRadius: 99, padding: '.05rem .35rem'
@@ -895,7 +909,7 @@ export default function PartnerDashboard() {
             </button>
 
             <button onClick={() => navigate('/')} style={{ ...S.btnOut, padding: '.45rem 1rem', fontSize: '.78rem' }}>
-              🌐 Về trang chủ
+              <Globe size={15} style={{ verticalAlign: '-2px' }} /> Về trang chủ
             </button>
           </div>
         </div>
@@ -911,13 +925,13 @@ export default function PartnerDashboard() {
 
               {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-                <StatCard icon="📅" label="Đặt bàn hôm nay" value={stats.todayConfirmed} sub="đang chờ đón khách" color={C.gold} trend={12} />
-                <StatCard icon="🪑" label="Tỷ lệ lấp đầy" value={`${stats.fillRate}%`} sub={`${stats.available}/${stats.totalTables} bàn trống`} color={C.green} trend={5} />
-                <StatCard icon="👥" label="Đang phục vụ" value={stats.occupied} sub="bàn đang có khách" color={C.amber} />
-                <StatCard icon="📋" label="Bàn đã đặt" value={stats.reserved} sub="sắp có khách đến" color={C.blue} />
-                <StatCard icon="⏳" label="Hàng chờ" value={waitlist.filter(w => w.status === 'WAITING').length} sub="đang chờ bàn trống" color={C.purple} />
-                <StatCard icon="❌" label="Tỷ lệ No-show" value={`${stats.noShowRate}%`} sub="trong 30 ngày qua" color={C.red} />
-                <StatCard icon="⭐" label="Đánh giá trung bình" value={avgRating} sub={`${visibleReviews.length} lượt đánh giá`} color={C.gold} />
+                <StatCard icon={<Calendar size={26} />} label="Đặt bàn hôm nay" value={stats.todayConfirmed} sub="đang chờ đón khách" color={C.gold} trend={12} />
+                <StatCard icon={<Armchair size={26} />} label="Tỷ lệ lấp đầy" value={`${stats.fillRate}%`} sub={`${stats.available}/${stats.totalTables} bàn trống`} color={C.green} trend={5} />
+                <StatCard icon={<Users size={26} />} label="Đang phục vụ" value={stats.occupied} sub="bàn đang có khách" color={C.amber} />
+                <StatCard icon={<ClipboardList size={26} />} label="Bàn đã đặt" value={stats.reserved} sub="sắp có khách đến" color={C.blue} />
+                <StatCard icon={<Hourglass size={26} />} label="Hàng chờ" value={waitlist.filter(w => w.status === 'WAITING').length} sub="đang chờ bàn trống" color={C.purple} />
+                <StatCard icon={<X size={26} />} label="Tỷ lệ No-show" value={`${stats.noShowRate}%`} sub="trong 30 ngày qua" color={C.red} />
+                <StatCard icon={<Star size={26} />} label="Đánh giá trung bình" value={avgRating} sub={`${visibleReviews.length} lượt đánh giá`} color={C.gold} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -1076,7 +1090,7 @@ export default function PartnerDashboard() {
                           }}>{w.status === 'WAITING' ? 'Đang chờ' : w.status === 'INVITED' ? 'Đã mời' : 'Đã chuyển'}</span>
                         </div>
                         <p style={{ fontSize: '.82rem', color: C.muted }}>
-                          👥 {w.guestCount} khách · ⏰ Giờ mong muốn: {new Date(w.desiredTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          <Users size={14} style={{ verticalAlign: '-2px' }} /> {w.guestCount} khách · <AlarmClock size={14} style={{ verticalAlign: '-2px' }} /> Giờ mong muốn: {new Date(w.desiredTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                         <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '.2rem' }}>
                           Đăng ký lúc {new Date(w.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -1097,10 +1111,10 @@ export default function PartnerDashboard() {
                         <button onClick={() => {
                           setWaitlist(p => p.map(x => x.id === w.id ? { ...x, status: 'INVITED', inviteExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() } : x))
                           toast.success('Đã gửi lời mời đến khách hàng!')
-                        }} style={{ ...S.btnSm, background: C.gold, color: C.brown }}>📨 Gửi lời mời</button>
+                        }} style={{ ...S.btnSm, background: C.gold, color: C.brown }}><Send size={14} style={{ verticalAlign: '-2px' }} /> Gửi lời mời</button>
                         <button onClick={() => { setWaitlist(p => p.filter(x => x.id !== w.id)); toast.success('Đã xoá khỏi hàng chờ') }}
                           style={{ ...S.btnSm, background: C.redBg, color: C.red, border: `1px solid ${C.red}22`, marginLeft: '.5rem' }}>
-                          ✕ Xoá
+                          <X size={14} style={{ verticalAlign: '-2px' }} /> Xoá
                         </button>
                       </div>
                     )}
@@ -1114,8 +1128,9 @@ export default function PartnerDashboard() {
           {/* ══════ CUSTOMERS (B14) ══════ */}
           {activeTab === 'customers' && (
             <div>
-              <div style={{ marginBottom: '1.25rem' }}>
-                <input style={{ ...S.input, maxWidth: 340 }} placeholder="🔍 Tìm theo tên hoặc số điện thoại..."
+              <div style={{ marginBottom: '1.25rem', position: 'relative', maxWidth: 340 }}>
+                <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                <input style={{ ...S.input, maxWidth: 340, paddingLeft: 36 }} placeholder="Tìm theo tên hoặc số điện thoại..."
                   value={customerQuery} onChange={e => setCustomerQuery(e.target.value)} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1136,7 +1151,7 @@ export default function PartnerDashboard() {
                           <p style={{ fontWeight: 700, fontSize: '.92rem' }}>{c.name}</p>
                           <p style={{ fontSize: '.78rem', color: C.muted }}>{c.phone}</p>
                           {/* Hiển thị email nếu có */}
-                          {c.email && <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '2px' }}>✉️ {c.email}</p>}
+                          {c.email && <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '2px' }}><Mail size={13} style={{ verticalAlign: '-2px' }} /> {c.email}</p>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '.8rem', textAlign: 'center' }}>
@@ -1148,7 +1163,7 @@ export default function PartnerDashboard() {
                     </div>
                     <div style={{ marginTop: '.875rem', paddingTop: '.875rem', borderTop: `1px solid ${C.creamDark}`, fontSize: '.78rem', color: C.muted }}>
                       Lần đến gần nhất: {new Date(c.lastVisit).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      {(c.noShows >= 2) && <span style={{ marginLeft: '.75rem', color: C.red, fontWeight: 700 }}>⚠ Khách hàng có tiền sử No-show</span>}
+                      {(c.noShows >= 2) && <span style={{ marginLeft: '.75rem', color: C.red, fontWeight: 700 }}><TriangleAlert size={13} style={{ verticalAlign: '-2px' }} /> Khách hàng có tiền sử No-show</span>}
                     </div>
                   </div>
                 ))}
@@ -1162,13 +1177,13 @@ export default function PartnerDashboard() {
               <div style={{ ...S.card, marginBottom: '1.25rem', display: 'flex', gap: '2.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ ...serif, fontSize: '2.6rem', fontWeight: 700, color: C.gold, lineHeight: 1 }}>{avgRating}</div>
-                  <div style={{ color: C.gold, fontSize: '.9rem', marginTop: '.25rem' }}>{'★'.repeat(Math.round(avgRating))}{'☆'.repeat(5 - Math.round(avgRating))}</div>
+                  <div style={{ marginTop: '.25rem', display: 'flex', justifyContent: 'center', gap: 2 }}><Stars value={avgRating} size={18} /></div>
                   <div style={{ fontSize: '.72rem', color: C.muted, marginTop: '.2rem' }}>{visibleReviews.length} đánh giá</div>
                 </div>
                 <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: '.35rem' }}>
                   {ratingBreakdown.map(({ star, count }) => (
                     <div key={star} style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
-                      <span style={{ fontSize: '.75rem', color: C.muted, width: 34 }}>{star} ★</span>
+                      <span style={{ fontSize: '.75rem', color: C.muted, width: 34, display: 'inline-flex', alignItems: 'center', gap: 2 }}>{star} <Star size={12} color={C.gold} fill={C.gold} /></span>
                       <div style={{ flex: 1, height: 8, borderRadius: 99, background: C.creamDark, overflow: 'hidden' }}>
                         <div style={{ width: `${visibleReviews.length ? count / visibleReviews.length * 100 : 0}%`, height: '100%', background: C.gold }} />
                       </div>
@@ -1201,7 +1216,7 @@ export default function PartnerDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '.5rem' }}>
                         <div>
                           <p style={{ fontWeight: 700, fontSize: '.9rem' }}>{r.customer?.fullName || r.customerName}</p>
-                          <p style={{ color: C.gold, fontSize: '.85rem' }}>{'★'.repeat(avgItemRating)}{'☆'.repeat(5 - avgItemRating)}</p>
+                          <p style={{ fontSize: '.85rem', display: 'flex', gap: 2 }}><Stars value={avgItemRating} size={15} /></p>
                         </div>
                         <span style={{ fontSize: '.75rem', color: C.muted }}>
                           {new Date(r.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -1234,10 +1249,10 @@ export default function PartnerDashboard() {
           {activeTab === 'reports' && (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                <StatCard icon="💰" label="Doanh thu cọc (tổng)" value={`${stats.totalRevenue.toLocaleString('vi-VN')}₫`} sub="từ đơn hoàn tất" color={C.gold} />
-                <StatCard icon="📋" label="Tổng lượt đặt" value={bookings.length} sub={`${todayBookings.length} hôm nay`} color={C.blue} />
-                <StatCard icon="👥" label="Khách hàng" value={customerProfiles.length} sub="đã từng đặt bàn" color={C.purple} />
-                <StatCard icon="🍽️" label="Món đang bán" value={menu.filter(m => m.status === 'SELLING').length} sub={`/${menu.length} món`} color={C.green} />
+                <StatCard icon={<Wallet size={26} />} label="Doanh thu cọc (tổng)" value={`${stats.totalRevenue.toLocaleString('vi-VN')}₫`} sub="từ đơn hoàn tất" color={C.gold} />
+                <StatCard icon={<ClipboardList size={26} />} label="Tổng lượt đặt" value={bookings.length} sub={`${todayBookings.length} hôm nay`} color={C.blue} />
+                <StatCard icon={<Users size={26} />} label="Khách hàng" value={customerProfiles.length} sub="đã từng đặt bàn" color={C.purple} />
+                <StatCard icon={<Utensils size={26} />} label="Món đang bán" value={menu.filter(m => m.status === 'SELLING').length} sub={`/${menu.length} món`} color={C.green} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -1297,7 +1312,7 @@ export default function PartnerDashboard() {
             <div style={{ maxWidth: 640 }}>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
                 <button onClick={markAllNotificationsRead} style={{ ...S.btnOut, fontSize: '.78rem', padding: '.45rem 1rem' }}>
-                  ✓ Đánh dấu đã đọc tất cả
+                  <Check size={15} style={{ verticalAlign: '-2px' }} /> Đánh dấu đã đọc tất cả
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
@@ -1305,14 +1320,15 @@ export default function PartnerDashboard() {
                   <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>Không có thông báo</div>
                 )}
                 {notifications.map(n => {
-                  const iconMap = { BOOKING_NEW: '📋', WAITLIST_ACCEPTED: '⏳', CANCEL: '🚫', REVIEW_NEW: '⭐', NO_SHOW: '❗' }
+                  const iconMap = { BOOKING_NEW: ClipboardList, WAITLIST_ACCEPTED: Hourglass, CANCEL: Ban, REVIEW_NEW: Star, NO_SHOW: CircleAlert }
+                  const NIcon = iconMap[n.type] || Bell
                   return (
                     <div key={n.id} onClick={() => markNotificationRead(n.id)} style={{
                       ...S.card, cursor: 'pointer', display: 'flex', gap: '.875rem', alignItems: 'flex-start',
                       border: `1px solid ${n.read ? C.border : C.goldBorder}`,
                       background: n.read ? C.white : C.goldSubtle,
                     }}>
-                      <div style={{ fontSize: '1.3rem' }}>{iconMap[n.type] || '🔔'}</div>
+                      <div style={{ display: 'flex', color: C.goldDark }}><NIcon size={22} /></div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '.5rem' }}>
                           <p style={{ fontWeight: 700, fontSize: '.87rem', color: C.text }}>{n.title}</p>
@@ -1361,7 +1377,12 @@ export default function PartnerDashboard() {
                       color: restaurant.approvalStatus === 'APPROVED' ? C.green
                         : restaurant.approvalStatus === 'REJECTED' ? C.red : C.goldDark
                     }}>
-                      {{ APPROVED: '✓ Đã duyệt', PENDING: '⏳ Chờ duyệt', PENDING_UPDATE: '⏳ Chờ duyệt cập nhật', REJECTED: '✕ Bị từ chối' }[restaurant.approvalStatus] || restaurant.approvalStatus}
+                      {(() => {
+                        const m = { APPROVED: [Check, 'Đã duyệt'], PENDING: [Hourglass, 'Chờ duyệt'], PENDING_UPDATE: [Hourglass, 'Chờ duyệt cập nhật'], REJECTED: [X, 'Bị từ chối'] }[restaurant.approvalStatus]
+                        if (!m) return restaurant.approvalStatus
+                        const [Icon, txt] = m
+                        return <><Icon size={13} style={{ verticalAlign: '-2px' }} /> {txt}</>
+                      })()}
                     </span>
                   )}
                 </div>
@@ -1464,7 +1485,7 @@ export default function PartnerDashboard() {
                 </div>
                 <button onClick={saveRestaurantInfo} disabled={savingRestaurant}
                   style={{ ...S.btnGold, marginTop: '1.25rem' }}>
-                  {savingRestaurant ? 'Đang lưu...' : '✦ Lưu thương hiệu'}
+                  {savingRestaurant ? 'Đang lưu...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Sparkles size={14} /> Lưu thương hiệu</span>}
                 </button>
               </div>
 
@@ -1488,9 +1509,9 @@ export default function PartnerDashboard() {
                           <p style={{ fontSize: '.76rem', color: C.muted }}>{b.address}</p>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem' }}>
-                          <span style={{ fontSize: '.7rem', fontWeight: 700, color: st.color, whiteSpace: 'nowrap' }}>● {st.label}</span>
+                          <span style={{ fontSize: '.7rem', fontWeight: 700, color: st.color, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Circle size={9} fill="currentColor" /> {st.label}</span>
                           <button onClick={() => openEditBranchModal(b)} style={{ ...S.btnSm, background: C.goldSubtle, color: C.goldDark, border: `1px solid ${C.goldBorder}` }}>
-                            ✎ Sửa
+                            <Pencil size={13} style={{ verticalAlign: '-2px' }} /> Sửa
                           </button>
                         </div>
                       </div>
@@ -1512,7 +1533,7 @@ export default function PartnerDashboard() {
                           position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
                           display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '1rem'
                         }}>
-                          <span style={{ fontSize: '.7rem', color: C.gold, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px' }}>⭐ Ảnh Bìa Đại Diện</span>
+                          <span style={{ fontSize: '.7rem', color: C.gold, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}><Star size={13} fill="currentColor" /> Ảnh Bìa Đại Diện</span>
                           <h3 style={{ color: '#fff', fontSize: '1rem', fontWeight: 700, margin: 0 }}>{activeBranch.name}</h3>
                         </div>
                       </div>
@@ -1631,7 +1652,7 @@ export default function PartnerDashboard() {
                   Huỷ
                 </button>
                 <button type="submit" disabled={savingEditBranch} style={S.btnGold}>
-                  {savingEditBranch ? 'Đang lưu...' : '💾 Lưu thay đổi'}
+                  {savingEditBranch ? 'Đang lưu...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Save size={16} /> Lưu thay đổi</span>}
                 </button>
               </div>
             </form>
@@ -1710,7 +1731,7 @@ export default function PartnerDashboard() {
               <div style={{ display: 'flex', gap: '.75rem', justifyContent: 'flex-end', paddingTop: '.5rem' }}>
                 <button type="button" onClick={() => setNewBranchModal(false)} style={S.btnOut}>Huỷ</button>
                 <button type="submit" disabled={loading} style={S.btnGold}>
-                  {loading ? 'Đang tạo...' : '✦ Tạo chi nhánh'}
+                  {loading ? 'Đang tạo...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Sparkles size={14} /> Tạo chi nhánh</span>}
                 </button>
               </div>
             </form>
