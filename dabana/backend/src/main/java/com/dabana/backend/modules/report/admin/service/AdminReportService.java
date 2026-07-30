@@ -106,7 +106,7 @@ public class AdminReportService {
             statusCounts.put(status.name(), BigDecimal.valueOf(count));
         }
         List<PieSlice> statusBreakdown = new ArrayList<>();
-        statusCounts.forEach((label, value) -> statusBreakdown.add(PieSlice.builder().label(label).value(value).build()));
+        statusCounts.forEach((label, value) -> statusBreakdown.add(PieSlice.builder().label(SubScriptionconvertLabel(label)).value(value).build()));
 
         // Nhà hàng sắp hết hạn gói (7 ngày tới) — KHÔNG lọc theo period.
         List<AdminSubscriptionReportResponse.ExpiringSoonRow> upcomingExpiries = new ArrayList<>();
@@ -224,8 +224,10 @@ public class AdminReportService {
                 "WHERE created_at BETWEEN :from AND :to GROUP BY b ORDER BY b", r);
 
         List<PieSlice> statusBreakdown = pieQuery(
-                "SELECT status, COUNT(*) FROM rs_reservations WHERE created_at BETWEEN :from AND :to GROUP BY status", r);
-
+                        "SELECT status, COUNT(*) FROM rs_reservations WHERE created_at BETWEEN :from AND :to GROUP BY status",
+                        r);
+        
+                statusBreakdown.forEach(s -> s.setLabel(reservationsconvertLabel(s.getLabel())));
         List<Object[]> topRows = queryList(
                 "SELECT rs.branch_id, b.branch_name, COUNT(*) c FROM rs_reservations rs " +
                 "JOIN rt_branches b ON b.id = rs.branch_id " +
@@ -438,6 +440,41 @@ public class AdminReportService {
     }
 
     private static long asLong(Object o) {
-        return o == null ? 0L : ((Number) o).longValue();
+            return o == null ? 0L : ((Number) o).longValue();
+    }
+
+    private String SubScriptionconvertLabel(String label) {
+            switch (label) {
+                    case "PENDING_PAYMENT":
+                            return "Dự định trả";
+                    case "ACTIVE":
+                            return "Đang hoạt động";
+                    case "CANCELLED":
+                            return "Hủy";
+                    case "EXPIRED":
+                            return "Hết hạn";
+                    case "PAST_DUE":
+                            return "Quá hạn";
+                    default:
+                            return "chưa dịch: "+label;
+            }
+    }
+    private String reservationsconvertLabel(String label) {
+        switch (label) {
+                case "COMPLETED":
+                        return "Hoàn thành";
+                case "NO_SHOW":
+                        return "Không đến";
+                case "CANCELLED_BY_CUSTOMER":
+                        return "Khách hàng hủy";
+                case "CHECKED_IN":
+                        return "Check In";
+                case "CONFIRMED":
+                        return "Xác nhận";
+                case "CANCELLED_BY_RESTAURANT":
+                        return "Nhà hàng Hủy";
+                default:
+                        return "chưa dịch: "+label;
+        }
     }
 }
