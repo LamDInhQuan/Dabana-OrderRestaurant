@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
@@ -12,6 +12,8 @@ import DecorationDoor from '../partner/tab/table_layout/floorPlanManagement/comp
 import { parseZoneDecorations } from '../partner/tab/table_layout/floorPlanManagement/components/decorationPresets'
 import ReservationPolicyBanner from './step/ReservationPolicyBanner'
 import { Sparkles, MapPin, Armchair, Clock, Calendar, Users, TriangleAlert, Utensils, Check, Hourglass } from 'lucide-react'
+import { useTableRealtime } from '../../pages/customer/useTableRealtime'; // Đường dẫn tới hook dùng chung của bạn
+
 
 const STEPS = ['Thời gian & bàn', 'Thông tin', 'Đặt món', 'Xác nhận & cọc']
 
@@ -138,6 +140,67 @@ export default function BookingFlow() {
   const [loading, setLoading] = useState(false)
   const [confirmedBooking, setConfirmedBooking] = useState(null)
 
+  // socket 
+  // 1. Lấy thông tin user đăng nhập và email khách vãng lai từ state hoặc localStorage
+  const [currentUser, setCurrentUser] = useState(null);
+  const [customerEmail, setCustomerEmail] = useState(''); // Hoặc lấy trực tiếp từ state form thông tin liên hệ của bạn
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('dabana_auth');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const userObj = parsed.user || parsed;
+        setCurrentUser(userObj);
+
+        // Nếu user đã đăng nhập, có thể tự động lấy luôn email của họ nếu form chưa nhập
+        if (userObj?.email) {
+          setCustomerEmail(userObj.email);
+        }
+      }
+    } catch (e) {
+      console.error("Lỗi đọc thông tin user từ localStorage", e);
+    }
+  }, []);
+
+  // 2. Định nghĩa identifier (có thể là userId hoặc email) để truyền xuống Step 1 hoặc dùng chung
+  const currentUserId = currentUser?.id;
+  // Hoặc dùng email đang nhập ở form liên hệ
+  const currentEmail = customerEmail || currentUser?.email;
+  // 🚀 Tích hợp Realtime sạch sẽ thông qua custom hook (chỉ 1 kết nối duy nhất)
+  // Bên trong component StepTimeAndTable
+  const fetchTableAvailability = useCallback(() => {
+    // 1. Kiểm tra các điều kiện bắt buộc
+    if (!id || !date || !timeSlot) return;
+
+    // 2. Tự ghép date và timeSlot thành reservationTime (Ví dụ: "2026-07-31T07:00:00")
+    // Tùy thuộc vào BE của bạn yêu cầu dấu cách hay chữ T ở giữa, hãy chỉnh lại ký tự phân cách cho khớp nhé
+    const reservationTime = `${date}T${timeSlot}:00`;
+
+    setTablesLoading(true);
+
+    // 3. Gọi API với đúng các tham số bạn đã xác định
+    tableApi.getAvailable(id, reservationTime, activeZoneId)
+      .then(r => {
+        const responseData = unwrap(r);
+        // Cập nhật state để UI đổi màu bàn ngay lập tức
+        setTableAvailability(responseData || []);
+      })
+      .catch(err => {
+        console.error("Lỗi làm mới trạng thái bàn:", err);
+      })
+      .finally(() => {
+        setTablesLoading(false);
+      });
+
+  }, [id, date, timeSlot, activeZoneId]);
+
+  const handleSocketUpdate = useCallback((socketData) => {
+    console.log("📥 [WebSocket Triggered at Parent]:", socketData);
+    fetchTableAvailability();
+  }, [fetchTableAvailability]);
+
+  useTableRealtime(id, currentUserId, currentEmail, handleSocketUpdate);
   useEffect(() => {
     branchApi.getById(id).then(r => setBranch(unwrap(r))).catch(() => { })
 
@@ -427,6 +490,8 @@ export default function BookingFlow() {
 
               {step === 0 && (
                 <StepTimeAndTable
+                  branchId={id} // 💡 Truyền branchId từ state/props của component cha xuống
+                  onRefreshData={fetchTableAvailability} // 💡 Truyền hàm gọi lại để tải mới dữ liệu bàn (thay tên bằng hàm fetch tương ứng trong component cha của bạn)
                   date={date} setDate={setDate}
                   timeSlot={timeSlot} setTimeSlot={setTimeSlot}
                   slotGroups={slotGroups} isClosedThatDay={isClosedThatDay}
@@ -439,6 +504,8 @@ export default function BookingFlow() {
                   selectedTables={selectedTables} onToggleTable={toggleSelectTable}
                   onSubmit={goToContactStep}
                   policy={policy} policyLoading={policyLoading}
+                  currentEmail={currentEmail}
+                  currentUserId={currentUserId}
                 />
               )}
 
@@ -626,35 +693,51 @@ function TableAvailabilityGrid({ tables, decorations = [], selectedTables, onTog
 }
 
 function StepTimeAndTable({
+  branchId,
   date, setDate, timeSlot, setTimeSlot, slotGroups, isClosedThatDay, usingFallbackHours,
   guestCount, setGuestCount, method, setMethod,
   zones, zonesLoading,
   activeZoneId, setActiveZoneId,
   tableAvailability, tablesLoading,
   selectedTables, onToggleTable, onSubmit,
-  policy, policyLoading
+  policy, policyLoading,
+  onRefreshData, currentEmail, currentUserId// Hàm fetch/làm mới lại dữ liệu bàn từ component cha truyền xuống
 }) {
-  const zonesFromApi = useMemo(() => (Array.isArray(zones) ? zones : []), [zones])
+
+  // 🔍 LOG TRỰC TIẾP PROPS TRUYỀN VÀO COMPONENT
+  console.log("🟢 [StepTimeAndTable Props Received]:", {
+    branchId,
+    currentUserId,
+    currentEmail,
+    date,
+    timeSlot,
+    tablesCount: tableAvailability?.length || 0
+  });
+
+  const zonesFromApi = useMemo(() => (Array.isArray(zones) ? zones : []), [zones]);
 
   const { rule: activeDepositRule } = useMemo(
     () => computeDepositInfo(policy, guestCount, timeSlot || '00:00'),
     [policy, guestCount, timeSlot]
-  )
+  );
 
   const isSlotUnderDeposit = (slotTime) => {
-    if (!policy?.depositRules?.length) return false
-    const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, slotTime)
-    return !!rule && needsDeposit
-  }
+    if (!policy?.depositRules?.length) return false;
+    const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, slotTime);
+    return !!rule && needsDeposit;
+  };
 
   const depositLabel = activeDepositRule
     ? activeDepositRule.depositType === 'PER_PERSON'
       ? `${formatVND(activeDepositRule.depositValue)}/người`
       : formatVND(activeDepositRule.depositValue)
-    : null
+    : null;
 
-  const activeZoneTables = tableAvailability
-  const totalCapacity = selectedTables.reduce((s, t) => s + (t.capacity || 0), 0)
+  const activeZoneTables = useMemo(() => {
+    if (!Array.isArray(tableAvailability)) return [];
+    return tableAvailability.filter(t => t.zoneId === activeZoneId);
+  }, [tableAvailability, activeZoneId]);
+  const totalCapacity = selectedTables.reduce((s, t) => s + (t.capacity || 0), 0);
 
   const todayStr = () => {
     const today = new Date();
@@ -665,6 +748,7 @@ function StepTimeAndTable({
   };
 
   const GUEST_PRESETS = [2, 4, 6, 8];
+
 
   return (
     <div className="card">
@@ -709,7 +793,7 @@ function StepTimeAndTable({
         policyLoading={policyLoading}
         policy={policy}
         guestCount={guestCount}
-        activeDepositRule={activeDepositRule} // Truyền activeDepositRule từ state/memo của component cha
+        activeDepositRule={activeDepositRule}
         formatVND={formatVND}
       />
 
@@ -732,7 +816,6 @@ function StepTimeAndTable({
                   const needsDeposit = isSlotUnderDeposit(s)
                   return (
                     <button key={s} type="button" onClick={() => {
-                      console.log('Slot được chọn:', s); // Log ra xem slot có đúng dạng "14:00" không
                       setTimeSlot(s);
                     }}
                       className="btn-sm"
@@ -913,7 +996,6 @@ function StepTimeAndTable({
     </div>
   );
 }
-
 const OTP_EXPIRE_KEY = 'booking_otp_expire_at'
 const RESEND_EXPIRE_KEY = 'booking_resend_expire_at'
 

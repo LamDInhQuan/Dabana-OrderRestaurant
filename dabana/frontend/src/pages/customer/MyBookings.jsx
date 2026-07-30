@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { bookingApi, reviewApi } from '../../api'
 import { ClipboardList, Armchair, Users, Clock, Wallet, CreditCard, ReceiptText, Star } from 'lucide-react'
+import wsService from '../../api/socket'
 
 // Import các modal đã được tách ra file riêng (điều chỉnh lại đường dẫn cho khớp thư mục của bạn)
 import CancelBookingModal from './modal/CancelBookingModal'
@@ -23,12 +24,53 @@ const STATUS_META = {
 }
 
 export default function MyBookings() {
+  console.log("wsService",wsService);
+  
   const navigate = useNavigate()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState(null)
   const [cancelingBooking, setCancelingBooking] = useState(null)
   const [filter, setFilter] = useState('ALL')
+
+  // Lấy thông tin user đang đăng nhập từ localStorage (khớp với key 'dabana_auth' trong file api.js của bạn)
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('dabana_auth')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        // Tuỳ vào cấu trúc object lưu trong localStorage mà trỏ đến id của user cho đúng
+        setCurrentUser(parsed.user || parsed) 
+      }
+    } catch (e) {
+      console.error("Lỗi đọc thông tin user từ localStorage", e)
+    }
+  }, [])
+
+  // socket 
+  useEffect(() => {
+  const userId = currentUser?.id; // Lấy ID của khách hàng đang đăng nhập
+  if (!userId) return;
+
+  wsService.connect(() => {
+    // Lắng nghe kênh riêng của user này
+    // (Lưu ý: Tiền tố prefix có thể thay đổi tùy thuộc vào cấu hình WebSocketConfigurer ở Backend của bạn, 
+    // ví dụ: `/topic/user/${userId}/bookings` hoặc `/user/${userId}/queue/bookings`)
+    const destination = `/topic/user/${userId}/bookings`; 
+
+    const subscription = wsService.subscribe(destination, (bookingId) => {
+      console.log("Nhận được cập nhật đơn hàng riêng cho user:", bookingId);
+      // Gọi lại API để load lại danh sách đơn của tôi
+      fetchMyBookings(); 
+    });
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
+  });
+}, [currentUser]);
 
   const load = () => {
     bookingApi.myBookings().then(r => {

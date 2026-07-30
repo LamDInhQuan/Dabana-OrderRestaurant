@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'https://dabana.dpdns.org/api', timeout: 10000 })
+const api = axios.create({ baseURL: '/api', timeout: 10000 })
 
 // Request interceptor: tự động đính kèm JWT vào header
 api.interceptors.request.use((config) => {
@@ -440,9 +440,16 @@ export const extraOrderApi = {
 // Khop dung backend: GET /api/order-board/branch/{branchId}?zoneId=
 // tra ve { branchId, zones: [{ zoneId, zoneName, description, tables: [...] }] }
 export const orderBoardApi = {
-  getBoard: (branchId, zoneId) =>
-    api.get(`/order-board/branch/${branchId}`, zoneId ? { params: { zoneId } } : undefined),
-}
+  // Sửa lại hàm getBoard để nhận thêm zoneId và targetTime
+  getBoard: (branchId, zoneId, targetTime) => {
+    const params = {};
+    if (zoneId) params.zoneId = zoneId;
+    if (targetTime) params.targetTime = targetTime;
+
+    // Truyền object params vào axios (nếu có)
+    return api.get(`/order-board/branch/${branchId}`, Object.keys(params).length > 0 ? { params } : undefined);
+  },
+};
 
 export const paymentApi = {
   // Lệnh THU tiền cọc - map đúng DepositPaymentController, ghi vào bảng

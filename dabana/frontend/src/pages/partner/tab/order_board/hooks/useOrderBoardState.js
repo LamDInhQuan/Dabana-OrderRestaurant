@@ -6,18 +6,11 @@ import { orderBoardApi } from '../../../../../api'
 
 const unwrap = (res) => res.data?.data ?? res.data
 
-// Khop dung WebSocketConfig#registerStompEndpoints("/ws") o backend. Duong dan
-// tuong doi - trinh duyet tu ghep voi origin hien tai. Neu dang chay qua dev
-// proxy (vite/CRA) va CHỈ proxy "/api", nho them ca "/ws" vao proxy config,
-// khong thi request se roi thang vao dev server port (khong phai backend).
 const WS_ENDPOINT = '/ws'
 
-// Poll van giu lam luoi an toan (WS mat ket noi tam thoi, hoac bo lot message)
-// - khong con la kenh chinh nua nen keo dai khoang cach ra so voi truoc.
+// Thời gian lặp poll dự phòng (30 giây)
 const POLL_INTERVAL_MS = 30000
 
-// Du lieu demo de UI van xem duoc khi chua noi API / API loi - dung style demo
-// nhu cac hook khac trong PartnerDashboard (branchApi, bookingApi...).
 const DEMO_ZONES = [
   {
     zoneId: 1,
@@ -59,8 +52,6 @@ const DEMO_ZONES = [
   },
 ]
 
-// Vá (patch) đúng những bàn vừa đổi vào zones hiện có, thay vì thay cả mảng -
-// tránh giật/nhấp nháy UI so với việc setZones lại toàn bộ sau reload().
 function mergeTablesIntoZones(zones, incomingTables) {
   if (!incomingTables?.length) return zones
   const byId = new Map(incomingTables.map((t) => [t.tableId, t]))
@@ -80,17 +71,25 @@ export function useOrderBoardState(branchId) {
   const isFirstLoad = useRef(true)
   const stompClientRef = useRef(null)
 
-  const load = useCallback(async ({ silent = false } = {}) => {
+  // Lưu trữ tham số hiện tại để tránh việc gọi load làm thay đổi dependency liên tục
+  const currentParamsRef = useRef({ zoneId: null, targetTime: null })
+
+  const load = useCallback(async ({ silent = false, targetTime = undefined, zoneId = undefined } = {}) => {
     if (!branchId) return
+
+    if (targetTime !== undefined) currentParamsRef.current.targetTime = targetTime;
+    if (zoneId !== undefined) currentParamsRef.current.zoneId = zoneId;
+
+    const { zoneId: currentZoneId, targetTime: currentTargetTime } = currentParamsRef.current;
+
     if (silent) setRefreshing(true); else setLoading(true)
     try {
-      const res = await orderBoardApi.getBoard(branchId)
+      const res = await orderBoardApi.getBoard(branchId, currentZoneId, currentTargetTime)
       const data = unwrap(res)
       setZones(data?.zones || [])
       setLastUpdatedAt(new Date())
     } catch (err) {
       if (isFirstLoad.current) {
-        // Chua noi duoc API (hoac api.js chua co orderBoardApi) - dung demo de UI van xem duoc
         setZones(DEMO_ZONES)
         setLastUpdatedAt(new Date())
       } else if (!silent) {
@@ -103,30 +102,30 @@ export function useOrderBoardState(branchId) {
     }
   }, [branchId])
 
-  // Load lan dau + moi khi doi chi nhanh
+  // Load lần đầu + mỗi khi đổi chi nhánh
   useEffect(() => {
     isFirstLoad.current = true
     setActiveZoneId('ALL')
+    currentParamsRef.current = { zoneId: null, targetTime: null }
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId])
+  }, [branchId, load])
 
-  // Poll du phong (WS la kenh chinh, cai nay chi vot lai neu WS rot/bo lot)
+  // Poll dự phòng định kỳ
   useEffect(() => {
     if (!branchId) return
-    const timer = setInterval(() => load({ silent: true }), POLL_INTERVAL_MS)
+    const timer = setInterval(() => {
+      load({ silent: true })
+    }, POLL_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [branchId, load])
 
-  // STOMP WebSocket: subscribe /topic/table-status/{branchId}, nhan
-  // TableBoardBroadcastMessage { branchId, tables } tu OrderBoardWebSocketListener
-  // (backend Task 5) va va truc tiep vao zones - khong can goi lai API.
+  // STOMP WebSocket
   useEffect(() => {
     if (!branchId) return
 
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_ENDPOINT),
-      reconnectDelay: 5000, // tu ket noi lai neu rot mang, khong can nguoi dung F5
+      reconnectDelay: 5000,
       onConnect: () => {
         setWsConnected(true)
         client.subscribe(`/topic/table-status/${branchId}`, (message) => {
@@ -137,7 +136,7 @@ export function useOrderBoardState(branchId) {
               setLastUpdatedAt(new Date())
             }
           } catch {
-            // Bo qua message sai dinh dang, khong lam vo UI - poll du phong se vot lai.
+            // Bỏ qua message lỗi format
           }
         })
       },
@@ -171,6 +170,6 @@ export function useOrderBoardState(branchId) {
   return {
     branchId, zones, visibleZones, loading, refreshing, lastUpdatedAt,
     activeZoneId, setActiveZoneId, summary, wsConnected,
-    reload: () => load(),
-  }
+    reload: (zoneId, targetTime) => load({ zoneId, targetTime }),
+  } 
 }

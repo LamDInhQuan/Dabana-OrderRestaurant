@@ -1,19 +1,19 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import Navbar from '../../components/Navbar'
 import { bookingApi, restaurantApi } from '../../api'
-import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react'
+import wsService from '../../api/socket'
 
 const STATUS_META = {
-  ALL:                      { label: 'Tất cả trạng thái', badge: 'badge-gray', actions: [] },
-  CONFIRMED:                { label: 'Đã xác nhận', badge: 'badge-green', actions: ['check-in'] },
-  CHECKED_IN:               { label: 'Đang phục vụ', badge: 'badge-blue', actions: ['check-out'] },
-  PENDING_NO_SHOW:          { label: 'Nghi No-show', badge: 'badge-yellow', actions: ['check-in','no-show'] },
-  COMPLETED:                { label: 'Hoàn tất', badge: 'badge-gray', actions: [] },
-  NO_SHOW:                  { label: 'No-show', badge: 'badge-red', actions: [] },
-  CANCELLED_BY_CUSTOMER:    { label: 'KH huỷ', badge: 'badge-red', actions: [] },
-  CANCELLED_BY_RESTAURANT:  { label: 'NH huỷ', badge: 'badge-red', actions: [] },
+  ALL: { label: 'Tất cả trạng thái', badge: 'badge-gray', actions: [] },
+  CONFIRMED: { label: 'Đã xác nhận', badge: 'badge-green', actions: ['check-in'] },
+  CHECKED_IN: { label: 'Đang phục vụ', badge: 'badge-blue', actions: ['check-out'] },
+  PENDING_NO_SHOW: { label: 'Nghi No-show', badge: 'badge-yellow', actions: ['check-in', 'no-show'] },
+  COMPLETED: { label: 'Hoàn tất', badge: 'badge-gray', actions: [] },
+  NO_SHOW: { label: 'No-show', badge: 'badge-red', actions: [] },
+  CANCELLED_BY_CUSTOMER: { label: 'KH huỷ', badge: 'badge-red', actions: [] },
+  CANCELLED_BY_RESTAURANT: { label: 'NH huỷ', badge: 'badge-red', actions: [] },
 }
 
 const TYPE_FILTERS = [
@@ -29,31 +29,94 @@ const DATE_FILTERS = [
   { key: 'UPCOMING', label: 'Sắp tới' },
 ]
 
-export default function ManageBookings({ bookings }) {
-  const [params] = useSearchParams()
-  
+export default function ManageBookings({ branchId }) {
+  console.log("branchId ", branchId);
+
+  const [bookings, setBookings] = useState([])
   const [filter, setFilter] = useState('ALL')
   const [typeFilter, setTypeFilter] = useState('ALL')
-  const [dateFilter, setDateFilter] = useState('ALL') // State lọc theo ngày
+  const [dateFilter, setDateFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 5
 
   const [loading, setLoading] = useState(true)
-
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [selectedBookingForCancel, setSelectedBookingForCancel] = useState(null)
   const [cancellationInfo, setCancellationInfo] = useState(null)
 
-  // Lọc danh sách theo trạng thái, loại cọc và ngày check-in
+  // 🚀 ĐÃ BỔ SUNG: State dạng Set lưu danh sách các ID đơn mới nhận qua WebSocket để giữ badge mark
+  const [newBookingIds, setNewBookingIds] = useState(new Set())
+
+  // Hàm gọi API lấy danh sách và sắp xếp đơn mới nhất lên đầu (theo id giảm dần)
+  const fetchBookings = async () => {
+    try {
+      setLoading(true)
+      const res = await restaurantApi.UpcomingBooking(branchId)
+      const rawList = res.data?.data || res || []
+
+      // Sắp xếp đơn mới nhất lên đầu (ID lớn nhất / mới tạo nhất)
+      const sortedList = rawList.sort((a, b) => b.id - a.id)
+
+      setBookings(sortedList)
+    } catch (err) {
+      toast.error('Không thể tải danh sách đặt bàn')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Gọi API lần đầu khi mở trang hoặc đổi branchId
+  useEffect(() => {
+    if (branchId) {
+      fetchBookings()
+    }
+  }, [branchId])
+
+  // Lắng nghe WebSocket Realtime: Bắn toast, mark đơn mới và fetch lại danh sách
+  useEffect(() => {
+    if (!branchId) return
+
+    wsService.connect(() => {
+      const subscription = wsService.subscribe(`/topic/branch/${branchId}/bookings`, (data) => {
+        const newId = typeof data === 'object' ? (data.id || data.bookingId) : data
+        console.log("Nhận được thông báo thay đổi đặt bàn realtime, ID:", newId)
+
+        if (newId) {
+          // Thêm ID mới vào danh sách đánh dấu (giữ nguyên không tự xóa)
+          setNewBookingIds(prev => new Set(prev).add(newId))
+        }
+
+        toast.success(`📥 Có đơn đặt bàn mới #${newId || ''} vừa được tạo!`, {
+          duration: 15000,
+          position: 'top-right',
+        })
+
+        fetchBookings()
+      })
+
+      return () => {
+        if (subscription) subscription.unsubscribe()
+      }
+    })
+  }, [branchId])
+
+  // Hàm xóa trạng thái mark khi đơn đã được tương tác/xử lý
+  const markAsHandled = (bookingId) => {
+    setNewBookingIds(prev => {
+      const next = new Set(prev)
+      next.delete(bookingId)
+      return next
+    })
+  }
+  
+  // Logic lọc dữ liệu
   const filteredbookings = useMemo(() => {
     let list = bookings || []
-    
-    // 1. Lọc theo trạng thái
+
     if (filter !== 'ALL') {
       list = list.filter(b => b.status === filter)
     }
 
-    // 2. Lọc theo loại cọc / chính sách
     if (typeFilter === 'HAS_DEPOSIT') {
       list = list.filter(b => {
         const deposit = b.depositAmount ?? b.policySnapshotDto?.depositValue ?? b.policySnapshot?.depositValue ?? 0
@@ -64,9 +127,9 @@ export default function ManageBookings({ bookings }) {
         const s = b.policySnapshotDto || b.policySnapshot
         const deposit = b.depositAmount ?? s?.depositValue ?? 0
         return Number(deposit) > 0 && s && (
-          s.freeCancellationHours !== null || 
-          s.freeRefundPercent !== null || 
-          s.lateRefundPercent !== null || 
+          s.freeCancellationHours !== null ||
+          s.freeRefundPercent !== null ||
+          s.lateRefundPercent !== null ||
           s.noShowRefundPercent !== null
         )
       })
@@ -75,16 +138,15 @@ export default function ManageBookings({ bookings }) {
         const s = b.policySnapshotDto || b.policySnapshot
         const deposit = b.depositAmount ?? s?.depositValue ?? 0
         const hasPolicy = s && (
-          s.freeCancellationHours !== null || 
-          s.freeRefundPercent !== null || 
-          s.lateRefundPercent !== null || 
+          s.freeCancellationHours !== null ||
+          s.freeRefundPercent !== null ||
+          s.lateRefundPercent !== null ||
           s.noShowRefundPercent !== null
         )
-      return Number(deposit) > 0 && !hasPolicy
+        return Number(deposit) > 0 && !hasPolicy
       })
     }
 
-    // 3. Lọc theo ngày check-in (reservationTime)
     if (dateFilter === 'TODAY') {
       const todayStr = new Date().toDateString()
       list = list.filter(b => new Date(b.reservationTime).toDateString() === todayStr)
@@ -106,23 +168,15 @@ export default function ManageBookings({ bookings }) {
     setCurrentPage(1)
   }, [filter, typeFilter, dateFilter])
 
-  const load = () => {
-    setLoading(true)
-    setTimeout(() => setLoading(false), 200)
-  }
-
-  useEffect(() => {
-    load()
-  }, [filter, bookings, typeFilter, dateFilter])
-
+  // Xử lý mở Modal hủy đơn
   const handleOpenCancelModal = (booking) => {
     setSelectedBookingForCancel(booking)
-    
+
     const snapshot = booking.policySnapshotDto || booking.policySnapshot
     const hasPolicy = snapshot && (
-      snapshot.freeCancellationHours !== null || 
-      snapshot.freeRefundPercent !== null || 
-      snapshot.lateRefundPercent !== null || 
+      snapshot.freeCancellationHours !== null ||
+      snapshot.freeRefundPercent !== null ||
+      snapshot.lateRefundPercent !== null ||
       snapshot.noShowRefundPercent !== null
     )
 
@@ -163,26 +217,37 @@ export default function ManageBookings({ bookings }) {
     setCancelModalOpen(true)
   }
 
+  // Xác nhận hủy đơn
   const confirmCancelBooking = async () => {
     if (!selectedBookingForCancel) return
     try {
       await bookingApi.cancel(selectedBookingForCancel.id, { cancelledByRestaurant: true })
       toast.success('Đã huỷ đơn thành công!')
+      
+      // 🚀 Xóa trạng thái mark mới khi nhà hàng đã xử lý hủy đơn này
+      markAsHandled(selectedBookingForCancel.id)
+
       setCancelModalOpen(false)
       setSelectedBookingForCancel(null)
-      load()
+      fetchBookings()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi khi huỷ đơn')
     }
   }
 
+  // Thực hiện các action (check-in, check-out, no-show)
   const doAction = async (bookingId, action) => {
     try {
-      if (action === 'check-in')  await bookingApi.checkIn(bookingId)
+      if (action === 'check-in') await bookingApi.checkIn(bookingId)
       if (action === 'check-out') await bookingApi.checkOut(bookingId)
-      if (action === 'no-show')   await bookingApi.cancel(bookingId, { cancelledByRestaurant: false, reason: 'No-show' })
+      if (action === 'no-show') await bookingApi.cancel(bookingId, { cancelledByRestaurant: false, reason: 'No-show' })
+      
       toast.success('Cập nhật thành công!')
-      load()
+      
+      // 🚀 Xóa trạng thái mark mới khi đã bấm tương tác xử lý đơn
+      markAsHandled(bookingId)
+
+      fetchBookings()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi cập nhật')
     }
@@ -197,10 +262,12 @@ export default function ManageBookings({ bookings }) {
         <div className="flex gap-2" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
           {Object.entries(STATUS_META).map(([k, { label }]) => (
             <button key={k} onClick={() => setFilter(k)}
-              style={{ padding: '.4rem .875rem', borderRadius: 99, fontSize: '.82rem', fontWeight: 600,
+              style={{
+                padding: '.4rem .875rem', borderRadius: 99, fontSize: '.82rem', fontWeight: 600,
                 background: filter === k ? 'var(--brand)' : 'var(--white)',
                 color: filter === k ? '#fff' : 'var(--text-muted)',
-                border: '1.5px solid', borderColor: filter === k ? 'var(--brand)' : 'var(--border)' }}>
+                border: '1.5px solid', borderColor: filter === k ? 'var(--brand)' : 'var(--border)'
+              }}>
               {label}
             </button>
           ))}
@@ -210,10 +277,12 @@ export default function ManageBookings({ bookings }) {
         <div className="flex gap-2" style={{ marginBottom: '.75rem', flexWrap: 'wrap' }}>
           {TYPE_FILTERS.map(tf => (
             <button key={tf.key} onClick={() => setTypeFilter(tf.key)}
-              style={{ padding: '.3rem .75rem', borderRadius: 8, fontSize: '.78rem', fontWeight: 500,
+              style={{
+                padding: '.3rem .75rem', borderRadius: 8, fontSize: '.78rem', fontWeight: 500,
                 background: typeFilter === tf.key ? '#374151' : '#f3f4f6',
                 color: typeFilter === tf.key ? '#fff' : '#4b5563',
-                border: 'none' }}>
+                border: 'none'
+              }}>
               {tf.label}
             </button>
           ))}
@@ -224,10 +293,12 @@ export default function ManageBookings({ bookings }) {
           <span style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Thời gian:</span>
           {DATE_FILTERS.map(df => (
             <button key={df.key} onClick={() => setDateFilter(df.key)}
-              style={{ padding: '.3rem .75rem', borderRadius: 8, fontSize: '.78rem', fontWeight: 500,
+              style={{
+                padding: '.3rem .75rem', borderRadius: 8, fontSize: '.78rem', fontWeight: 500,
                 background: dateFilter === df.key ? 'var(--brand)' : '#f3f4f6',
                 color: dateFilter === df.key ? '#fff' : '#4b5563',
-                border: 'none' }}>
+                border: 'none'
+              }}>
               {df.label}
             </button>
           ))}
@@ -248,35 +319,60 @@ export default function ManageBookings({ bookings }) {
             const hasPolicy = s && (s.freeCancellationHours !== null || s.freeRefundPercent !== null || s.lateRefundPercent !== null || s.noShowRefundPercent !== null)
             const depositAmount = b.depositAmount ?? s?.depositValue ?? 0
 
+            // 🚀 Kiểm tra đơn có nằm trong danh sách được mark mới qua WebSocket không
+            const isNewIncoming = newBookingIds.has(b.id)
+
             return (
-              <div key={b.id} className="card" style={{ border: '1px solid var(--border)' }}>
+              <div
+                key={b.id}
+                className="card"
+                style={{
+                  border: isNewIncoming ? '2px solid #10b981' : '1px solid var(--border)',
+                  backgroundColor: isNewIncoming ? '#f0fdf4' : 'var(--white)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
                 <div className="flex items-center justify-between" style={{ marginBottom: '.625rem' }}>
-                  <div>
+                  <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700 }}>#{b.id} – </span>
-                    <span style={{ fontWeight: 600 }}>{b.contactName || 'Khách hàng'}</span>
-                    <span style={{ fontSize: '.82rem', color: 'var(--text-muted)', marginLeft: '.5rem' }}>
+                    <span style={{ fontWeight: 600 }}>{b.name || 'Khách hàng'}</span>
+                    <span style={{ fontSize: '.82rem', color: 'var(--text-muted)' }}>
                       {b.contactPhone}
                     </span>
+                    {/* Badge đánh dấu đơn mới realtime */}
+                    {isNewIncoming && (
+                      <span style={{ background: '#10b981', color: '#fff', fontSize: '.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', animation: 'pulse 1.5s infinite' }}>
+                        ✨ MỚI TẠO
+                      </span>
+                    )}
                   </div>
                   <span className={`badge ${meta.badge}`}>{meta.label}</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '.5rem', fontSize: '.87rem', marginBottom: '.875rem', flexWrap: 'wrap', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', gap: '.4rem', fontSize: '.87rem', marginBottom: '.875rem', flexDirection: 'column' }}>
+                  {/* Ngày tạo đơn */}
+                  {b.createdAt && (
+                    <p style={{ color: '#4b5563', fontSize: '.82rem' }}>
+                      <CalendarPlus size={15} style={{ verticalAlign: '-3px', marginRight: '4px' }} />
+                      Ngày tạo đơn: <strong>{new Date(b.createdAt).toLocaleString('vi-VN')}</strong>
+                    </p>
+                  )}
                   <p>
-                    <Armchair size={16} style={{ verticalAlign: '-3px' }} /> Bàn: {b.tables?.map((table, index) => (
-                          <strong key={table.id || index}>
-                            {table.tableName}
-                            {index < b.tables.length - 1 ? ', ' : ''}
-                          </strong>
-                        ))}
+                    <Armchair size={16} style={{ verticalAlign: '-3px', marginRight: '4px' }} /> Bàn: {b.tables?.map((table, index) => (
+                      <strong key={table.id || index}>
+                        {table.tableName}
+                        {index < b.tables.length - 1 ? ', ' : ''}
+                      </strong>
+                    ))}
                   </p>
-                  <p><Users size={16} style={{ verticalAlign: '-3px' }} /> Khách: <strong>{b.guestCount}</strong></p>
-                  <p><Clock size={16} style={{ verticalAlign: '-3px' }} /> <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
+                  <p><Users size={16} style={{ verticalAlign: '-3px', marginRight: '4px' }} /> Khách: <strong>{b.guestCount}</strong></p>
+                  <p><Clock size={16} style={{ verticalAlign: '-3px', marginRight: '4px' }} /> Thời gian hẹn: <strong>{new Date(b.reservationTime).toLocaleString('vi-VN')}</strong></p>
+
                   {depositAmount > 0 && (
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span><Wallet size={16} style={{ verticalAlign: '-3px' }} /> Cọc: <strong>{Number(depositAmount).toLocaleString('vi-VN')}₫</strong></span>
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '4px' }}>
+                      <span><Wallet size={16} style={{ verticalAlign: '-3px', marginRight: '4px' }} /> Cọc: <strong>{Number(depositAmount).toLocaleString('vi-VN')}₫</strong></span>
                       {hasPolicy ? (
-                        <span style={{ fontSize: '.78rem', background: '#ecfdf5', color: '#047857', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                        <span style={{ fontSize: '.78rem', background: '#e6f4ea', color: '#137333', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
                           Có chính sách hủy (Miễn phí trước {s.freeCancellationHours}h - Hoàn {s.freeRefundPercent}%)
                         </span>
                       ) : (
@@ -322,16 +418,16 @@ export default function ManageBookings({ bookings }) {
               Trang {currentPage} / {totalPages} (Tổng số {filteredbookings.length} đơn)
             </span>
             <div className="flex gap-1">
-              <button 
-                className="btn-outline btn-sm" 
+              <button
+                className="btn-outline btn-sm"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                 style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
               >
                 <ChevronLeft size={16} /> Trước
               </button>
-              <button 
-                className="btn-outline btn-sm" 
+              <button
+                className="btn-outline btn-sm"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                 style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}

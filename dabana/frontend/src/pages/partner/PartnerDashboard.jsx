@@ -337,26 +337,6 @@ export default function PartnerDashboard() {
     fetchDashboardStats()
   }, [activeBranch?.id])
 
-  // fetch upcoming book
-  useEffect(() => {
-    const fetchBranchBookings = async () => {
-      if (!activeBranch?.id) return
-      try {
-        setStatsLoading(true)
-        const branchBookingRes = await restaurantApi.UpcomingBooking(activeBranch.id)
-        const branchBookingData = branchBookingRes?.data?.data || branchBookingRes?.data || []
-        setBranchBookings(Array.isArray(branchBookingData) ? branchBookingData : [])
-      } catch (error) {
-        console.error('Failed to load upcomingData:', error)
-        setBranchBookings([])
-      } finally {
-        setStatsLoading(false)
-      }
-    }
-
-    fetchBranchBookings()
-  }, [activeBranch?.id])
-
   // fetch tables
   useEffect(() => {
     if (!activeBranch?.id) {
@@ -376,6 +356,7 @@ export default function PartnerDashboard() {
       })
       .catch(() => setTables([]))
   }, [activeBranch?.id])
+
 
 
   const tablesByStatus = {
@@ -1033,7 +1014,7 @@ export default function PartnerDashboard() {
 
           {/* ══════ TAB BRANCH BOOKINGS LIST══════ */}
           {activeTab === 'bookings' && (
-            <ManageBookings bookings={branchBookingList} />
+            <ManageBookings branchId={activeBranch.id} />
           )}
 
           {/* ══════ GỌI MÓN (TAB GỌI MÓN - realtime bàn) ══════ */}
