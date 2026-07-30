@@ -20,4 +20,11 @@ public class PayosConfigResponse {
     private String webhookUrl;
     private Boolean isActive;
     private LocalDateTime updatedAt;
+    /**
+     * true neu lan luu gan nhat da goi payOS xac nhan webhookUrl THANH CONG.
+     * null neu chua tung thu (vd goi GET config, hoac chua co webhookUrl).
+     */
+    private Boolean webhookConfirmed;
+    /** Thong diep loi tu payOS neu webhookConfirmed = false, de Admin biet ly do. */
+    private String webhookConfirmError;
 }
