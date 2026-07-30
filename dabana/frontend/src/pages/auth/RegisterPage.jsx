@@ -25,17 +25,27 @@ export default function RegisterPage() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [resending, setResending] = useState(false)
 
+  // State lưu lỗi chi tiết trả về từ Backend theo từng field
+  const [errors, setErrors] = useState({})
+
   useEffect(() => {
     if (resendCooldown <= 0) return
     const timer = setInterval(() => setResendCooldown(s => Math.max(0, s - 1)), 1000)
     return () => clearInterval(timer)
   }, [resendCooldown])
 
-  const set = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }))
+  const set = (k) => (e) => {
+    setForm(p => ({ ...p, [k]: e.target.value }))
+    // Xóa lỗi của field đó đi khi người dùng bắt đầu gõ sửa lại
+    if (errors[k]) {
+      setErrors(prev => ({ ...prev, [k]: null }))
+    }
+  }
 
   const handleRegister = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setErrors({}) // Reset lỗi cũ
     try {
       await authApi.register(form)
       if (form.role === 'RESTAURANT_PARTNER') {
@@ -47,7 +57,15 @@ export default function RegisterPage() {
         navigate('/login')
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Đăng ký thất bại')
+      const errorData = err.response?.data
+
+      // Kiểm tra nếu là lỗi validation (có chứa fields) -> Chỉ gán state để render dưới input, không gọi toast
+      if (errorData?.fields) {
+        setErrors(errorData.fields)
+      } else {
+        // Các lỗi khác (401, 500,...) thì hiện toast message thông thường
+        toast.error(errorData?.message || 'Đăng ký thất bại')
+      }
     } finally {
       setLoading(false)
     }
@@ -151,18 +169,22 @@ export default function RegisterPage() {
           <div>
             <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Họ tên *</label>
             <input value={form.fullName} onChange={set('fullName')} placeholder="Nguyễn Văn A" required />
+            {errors.fullName && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.fullName}</span>}
           </div>
           <div>
             <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Email *</label>
             <input type="email" value={form.email} onChange={set('email')} placeholder="abc@gmail.com" required />
+            {errors.email && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.email}</span>}
           </div>
           <div>
             <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Số điện thoại *</label>
             <input value={form.phone} onChange={set('phone')} placeholder="0901234567" required />
+            {errors.phone && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.phone}</span>}
           </div>
           <div>
             <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Mật khẩu *</label>
             <input type="password" value={form.password} onChange={set('password')} placeholder="Tối thiểu 8 ký tự" required />
+            {errors.password && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.password}</span>}
           </div>
 
           {/* Phần mở rộng cho Nhà hàng đối tác */}
@@ -174,12 +196,14 @@ export default function RegisterPage() {
 
               <div>
                 <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Tên thương hiệu nhà hàng *</label>
-                <input value={form.restaurantName} onChange={set('restaurantName')} placeholder="Ví dụ: Gogi House - Trần Duy Hưng" required={form.role === 'RESTAURANT_PARTNER'} />
+                <input value={form.restaurantName} onChange={set('restaurantName')} placeholder="Ví dụ: Gogi House - Trần Duy Hưng" />
+                {errors.restaurantName && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.restaurantName}</span>}
               </div>
 
               <div>
                 <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Số điện thoại nhà hàng</label>
                 <input value={form.restaurantPhone} onChange={set('restaurantPhone')} placeholder="0243123456" />
+                {errors.restaurantPhone && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.restaurantPhone}</span>}
               </div>
 
               <div>
@@ -191,11 +215,13 @@ export default function RegisterPage() {
                   rows={2}
                   style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', fontFamily: 'inherit', outline: 'none' }}
                 />
+                {errors.description && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.description}</span>}
               </div>
 
               <div>
                 <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Website (Có thể bỏ trống)</label>
                 <input value={form.website} onChange={set('website')} placeholder="https://example.com" />
+                {errors.website && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.website}</span>}
               </div>
             </>
           )}
