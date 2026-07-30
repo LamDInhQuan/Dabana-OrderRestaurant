@@ -76,6 +76,15 @@ public class AuthService implements IAuthService {
     @Override
     @Transactional
     public UserResponse register(RegisterAccountRequest req) {
+        // Nếu đăng ký là đối tác nhà hàng thì bắt buộc phải có thông tin nhà hàng
+        if (req.getRole() == RoleUser.RESTAURANT_PARTNER) {
+            if (req.getRestaurantName() == null || req.getRestaurantName().trim().isEmpty()) {
+                throw new BusinessException(AuthErrorCode.RESTAURANT_NAME_REQUIRED);
+            }
+            if (req.getRestaurantPhone() == null || req.getRestaurantPhone().trim().isEmpty()) {
+                throw new BusinessException(AuthErrorCode.RESTAURANT_PHONE_REQUIRED);
+            }
+        }
         if (req.getEmail() != null && userRepository.existsByEmail(req.getEmail())) {
             throw new BusinessException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
