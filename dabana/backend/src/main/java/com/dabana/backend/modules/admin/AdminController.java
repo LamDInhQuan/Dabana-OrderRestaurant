@@ -20,6 +20,8 @@ import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.modules.review.Review;
 import com.dabana.backend.modules.review.ReviewRepository;
 import com.dabana.backend.modules.auth.service.MailService;
+import com.dabana.backend.modules.notification.NotificationService;
+import com.dabana.backend.modules.notification.NotificationType;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -62,6 +64,7 @@ public class AdminController {
     private final SystemCategoryRepository systemCategoryRepository;
     private final BookingRepository bookingRepository;
     private final MailService mailService;
+    private final NotificationService notificationService;
 
     // ======================================================
     // DTOs dung chung
@@ -174,6 +177,24 @@ public class AdminController {
             mailService.sendPartnerApprovedEmail(saved.getEmail(), saved.getFullName(), restaurantName);
         } else {
             mailService.sendPartnerRejectedEmail(saved.getEmail(), saved.getFullName(), restaurantName, req.getReason());
+        }
+
+        // B09: ghi nhan thong bao in-app (lich su gui/doc + retry) song song voi email o tren
+        if (Boolean.TRUE.equals(req.getApproved())) {
+            notificationService.sendImmediate(
+                    saved,
+                    NotificationType.PARTNER_APPROVED,
+                    String.format("Ho so doi tac%s cua ban da duoc phe duyet.",
+                            restaurantName != null ? " \"" + restaurantName + "\"" : ""),
+                    "IN_APP");
+        } else {
+            notificationService.sendImmediate(
+                    saved,
+                    NotificationType.PARTNER_REJECTED,
+                    String.format("Ho so doi tac%s cua ban da bi tu choi.%s",
+                            restaurantName != null ? " \"" + restaurantName + "\"" : "",
+                            req.getReason() != null ? " Ly do: " + req.getReason() : ""),
+                    "IN_APP");
         }
 
         return ResponseEntity.ok(userMapper.userResponse(saved));

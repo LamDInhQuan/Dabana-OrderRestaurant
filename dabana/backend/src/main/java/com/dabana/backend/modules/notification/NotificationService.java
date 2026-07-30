@@ -1,15 +1,20 @@
 package com.dabana.backend.modules.notification;
 
 import com.dabana.backend.common.BaseEntity;
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.Booking;
 import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
+import com.dabana.backend.modules.notification.util.NotificationErrorCode;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -29,6 +34,7 @@ class Notification extends BaseEntity {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User recipient;
 
     @Enumerated(EnumType.STRING)
@@ -49,21 +55,13 @@ class Notification extends BaseEntity {
     private Boolean readByUser = false;
 }
 
-enum NotificationType {
-    BOOKING_CONFIRMED,   // Tuc thi sau B01 buoc 9 (BR01 cua B09)
-    BOOKING_REMINDER,    // 15-30 phut truoc gio an (B09 buoc 5)
-    BOOKING_CANCELLED,   // B11
-    NO_SHOW_WARNING,     // B11 buoc 5
-    WAITLIST_INVITED,    // B10 buoc 4
-    REVIEW_INVITATION,   // Sau B12 hoan tat
-    PARTNER_APPROVED,    // B03/B04 duoc duyet
-    PARTNER_REJECTED     // B03/B04 bi tu choi
-}
-
 // ===== Repository =====
 interface NotificationRepository extends JpaRepository<Notification, Long> {
     List<Notification> findByRecipientIdAndReadByUserFalseOrderByCreatedAtDesc(Long userId);
     List<Notification> findBySendStatusAndRetryCountLessThan(String status, int maxRetry);
+
+    long countByRecipientIdAndReadByUserFalse(Long userId);
+    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 }
 
 /**
@@ -141,27 +139,32 @@ public class NotificationService {
      * B09 Buoc 5: nhac lich hen 15-30 phut truoc gio an.
      * Chay moi 5 phut de phat hien cac don can nhac.
      */
-//    @Scheduled(fixedRate = 300_000)
-//    @Transactional
-//    public void sendBookingReminders() {
-//        LocalDateTime now = LocalDateTime.now();
-//        LocalDateTime windowEnd = now.plusMinutes(30);
-//
-//        List<Booking> needReminder = bookingRepository.findBookingsNeedingReminder(now, windowEnd);
-//        for (Booking booking : needReminder) {
-//            String content = String.format(
-//                    "Nhac lich: Ban co dat ban tai %s vao luc %s. Ban: %s",
-//                    booking.getBranch().getName(),
-//                    booking.getReservationTime(),
-//                    resolveTableLabel(booking));
-//
-//            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
-//            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "EMAIL");
-//
-//            booking.setReminderSent(true);
-//            bookingRepository.save(booking);
-//        }
-//    }
+    @Scheduled(fixedRate = 300_000)
+    @Transactional
+    public void sendBookingReminders() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime windowEnd = now.plusMinutes(30);
+
+        List<Booking> needReminder = bookingRepository.findBookingsNeedingReminder(now, windowEnd);
+        for (Booking booking : needReminder) {
+            if (booking.getCustomer() == null) {
+                // Khach vang lai/khach dat khong tai khoan: chua co co che gui
+                // thong bao khong gan User (recipient la bat buoc trong Notification).
+                continue;
+            }
+
+            String content = String.format(
+                    "Nhac lich: Ban co dat ban tai %s vao luc %s. Ban: %s",
+                    booking.getBranch().getName(),
+                    booking.getReservationTime(),
+                    resolveTableLabel(booking));
+
+            sendImmediate(booking.getCustomer(), NotificationType.BOOKING_REMINDER, content, "IN_APP");
+
+            booking.setReminderSent(true);
+            bookingRepository.save(booking);
+        }
+    }
 
     /**
      * B11 Buoc 5: canh bao no-show sau 15 phut qua gio hen.
@@ -199,5 +202,47 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<Notification> getUnread(Long userId) {
         return notificationRepository.findByRecipientIdAndReadByUserFalseOrderByCreatedAtDesc(userId);
+    }
+
+    /** Lich su thong bao (da doc + chua doc) cua nguoi dung, moi nhat truoc, co phan trang. */
+    @Transactional(readOnly = true)
+    public Page<Notification> getHistory(Long userId, Pageable pageable) {
+        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable);
+    }
+
+    /** Dem so thong bao chua doc, dung de hien so badge tren chuong thong bao. */
+    @Transactional(readOnly = true)
+    public long countUnread(Long userId) {
+        return notificationRepository.countByRecipientIdAndReadByUserFalse(userId);
+    }
+
+    /**
+     * Danh dau 1 thong bao la da doc. Kiem tra thong bao do dung la cua
+     * userId hien tai, tranh mot nguoi dung danh dau ho thong bao cua nguoi khac.
+     */
+    @Transactional
+    public void markAsRead(Long notificationId, Long userId) {
+        Notification notif = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new BusinessException(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (notif.getRecipient() == null || !Objects.equals(notif.getRecipient().getId(), userId)) {
+            throw new BusinessException(NotificationErrorCode.NOTIFICATION_FORBIDDEN);
+        }
+
+        if (!Boolean.TRUE.equals(notif.getReadByUser())) {
+            notif.setReadByUser(true);
+            notificationRepository.save(notif);
+        }
+    }
+
+    /** Danh dau toan bo thong bao chua doc cua nguoi dung la da doc. */
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        List<Notification> unread = notificationRepository
+                .findByRecipientIdAndReadByUserFalseOrderByCreatedAtDesc(userId);
+        for (Notification notif : unread) {
+            notif.setReadByUser(true);
+        }
+        notificationRepository.saveAll(unread);
     }
 }
