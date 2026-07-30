@@ -27,6 +27,7 @@ import ExportExcelBar from './exportBar'
 import ManageBookings from './ManageBookings'
 import CuisineSelector from './component/CuisineSelector'
 import PartnerReportsPage from './reports/PartnerReportsPage'
+import NotificationBell from '../../components/NotificationBell'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -477,12 +478,22 @@ export default function PartnerDashboard() {
   };
 
   // ── B09: xử lý thông báo ─────────────────────────────
-  const markNotificationRead = (id) => {
+  const markNotificationRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, readByUser: true } : n))
+    try {
+      await notificationApi.markAsRead(id)
+    } catch {
+      toast.error('Không thể đánh dấu thông báo là đã đọc')
+    }
   }
-  const markAllNotificationsRead = () => {
+  const markAllNotificationsRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, readByUser: true })))
-    toast.success('Đã đánh dấu tất cả đã đọc')
+    try {
+      await notificationApi.markAllAsRead()
+      toast.success('Đã đánh dấu tất cả đã đọc')
+    } catch {
+      toast.error('Không thể đánh dấu tất cả là đã đọc')
+    }
   }
 
   // ── B03: hồ sơ thương hiệu chung ─────────────────────
@@ -927,13 +938,7 @@ export default function PartnerDashboard() {
                 <Hourglass size={15} style={{ verticalAlign: '-2px' }} /> Có lời mời hàng chờ đang chờ phản hồi
               </div>
             )}
-            <button onClick={() => setActiveTab('notifications')} style={{ ...S.btnOut, padding: '.45rem .75rem', fontSize: '.9rem', position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <Bell size={18} />
-              {unreadCount > 0 && <span style={{
-                position: 'absolute', top: -4, right: -4, background: C.red, color: '#fff',
-                fontSize: '.62rem', fontWeight: 800, borderRadius: 99, padding: '.05rem .35rem'
-              }}>{unreadCount}</span>}
-            </button>
+            <NotificationBell color="var(--text)" branchId={activeBranch?.id} onViewAll={() => setActiveTab('notifications')} />
             <button onClick={() => setExportModal(true)} style={{ ...S.btnOut, padding: '.45rem .75rem', fontSize: '.9rem' }}>📤 Xuất báo cáo</button>
 
             <button onClick={() => navigate('/')} style={{ ...S.btnOut, padding: '.45rem 1rem', fontSize: '.78rem' }}>

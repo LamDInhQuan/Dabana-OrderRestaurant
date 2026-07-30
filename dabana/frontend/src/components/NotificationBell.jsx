@@ -59,7 +59,7 @@ function formatRelativeTime(isoString) {
   return date.toLocaleDateString('vi-VN')
 }
 
-export default function NotificationBell({ color = 'var(--brown)' }) {
+export default function NotificationBell({ color = 'var(--brown)', branchId = null, onViewAll = null }) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -68,7 +68,7 @@ export default function NotificationBell({ color = 'var(--brown)' }) {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const res = await notificationApi.getUnreadCount()
+      const res = await notificationApi.getUnreadCount(branchId)
       const data = res.data?.data || res.data || {}
       setUnreadCount(data.count || 0)
     } catch {
@@ -79,7 +79,7 @@ export default function NotificationBell({ color = 'var(--brown)' }) {
   const fetchHistory = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await notificationApi.getHistory({ page: 0, size: 15 })
+      const res = await notificationApi.getHistory({ page: 0, size: 15 }, branchId)
       const data = res.data?.data || res.data || {}
       setItems(data.content || [])
     } catch {
@@ -94,7 +94,7 @@ export default function NotificationBell({ color = 'var(--brown)' }) {
     fetchUnreadCount()
     const interval = setInterval(fetchUnreadCount, 30_000)
     return () => clearInterval(interval)
-  }, [fetchUnreadCount])
+  }, [fetchUnreadCount, branchId])
 
   // Dong dropdown khi bam ra ngoai
   useEffect(() => {
@@ -195,18 +195,32 @@ export default function NotificationBell({ color = 'var(--brown)' }) {
             }}>
               Thông báo
             </span>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                style={{
-                  background: 'transparent', border: 'none', padding: 0,
-                  color: 'var(--gold-dark)', fontSize: '.76rem', fontWeight: 600,
-                  letterSpacing: '.02em', cursor: 'pointer',
-                }}
-              >
-                Đánh dấu tất cả đã đọc
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '.75rem' }}>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  style={{
+                    background: 'transparent', border: 'none', padding: 0,
+                    color: 'var(--gold-dark)', fontSize: '.76rem', fontWeight: 600,
+                    letterSpacing: '.02em', cursor: 'pointer',
+                  }}
+                >
+                  Đánh dấu tất cả đã đọc
+                </button>
+              )}
+              {onViewAll && (
+                <button
+                  onClick={() => { setOpen(false); onViewAll(); }}
+                  style={{
+                    background: 'transparent', border: 'none', padding: 0,
+                    color: 'var(--muted)', fontSize: '.76rem', fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Xem tất cả
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Body */}
