@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -22,6 +23,7 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +43,7 @@ import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
+import com.dabana.backend.modules.invoice.repository.InvoiceRepository;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.RestaurantErrorCode;
 import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
@@ -70,22 +73,24 @@ public class RestaurantService {
         private final WaitlistRepository waitlistRepository;
         private final DiningTableRepository diningTableRepository;
         private final ReviewRepository reviewRepository;
+        private final InvoiceRepository invoiceRepository;
+
 
         private final RestaurantMapper restaurantMapper;
         private final BookingMapper bookingMapper;
 
         public List<RestaurantResponse> findAll() {
                 List<Restaurant> restaurants = restaurantRepos.findAll().stream()
-                        .filter(item -> item.getApprovalStatus() != ApprovalStatus.PENDING)
-                        .toList(); // Hoặc .collect(Collectors.toList()) tùy phiên bản Java
+                                .filter(item -> item.getApprovalStatus() != ApprovalStatus.PENDING)
+                                .toList(); // Hoặc .collect(Collectors.toList()) tùy phiên bản Java
 
                 if (restaurants.isEmpty()) {
                         throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
                 }
 
                 return restaurants.stream()
-                        .map(restaurantMapper::toResponse)
-                        .toList();
+                                .map(restaurantMapper::toResponse)
+                                .toList();
         }
 
         public RestaurantResponse findByOwnerId(Long ownerId) {
@@ -143,12 +148,15 @@ public class RestaurantService {
 
         private void buildExcelReport(Branch branch, LocalDate from, LocalDate to, Workbook workbook) {
                 List<Booking> branchBookings = bookingRepository.findByBranchId(branch.getId());
-                Map<LocalDate, List<Booking>> bookingsByDay = branchBookings.stream()
+                List<Booking> filteredBookings = branchBookings.stream()
                                 .filter(booking -> booking.getCreatedAt() != null)
                                 .filter(booking -> {
                                         LocalDate bookingDate = booking.getCreatedAt().toLocalDate();
                                         return !bookingDate.isBefore(from) && !bookingDate.isAfter(to);
                                 })
+                                .toList();
+
+                Map<LocalDate, List<Booking>> bookingsByDay = filteredBookings.stream()
                                 .collect(Collectors.groupingBy(
                                                 booking -> booking.getCreatedAt().toLocalDate(),
                                                 TreeMap::new,
@@ -163,9 +171,75 @@ public class RestaurantService {
                 headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
                 headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
 
+                CellStyle summaryStyle = workbook.createCellStyle();
+                Font summaryFont = workbook.createFont();
+                summaryFont.setBold(true);
+                summaryStyle.setFont(summaryFont);
+
+                DetailExcelReport summaryDetail = buildSummaryExcelReport(filteredBookings, branch);
+
+                int Row = 0;
+                Row summaryRow0 = sheet.createRow(Row);
+                summaryRow0.createCell(0).setCellValue("Chi nhánh");
+                summaryRow0.createCell(2).setCellValue(branch.getName() != null ? branch.getName() : "");
+                summaryRow0.createCell(3).setCellValue("Khoảng thời gian");
+                summaryRow0.createCell(5).setCellValue(from + " đến " + to);
+                
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 0, 1));
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 3, 4));
+                Row++;
+
+                Row summaryRow1 = sheet.createRow(Row);
+                summaryRow1.createCell(0).setCellValue("Tổng phục vụ");
+                summaryRow1.createCell(2)
+                .setCellValue(summaryDetail.getDailyServing() != null ? summaryDetail.getDailyServing()
+                : 0L);
+                summaryRow1.createCell(3).setCellValue("Tổng đơn đặt");
+                summaryRow1.createCell(5)
+                .setCellValue(summaryDetail.getDailyBooked() != null ? summaryDetail.getDailyBooked()
+                                                : 0L);
+                
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 0, 1));
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 3, 4));
+                Row++;
+
+                Row summaryRow2 = sheet.createRow(Row);
+                summaryRow2.createCell(0).setCellValue("Tỉ lệ lấp bàn");
+                summaryRow2.createCell(2)
+                                .setCellValue(summaryDetail.getFillrate() != null ? summaryDetail.getFillrate() : 0.0);
+                summaryRow2.createCell(3).setCellValue("Tỉ lệ no-show / hoàn thành");
+                summaryRow2.createCell(5)
+                                .setCellValue(summaryDetail.getNoShowRate() != null ? summaryDetail.getNoShowRate()
+                                                : 0.0);
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 0, 1));
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 3, 4));
+                Row++;
+
+                Row summaryRow3 = sheet.createRow(Row);
+                summaryRow3.createCell(0).setCellValue("Tổng giá trị đơn đặt");
+                                        
+                summaryRow3.createCell(2)
+                                .setCellValue(summaryDetail.getRevenue() != null ? summaryDetail.getRevenue() : 0.0);
+
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 0, 1));
+                sheet.addMergedRegion(new CellRangeAddress(Row, Row, 3, 4));
+   
+                for (int i = 0; i < 4; i++) {
+                        Row row = sheet.getRow(i);
+                        if (row != null) {
+                                for (int j = 0; j < 4; j++) {
+                                        Cell cell = row.getCell(j);
+                                        if (cell == null) {
+                                                cell = row.createCell(j);
+                                        }
+                                        cell.setCellStyle(summaryStyle);
+                                }
+                        }
+                }
+
                 String[] headers = { "Ngày ", "Tổng phục vụ", "Tổng đơn đặt", "Tỉ lệ lấp bàn",
                                 "Tỉ lệ no-show / hoàn thành", "Tổng giá trị đơn đặt" };
-                Row headerRow = sheet.createRow(0);
+                Row headerRow = sheet.createRow(5);
                 for (int i = 0; i < headers.length; i++) {
                         Cell cell = headerRow.createCell(i);
                         cell.setCellValue(headers[i]);
@@ -178,19 +252,49 @@ public class RestaurantService {
                 sheet.setColumnWidth(4, 20 * 256);
                 sheet.setColumnWidth(5, 20 * 256);
 
-                int rowIdx = 1;
+                int rowIdx = 6;
                 for (LocalDate date : bookingsByDay.keySet()) {
                         List<Booking> dayBookings = bookingsByDay.get(date);
                         DetailExcelReport detail = buildDetailExcelReport(date, dayBookings, branch);
                         Row row = sheet.createRow(rowIdx++);
 
-                        row.createCell(0).setCellValue(date.toString() != null ? date.toString() : date.toString());
-                        row.createCell(1).setCellValue(detail.getDailyServing() != null ? detail.getDailyServing() : 0L);
+                        row.createCell(0).setCellValue(date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")).toString());
+                        row.createCell(1)
+                                        .setCellValue(detail.getDailyServing() != null ? detail.getDailyServing() : 0L);
                         row.createCell(2).setCellValue(detail.getDailyBooked() != null ? detail.getDailyBooked() : 0L);
                         row.createCell(3).setCellValue(detail.getFillrate() != null ? detail.getFillrate() : 0.0);
-                        row.createCell(4).setCellValue(detail.getNoShowRate().toString());
+                        row.createCell(4)
+                                        .setCellValue(detail.getNoShowRate() != null ? detail.getNoShowRate() : 0.0);
                         row.createCell(5).setCellValue(detail.getRevenue() != null ? detail.getRevenue() : 0.0);
                 }
+        }
+
+        private DetailExcelReport buildSummaryExcelReport(List<Booking> bookings, Branch branch) {
+                long totalServing = bookings.stream()
+                                .filter(booking -> booking.getStatus() == BookingStatus.CHECKED_IN)
+                                .count();
+                long totalBooked = bookings.stream().count();
+
+                long noShow = bookings.stream()
+                                .filter(booking -> booking.getStatus() == BookingStatus.NO_SHOW)
+                                .count();
+
+                double revenue = bookings.stream()
+                                .filter(booking -> booking.getEstimatedTotal() != null
+                                                && isFinishedStatus(booking.getStatus()))
+                                .mapToDouble(booking -> booking.getEstimatedTotal().doubleValue())
+                                .sum();
+                long totalTables = diningTableRepository.countByZone_Branch_Id(branch.getId());
+                long occupiedTables = bookings.stream().filter(booking -> isOccupied(booking.getStatus())).count();
+
+                return DetailExcelReport.builder()
+                                .dailyServing(totalServing)
+                                .dailyBooked(totalBooked)
+                                .totalTables(totalTables)
+                                .totaloccupied(occupiedTables)
+                                .noShow(noShow)
+                                .revenue(roundUp(revenue))
+                                .build();
         }
 
         private DetailExcelReport buildDetailExcelReport(LocalDate day, List<Booking> dayBookings, Branch branch) {
@@ -198,29 +302,26 @@ public class RestaurantService {
                                 .filter(booking -> booking.getStatus() == BookingStatus.CHECKED_IN)
                                 .count();
                 long totalBooked = dayBookings.stream().count();
-                long finished = dayBookings.stream()
-                                .filter(booking -> isFinishedStatus(booking.getStatus()))
-                                .count();
+
                 long noShow = dayBookings.stream()
                                 .filter(booking -> booking.getStatus() == BookingStatus.NO_SHOW)
                                 .count();
 
                 double revenue = dayBookings.stream()
-                                .filter(booking -> booking.getEstimatedTotal() != null && isFinishedStatus(booking.getStatus()))
+                                .filter(booking -> booking.getEstimatedTotal() != null
+                                                && isFinishedStatus(booking.getStatus()))
                                 .mapToDouble(booking -> booking.getEstimatedTotal().doubleValue())
                                 .sum();
                 long totalTables = diningTableRepository.countByZone_Branch_Id(branch.getId());
-                long occupiedTables = dayBookings.stream().filter(booking-> isOccupied(booking.getStatus())).count();
-                double fillRate = totalTables == 0
-                                ? 0.0
-                                : roundUp(occupiedTables * 100.0 / totalTables);
+                long occupiedTables = dayBookings.stream().filter(booking -> isOccupied(booking.getStatus())).count();
+
 
                 return DetailExcelReport.builder()
                                 .dailyServing(totalServing)
                                 .dailyBooked(totalBooked)
                                 .reportedDate(day)
-                                .fillrate(fillRate)
-                                .finished(finished)
+                                .totalTables(totalTables)
+                                .totaloccupied(occupiedTables)
                                 .noShow(noShow)
                                 .revenue(roundUp(revenue))
                                 .build();
@@ -309,22 +410,18 @@ public class RestaurantService {
                                                 List.of(DiningTableStatus.OCCUPIED, DiningTableStatus.RESERVED));
                 double fillRate = totalTables == 0
                                 ? 0.0
-                                : occupiedTables * 100.0 / totalTables;
+                                : roundUp(occupiedTables * 100.0 / totalTables);
 
-                long finished30day = branchBookings30Day.stream()
-                                .filter(booking -> isFinishedStatus(booking.getStatus()))
-                                .count();
+                long finished30day = branchBookings30Day.stream().count();
                 long noShow30day = branchBookings30Day.stream()
                                 .filter(booking -> booking.getStatus() == BookingStatus.NO_SHOW)
                                 .count();
                 double noShowRate = finished30day == 0
                                 ? 0.0
-                                : noShow30day * 100.0 / finished30day;
+                                : roundUp(noShow30day * 100.0 / finished30day);
 
                 Double reviewScore = reviewRepository.calculateAverageRating(branchId) == null ? 0.0
                                 : reviewRepository.calculateAverageRating(branchId);
-
-                // reviewScore = reviewRepository.calculateAverageRating(branchId);
 
                 return BranchReportDto.builder()
                                 .branchId(branchId)
@@ -422,8 +519,10 @@ public class RestaurantService {
         private boolean isFinishedStatus(BookingStatus status) {
                 return status == BookingStatus.COMPLETED || status == BookingStatus.CHECKED_IN;
         }
+
         private boolean isOccupied(BookingStatus status) {
-                return status == BookingStatus.COMPLETED || status == BookingStatus.CHECKED_IN || status == BookingStatus.CONFIRMED;
+                return status == BookingStatus.COMPLETED || status == BookingStatus.CHECKED_IN
+                                || status == BookingStatus.CONFIRMED;
         }
 
         public RestaurantResponse Register(RestaurantRegisterRequest request, Long ownerId) {

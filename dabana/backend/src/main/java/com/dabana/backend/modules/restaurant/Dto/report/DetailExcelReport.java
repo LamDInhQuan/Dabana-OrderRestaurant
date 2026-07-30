@@ -2,8 +2,6 @@ package com.dabana.backend.modules.restaurant.Dto.report;
 
 import java.time.LocalDate;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,12 +13,15 @@ public class DetailExcelReport {
     private LocalDate reportedDate;
     private Double fillrate;
     private Double revenue;
-    
     private Long noShow;
+    private Long completed;
+    private Long totalTables;
+    private Long totaloccupied;
 
-    private Long finished;
-    
-    public String getNoShowRate() {
-        return noShow.toString() + '/' + finished.toString();
+    public Double getNoShowRate() {
+        if (completed == null || completed == 0L) {
+            return 0.0;
+        }
+        return Math.round((noShow == null ? 0L : noShow) * 10000.0 / completed) / 100.0;
     }
 }

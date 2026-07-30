@@ -26,6 +26,7 @@ import BranchImageManager from './tab/settings/BranchImageManager'
 import ExportExcelBar from './exportBar'
 import ManageBookings from './ManageBookings'
 import CuisineSelector from './component/CuisineSelector'
+import PartnerReportsPage from './reports/PartnerReportsPage'
 
 // ── Google Font ─────────────────────────────────────────────────
 const FONT_LINK = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap'
@@ -178,6 +179,7 @@ export default function PartnerDashboard() {
   const [exportBranchId, setExportBranchId] = useState(activeBranch?.id || "");
   const [exportFromDate, setExportFromDate] = useState("");
   const [exportToDate, setExportToDate] = useState("");
+  const [exportModal, setExportModal] = useState(false);
 
   useEffect(() => {
     if (activeBranch?.id) {
@@ -786,8 +788,19 @@ export default function PartnerDashboard() {
 
   // ── RENDER ─────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Be Vietnam Pro',system-ui,sans-serif", background: C.cream }}>
+    <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', fontFamily: "'Be Vietnam Pro',system-ui,sans-serif", background: C.cream }}>
       <link href={FONT_LINK} rel="stylesheet" />
+      {exportModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem' }}>
+          <div style={{ width: 760, maxWidth: '100%', background: C.white, borderRadius: 8, padding: '1rem 1.25rem', boxShadow: '0 6px 30px rgba(0,0,0,.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
+       
+              <button onClick={() => setExportModal(false)} style={{ ...S.btnOut }}>Đóng</button>
+            </div>
+            <ExportExcelBar branches={branches} onClose={() => setExportModal(false)} />
+          </div>
+        </div>
+      )}
 
       {/* ════════ SIDEBAR ════════ */}
       <aside style={{
@@ -907,11 +920,14 @@ export default function PartnerDashboard() {
                 fontSize: '.62rem', fontWeight: 800, borderRadius: 99, padding: '.05rem .35rem'
               }}>{unreadCount}</span>}
             </button>
+            <button onClick={() => setExportModal(true)} style={{ ...S.btnOut, padding: '.45rem .75rem', fontSize: '.9rem' }}>📤 Xuất báo cáo</button>
 
             <button onClick={() => navigate('/')} style={{ ...S.btnOut, padding: '.45rem 1rem', fontSize: '.78rem' }}>
               <Globe size={15} style={{ verticalAlign: '-2px' }} /> Về trang chủ
             </button>
           </div>
+
+
         </div>
 
         <div style={{ padding: '2rem' }}>
@@ -920,7 +936,7 @@ export default function PartnerDashboard() {
           {/* ══════ DASHBOARD ══════ */}
           {activeTab === 'dashboard' && (
             <div>
-              <ExportExcelBar branches={branches} />
+
               <div style={{ ...S.eyebrow, marginBottom: '1.5rem' }}>Tổng quan hôm nay</div>
 
               {/* Stats */}
@@ -1247,64 +1263,65 @@ export default function PartnerDashboard() {
 
           {/* ══════ REPORTS / THỐNG KÊ (B15) ══════ */}
           {activeTab === 'reports' && (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                <StatCard icon={<Wallet size={26} />} label="Doanh thu cọc (tổng)" value={`${stats.totalRevenue.toLocaleString('vi-VN')}₫`} sub="từ đơn hoàn tất" color={C.gold} />
-                <StatCard icon={<ClipboardList size={26} />} label="Tổng lượt đặt" value={bookings.length} sub={`${todayBookings.length} hôm nay`} color={C.blue} />
-                <StatCard icon={<Users size={26} />} label="Khách hàng" value={customerProfiles.length} sub="đã từng đặt bàn" color={C.purple} />
-                <StatCard icon={<Utensils size={26} />} label="Món đang bán" value={menu.filter(m => m.status === 'SELLING').length} sub={`/${menu.length} món`} color={C.green} />
-              </div>
+            // <div>
+            //   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+            //     <StatCard icon={<Wallet size={26} />} label="Doanh thu cọc (tổng)" value={`${stats.totalRevenue.toLocaleString('vi-VN')}₫`} sub="từ đơn hoàn tất" color={C.gold} />
+            //     <StatCard icon={<ClipboardList size={26} />} label="Tổng lượt đặt" value={bookings.length} sub={`${todayBookings.length} hôm nay`} color={C.blue} />
+            //     <StatCard icon={<Users size={26} />} label="Khách hàng" value={customerProfiles.length} sub="đã từng đặt bàn" color={C.purple} />
+            //     <StatCard icon={<Utensils size={26} />} label="Món đang bán" value={menu.filter(m => m.status === 'SELLING').length} sub={`/${menu.length} món`} color={C.green} />
+            //   </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                <div style={S.card}>
-                  <div style={{ ...S.eyebrow, marginBottom: '1rem' }}>Tỷ trọng trạng thái đặt bàn</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
-                    {bookingStatusBreakdown.map(({ status, count, meta }) => (
-                      <div key={status} style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
-                        <span style={{ fontSize: '.78rem', color: C.muted, width: 120 }}>{meta.label}</span>
-                        <div style={{ flex: 1, height: 10, borderRadius: 99, background: C.creamDark, overflow: 'hidden' }}>
-                          <div style={{ width: `${bookings.length ? count / bookings.length * 100 : 0}%`, height: '100%', background: meta.color }} />
-                        </div>
-                        <span style={{ fontSize: '.78rem', fontWeight: 700, color: meta.color, width: 24, textAlign: 'right' }}>{count}</span>
-                      </div>
-                    ))}
-                    {bookingStatusBreakdown.length === 0 && <p style={{ color: C.muted, fontSize: '.85rem' }}>Chưa có dữ liệu</p>}
-                  </div>
-                </div>
+            //   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            //     <div style={S.card}>
+            //       <div style={{ ...S.eyebrow, marginBottom: '1rem' }}>Tỷ trọng trạng thái đặt bàn</div>
+            //       <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
+            //         {bookingStatusBreakdown.map(({ status, count, meta }) => (
+            //           <div key={status} style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+            //             <span style={{ fontSize: '.78rem', color: C.muted, width: 120 }}>{meta.label}</span>
+            //             <div style={{ flex: 1, height: 10, borderRadius: 99, background: C.creamDark, overflow: 'hidden' }}>
+            //               <div style={{ width: `${bookings.length ? count / bookings.length * 100 : 0}%`, height: '100%', background: meta.color }} />
+            //             </div>
+            //             <span style={{ fontSize: '.78rem', fontWeight: 700, color: meta.color, width: 24, textAlign: 'right' }}>{count}</span>
+            //           </div>
+            //         ))}
+            //         {bookingStatusBreakdown.length === 0 && <p style={{ color: C.muted, fontSize: '.85rem' }}>Chưa có dữ liệu</p>}
+            //       </div>
+            //     </div>
 
-                <div style={S.card}>
-                  <div style={{ ...S.eyebrow, marginBottom: '1rem' }}>Thực đơn theo danh mục</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
-                    {menuByCategory.map(({ cat, count, revenue }) => (
-                      <div key={cat} style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        padding: '.5rem 0', borderBottom: `1px solid ${C.creamDark}`
-                      }}>
-                        <span style={{ fontSize: '.85rem', color: C.text }}>{cat}</span>
-                        <span style={{ fontSize: '.78rem', color: C.muted }}>{count} món · giá TB {(revenue / (count || 1)).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}₫</span>
-                      </div>
-                    ))}
-                    {menuByCategory.length === 0 && <p style={{ color: C.muted, fontSize: '.85rem' }}>Chưa có dữ liệu</p>}
-                  </div>
-                </div>
-                {/* doanh thu tiền cọc */}
-                <div style={{ ...S.card, gridColumn: '1/-1' }}>
-                  <div style={{ ...S.eyebrow, marginBottom: '1.25rem' }}>Doanh thu tiền cọc 7 ngày gần nhất</div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '.625rem', height: 120 }}>
-                    {[65, 45, 80, 55, 90, 70, 100].map((h, i) => (
-                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.35rem' }}>
-                        <div style={{
-                          width: '100%', background: `linear-gradient(to top,${C.gold},${C.goldLight})`,
-                          height: `${h}%`, borderRadius: '4px 4px 0 0', minHeight: 4
-                        }}
-                          title={`${(h * 5000).toLocaleString('vi-VN')}₫`} />
-                        <span style={{ fontSize: '.65rem', color: C.muted }}>{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][i]}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            //     <div style={S.card}>
+            //       <div style={{ ...S.eyebrow, marginBottom: '1rem' }}>Thực đơn theo danh mục</div>
+            //       <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
+            //         {menuByCategory.map(({ cat, count, revenue }) => (
+            //           <div key={cat} style={{
+            //             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            //             padding: '.5rem 0', borderBottom: `1px solid ${C.creamDark}`
+            //           }}>
+            //             <span style={{ fontSize: '.85rem', color: C.text }}>{cat}</span>
+            //             <span style={{ fontSize: '.78rem', color: C.muted }}>{count} món · giá TB {(revenue / (count || 1)).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}₫</span>
+            //           </div>
+            //         ))}
+            //         {menuByCategory.length === 0 && <p style={{ color: C.muted, fontSize: '.85rem' }}>Chưa có dữ liệu</p>}
+            //       </div>
+            //     </div>
+            //     {/* doanh thu tiền cọc */}
+            //     <div style={{ ...S.card, gridColumn: '1/-1' }}>
+            //       <div style={{ ...S.eyebrow, marginBottom: '1.25rem' }}>Doanh thu tiền cọc 7 ngày gần nhất</div>
+            //       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '.625rem', height: 120 }}>
+            //         {[65, 45, 80, 55, 90, 70, 100].map((h, i) => (
+            //           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.35rem' }}>
+            //             <div style={{
+            //               width: '100%', background: `linear-gradient(to top,${C.gold},${C.goldLight})`,
+            //               height: `${h}%`, borderRadius: '4px 4px 0 0', minHeight: 4
+            //             }}
+            //               title={`${(h * 5000).toLocaleString('vi-VN')}₫`} />
+            //             <span style={{ fontSize: '.65rem', color: C.muted }}>{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][i]}</span>
+            //           </div>
+            //         ))}
+            //       </div>
+            //     </div>
+            //   </div>
+            // </div>
+            <PartnerReportsPage/>
           )}
 
           {/* ══════ NOTIFICATIONS (B09) ══════ */}

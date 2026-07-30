@@ -4,8 +4,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 
+import java.util.List;
 import java.util.Optional;
 
 
@@ -15,6 +17,10 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
 
    // Tìm nhà hàng theo đúng tên thuộc tính restaurantName
    Optional<Restaurant> findByRestaurantName(String restaurantName);
+
+   Long countByApprovalStatus(ApprovalStatus pending);
+
+   List<Restaurant> findByApprovalStatus(ApprovalStatus pending);
 
 
 
