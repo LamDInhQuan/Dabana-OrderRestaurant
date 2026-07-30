@@ -3,6 +3,7 @@ package com.dabana.backend.modules.orderboard.service;
 import com.dabana.backend.modules.orderboard.dto.response.BranchBoardResponse;
 import com.dabana.backend.modules.orderboard.dto.response.TableBoardResponse;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface IOrderBoardService {
@@ -15,7 +16,7 @@ public interface IOrderBoardService {
      * @param branchId id chi nhanh (bat buoc)
      * @param zoneId   loc theo 1 zone cu the (tuy chon, null = lay tat ca zone cua chi nhanh)
      */
-    BranchBoardResponse getBoard(Long branchId, Long zoneId);
+    BranchBoardResponse getBoard(Long branchId, Long zoneId , LocalDateTime targetTime);
 
     /**
      * Build TableBoardResponse cho 1 tap tableId cu the (khong nhom theo Zone).

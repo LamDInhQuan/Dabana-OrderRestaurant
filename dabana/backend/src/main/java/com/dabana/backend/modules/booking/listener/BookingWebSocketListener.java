@@ -1,6 +1,6 @@
 package com.dabana.backend.modules.booking.listener;
 
-import com.dabana.backend.modules.booking.event.BookingChangedEvent;
+import com.dabana.backend.modules.booking.event.BookingTableChangedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -22,24 +22,21 @@ public class BookingWebSocketListener {
     private final SimpMessagingTemplate messagingTemplate;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onBookingChanged(BookingChangedEvent event) {
-        if (event.getBranchId() == null && event.getUserId() == null) {
-            return;
-        }
+    public void onBookingChanged(BookingTableChangedEvent event) {
         try {
             // 1. Broadcast cập nhật cho phía Nhà hàng (quản lý đặt bàn tại chi nhánh)
+            // 1. Broadcast cho phía Nhà hàng (quản lý đặt bàn)
             if (event.getBranchId() != null) {
                 messagingTemplate.convertAndSend(
                         BRANCH_TOPIC_PREFIX + event.getBranchId() + "/bookings",
                         event.getBookingId()
                 );
-            }
 
-            // 2. Broadcast cập nhật cho riêng Khách hàng (nếu có userId)
-            if (event.getUserId() != null) {
+                // 🚀 2. Broadcast thông báo cập nhật sơ đồ bàn cho TẤT CẢ khách hàng
+                // đang xem sơ đồ/chọn bàn tại chi nhánh này
                 messagingTemplate.convertAndSend(
-                        USER_TOPIC_PREFIX + event.getUserId() + "/bookings",
-                        event.getBookingId()
+                        BRANCH_TOPIC_PREFIX + event.getBranchId() + "/tables-update",
+                        event // Hoặc truyền thêm danh sách tableIds bị ảnh hưởng nếu cần
                 );
             }
         } catch (Exception ex) {

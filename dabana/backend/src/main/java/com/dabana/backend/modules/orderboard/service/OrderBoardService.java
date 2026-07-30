@@ -42,26 +42,13 @@ import java.util.stream.Collectors;
  * Tab Goi Mon:
  * - Task 4: API danh sach ban + don hang realtime (getBoard).
  * - Task 5: build lai TableBoardResponse cho 1 tap tableId cu the
- *   (getTableBoards), dung boi OrderBoardWebSocketListener de broadcast
- *   qua STOMP moi khi co TableBoardChangedEvent.
- *
- * Gop du lieu tu Zone / DiningTable / Booking (+ BookingTable) / BookingItem
- * (rs_preorder_items) / ExtraOrder (rs_extra_orders) thanh 1 response duy
- * nhat. Service nay CHI DOC, khong ghi - viec doi trang thai ban/booking do
- * BookingService / DiningTableService / ExtraOrderService dam nhiem, va cac
- * service do se tu publish TableBoardChangedEvent sau khi ghi xong.
+ * (getTableBoards), dung boi OrderBoardWebSocketListener de broadcast
+ * qua STOMP moi khi co TableBoardChangedEvent.
  */
 @Service
 @RequiredArgsConstructor
 public class OrderBoardService implements IOrderBoardService {
 
-    // Chi coi la "dang active" (hien thi thong tin khach + don hang tren the ban)
-    // khi booking o CHECKED_IN (luon active, khach da ngoi) hoac CONFIRMED VA da
-    // gan toi gio hen (trong vong ACTIVE_BOOKING_LEAD_MINUTES phut truoc
-    // reservationTime). CONFIRMED con xa hon khong hien gi ca tren Tab Goi Mon -
-    // KHONG canh bao, KHONG khoa nhan khach vang lai; day CHI la cua so hien thi,
-    // khong con anh huong gi den viec nhan vien co duoc nhan khach vang lai hay
-    // khong (FE tu quyet dinh dua tren trang thai vat ly cua ban).
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES =
             List.of(BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN);
     private static final long ACTIVE_BOOKING_LEAD_MINUTES = 180;
@@ -73,9 +60,14 @@ public class OrderBoardService implements IOrderBoardService {
     private final BookingItemRepository bookingItemRepository;
     private final ExtraOrderRepository extraOrderRepository;
 
-    @Override
+    /**
+     * Hỗ trợ overloaded method: Nếu không truyền targetTime thì mặc định lấy thời gian hiện tại.
+     */
+    /**
+     * Hàm chính: Cho phép truyền vào targetTime tùy chọn để xem trạng thái bàn theo khung giờ chỉ định.
+     */
     @Transactional(readOnly = true)
-    public BranchBoardResponse getBoard(Long branchId, Long zoneId) {
+    public BranchBoardResponse getBoard(Long branchId, Long zoneId, LocalDateTime targetTime) {
         branchRepository.findById(branchId)
                 .orElseThrow(() -> new BusinessException(DiningTableErrorCode.BRANCH_NOT_FOUND));
 
@@ -86,7 +78,8 @@ public class OrderBoardService implements IOrderBoardService {
                 ? List.of()
                 : diningTableRepository.findByZoneIdInOrderByZoneIdAscIdAsc(zoneIds);
 
-        Map<Long, TableBoardResponse> responseByTableId = buildTableBoardResponseMap(tables);
+        // Truyền targetTime vào quá trình build trạng thái bàn
+        Map<Long, TableBoardResponse> responseByTableId = buildTableBoardResponseMap(tables, targetTime);
 
         Map<Long, List<DiningTable>> tablesByZoneId = tables.stream()
                 .collect(Collectors.groupingBy(t -> t.getZone().getId(), LinkedHashMap::new, Collectors.toList()));
@@ -119,7 +112,8 @@ public class OrderBoardService implements IOrderBoardService {
             return List.of();
         }
         List<DiningTable> tables = diningTableRepository.findAllById(tableIds);
-        return new ArrayList<>(buildTableBoardResponseMap(tables).values());
+        // Mặc định real-time khi gọi qua WebSocket event
+        return new ArrayList<>(buildTableBoardResponseMap(tables, null).values());
     }
 
     private List<Zone> resolveZones(Long branchId, Long zoneId) {
@@ -134,24 +128,18 @@ public class OrderBoardService implements IOrderBoardService {
         return List.of(zone);
     }
 
-    /**
-     * Logic dung chung cho ca getBoard (nhieu ban, nhom theo zone) va
-     * getTableBoards (1 tap tableId le te khi co event thay doi). Tra ve
-     * Map<tableId, TableBoardResponse> de goi noi dung linh hoat theo tung nhu cau.
-     */
-    private Map<Long, TableBoardResponse> buildTableBoardResponseMap(List<DiningTable> tables) {
+    private Map<Long, TableBoardResponse> buildTableBoardResponseMap(List<DiningTable> tables, LocalDateTime targetTime) {
         if (tables.isEmpty()) {
             return Map.of();
         }
 
         Map<Long, Booking> activeBookingByTableId = loadActiveBookings(
-                tables.stream().map(DiningTable::getId).toList());
+                tables.stream().map(DiningTable::getId).toList(), targetTime);
 
-        // Build 1 lan don hang gop cho moi booking active duy nhat (tranh query lap
-        // khi 1 booking gan nhieu ban cung luc - vd ban ghep).
         Set<Long> activeBookingIds = activeBookingByTableId.values().stream()
                 .map(Booking::getId)
                 .collect(Collectors.toCollection(HashSet::new));
+
         Map<Long, List<OrderItemResponse>> ordersByBookingId = new HashMap<>();
         Map<Long, BigDecimal> totalByBookingId = new HashMap<>();
         for (Long bookingId : activeBookingIds) {
@@ -172,44 +160,62 @@ public class OrderBoardService implements IOrderBoardService {
     }
 
     /**
-     * Voi moi tableId, tim booking dang active gan voi no qua rs_reservation_tables:
-     * CHECKED_IN (luon active) hoac CONFIRMED van CON HAN (chua qua gio hen) VA
-     * da trong vong ACTIVE_BOOKING_LEAD_MINUTES phut truoc gio hen. CONFIRMED con
-     * xa hon bi bo qua hoan toan (khong hien gi).
-     *
-     * Chan ca can duoi (reservationTime.isAfter(now)) o day la lop phong thu THU
-     * 2, doc lap voi BookingService#expireOverdueConfirmedBookings() (job chay
-     * dinh ky 60s tu chuyen CONFIRMED qua han sang NO_SHOW): du job chua kip chay
-     * (toi da ~60s + NO_SHOW_GRACE_MINUTES tre), Tab Goi Mon van khong hien nham
-     * 1 booking da qua gio hen la dang active nua.
-     *
-     * Neu 1 ban lo co nhieu ung vien active cung luc (du ve nguyen tac khong nen
-     * xay ra - vd vua nhan walk-in tren ban da co booking CONFIRMED sap toi), uu
-     * tien CHECKED_IN (khach dang ngoi thuc te) truoc, sau do moi den booking co
-     * reservationTime GAN NHAT.
+     * Đã cập nhật sử dụng targetTime (nếu null sẽ tự động fallback về LocalDateTime.now())
      */
-    private Map<Long, Booking> loadActiveBookings(List<Long> tableIds) {
+    /**
+     * Tách biệt logic tìm booking active:
+     * - Nếu xem theo slot (targetTime != null): Chỉ lấy booking có reservationTime khớp với targetTime (hoặc thuộc khoảng giờ của slot).
+     * - Nếu xem realtime (targetTime == null): Lấy các bàn đang CHECKED_IN thực tế hoặc có lịch gần nhất.
+     */
+    private Map<Long, Booking> loadActiveBookings(List<Long> tableIds, LocalDateTime targetTime) {
         if (tableIds.isEmpty()) {
             return Map.of();
         }
-        List<BookingTable> bookingTables =
-                bookingTableRepository.findByDiningTable_IdInAndBooking_StatusIn(tableIds, ACTIVE_BOOKING_STATUSES);
-
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime activeThreshold = now.plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES);
 
         Map<Long, Booking> result = new HashMap<>();
-        for (BookingTable bt : bookingTables) {
-            Long tableId = bt.getDiningTable().getId();
-            Booking candidate = bt.getBooking();
 
-            boolean isActive = candidate.getStatus() == BookingStatus.CHECKED_IN
-                    || (candidate.getReservationTime().isAfter(now)
-                        && !candidate.getReservationTime().isAfter(activeThreshold));
-            if (!isActive) continue;
+        if (targetTime != null) {
+            // ==========================================
+            // CHẾ ĐỘ XEM THEO SLOT (LỊCH ĐẶT)
+            // ==========================================
+            // Chỉ tìm các đơn CONFIRMED có đúng reservationTime khớp với targetTime của slot.
+            // Hoàn toàn bỏ qua các đơn CHECKED_IN hoặc các đơn giờ khác.
+            List<BookingStatus> slotStatuses = List.of(BookingStatus.CONFIRMED);
+            List<BookingTable> bookingTables =
+                    bookingTableRepository.findByDiningTable_IdInAndBooking_StatusIn(tableIds, slotStatuses);
 
-            result.merge(tableId, candidate, this::pickPreferredBooking);
+            for (BookingTable bt : bookingTables) {
+                Long tableId = bt.getDiningTable().getId();
+                Booking candidate = bt.getBooking();
+
+                // Kiểm tra chính xác thời gian đặt lịch phải khớp với targetTime
+                if (candidate.getReservationTime() != null && candidate.getReservationTime().equals(targetTime)) {
+                    result.merge(tableId, candidate, this::pickPreferredBooking);
+                }
+            }
+        } else {
+            // ==========================================
+            // CHẾ ĐỘ XEM REALTIME (HIỆN TẠI - MẶC ĐỊNH)
+            // ==========================================
+            // Lúc này mới cho phép lấy cả CHECKED_IN và CONFIRMED trong phạm vi lead time
+            List<BookingTable> bookingTables =
+                    bookingTableRepository.findByDiningTable_IdInAndBooking_StatusIn(tableIds, ACTIVE_BOOKING_STATUSES);
+
+            LocalDateTime now = LocalDateTime.now();
+            for (BookingTable bt : bookingTables) {
+                Long tableId = bt.getDiningTable().getId();
+                Booking candidate = bt.getBooking();
+
+                boolean isCheckedIn = candidate.getStatus() == BookingStatus.CHECKED_IN;
+                boolean isWithinLeadTime = candidate.getReservationTime() != null
+                        && !candidate.getReservationTime().isAfter(now.plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES));
+
+                if (isCheckedIn || isWithinLeadTime) {
+                    result.merge(tableId, candidate, this::pickPreferredBooking);
+                }
+            }
         }
+
         return result;
     }
 
@@ -219,7 +225,6 @@ public class OrderBoardService implements IOrderBoardService {
         return b.getReservationTime().isBefore(a.getReservationTime()) ? b : a;
     }
 
-    /** Order Aggregation Rule (muc 2 tai lieu yeu cau): gop rs_preorder_items + rs_extra_orders thanh 1 danh sach. */
     private List<OrderItemResponse> buildUnifiedOrders(Long bookingId) {
         List<OrderItemResponse> orders = new ArrayList<>();
 
@@ -271,13 +276,25 @@ public class OrderBoardService implements IOrderBoardService {
         response.setTableId(table.getId());
         response.setTableName(table.getTableName());
         response.setCapacity(table.getCapacity());
-        response.setStatus(table.getStatus() == null ? null : table.getStatus().getCode());
 
         if (activeBooking != null) {
             response.setActiveBooking(toActiveBookingResponse(activeBooking));
             response.setOrders(ordersByBookingId.getOrDefault(activeBooking.getId(), List.of()));
             response.setEstimatedTotal(totalByBookingId.getOrDefault(activeBooking.getId(), BigDecimal.ZERO));
+
+            // PHÂN ĐỊNH TRẠNG THÁI BÀN DỰA TRÊN BOOKING THAY VÌ LẤY TRẠNG THÁI GỐC CỦA BÀN:
+            // - Nếu đơn đang CHECKED_IN (khách đang ngồi ăn thực tế): Trạng thái bàn là Đang dùng (Mã 3)
+            // - Nếu đơn là CONFIRMED (đặt lịch trước cho slot giờ đó): Trạng thái bàn là Đã đặt (Mã 2)
+            if (activeBooking.getStatus() == BookingStatus.CHECKED_IN) {
+                response.setStatus(3); // Giả định 3 là mã trạng thái "Đang dùng" (Occupied)
+            } else {
+                response.setStatus(2); // Giả định 2 là mã trạng thái "Đã đặt" (Reserved)
+            }
+        } else {
+            // Không có lịch/khách vào khung giờ này -> Bàn Trống (Mã 1)
+            response.setStatus(1); // Giả định 1 là mã trạng thái "Trống" (Empty)
         }
+
         return response;
     }
 

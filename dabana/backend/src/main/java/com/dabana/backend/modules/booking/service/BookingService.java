@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.booking.service;
 
+import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.auth.repository.UserRepository;
@@ -15,7 +16,7 @@ import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
 import com.dabana.backend.modules.booking.dto.request.CreateWalkInBookingRequest;
 import com.dabana.backend.modules.booking.event.BookingCancelledForRefundEvent;
 import com.dabana.backend.modules.booking.dto.response.CustomerResponse;
-import com.dabana.backend.modules.booking.event.BookingChangedEvent;
+import com.dabana.backend.modules.booking.event.BookingTableChangedEvent;
 import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.util.CancelledBy;
 import com.dabana.backend.modules.booking.util.RefundStatus;
@@ -59,11 +60,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -262,7 +259,29 @@ public class BookingService implements IBookingService {
                     branch.getName(), booking.getReservationTime());
             notifyCustomer(booking, NotificationType.BOOKING_CONFIRMED, content);
         }
-        eventPublisher.publishEvent(new BookingChangedEvent(booking.getBranch().getId(), booking.getCustomer().getId().longValue(), booking.getId()));
+        // Ví dụ gom nhóm các bàn theo Zone ID trong Java Service
+        List<Long> zoneIds = tables.stream()
+                .map(t -> t.getZone().getId())
+                .distinct()
+                .toList();
+
+// Hoặc nếu muốn lấy riêng danh sách ID của các bàn
+        List<Long> tableIds = tables.stream()
+                .map(BaseEntity::getId) // hoặc item -> item.getId()
+                .toList();
+        eventPublisher.publishEvent(
+                new BookingTableChangedEvent(
+                        booking.getStatus(),
+                        tableIds,
+                        booking.getId(),
+                        booking.getBranch().getId(),
+                        booking.getCustomer().getId().longValue(),
+                        req.getReservationTime(),
+                        zoneIds ,
+                        booking.getContactEmail()
+                )
+        );
+
         return bookingMapper.toResponse(booking);
     }
 
@@ -307,6 +326,7 @@ public class BookingService implements IBookingService {
                 : staff.getEmail());
         booking.setNote(req.getNote());
         booking.setEstimatedTotal(BigDecimal.ZERO);
+        booking.setReservationTime(LocalDateTime.now());
         // Khach vang lai khong dat coc/khong ap dung chinh sach huy nao -> snapshot
         // "khong co chinh sach"
         // (policy_snapshot dang NOT NULL o DB, khong the de trong).
