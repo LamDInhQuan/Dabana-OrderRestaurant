@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef } from "react"
 import { branchBankAccountApi, bookingApi, refundBankInfoApi } from "../../../api" // Đảm bảo import đúng api client của bạn
 import toast from "react-hot-toast"
-import { Clock, ScrollText, Landmark } from "lucide-react"
+import { Clock, ScrollText, Landmark, ShieldCheck } from "lucide-react"
 
 
 // ----------------------------------------------------------------------
@@ -97,11 +97,19 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
     const hoursDiff = (reservationTime.getTime() - now.getTime()) / (1000 * 60 * 60)
     const freeCancelLimitHours = policy.freeCancellationHours ?? 24
 
+    const inGracePeriod = Boolean(booking.inGracePeriod)
+    const remainingSeconds = Number(booking.gracePeriodRemainingSeconds || 0)
+    const remainingMins = Math.max(1, Math.ceil(remainingSeconds / 60))
+
     let refundPercent = 0
     let conditionText = ''
     let badgeColor = '#EF4444'
 
-    if (hoursDiff <= 0) {
+    if (inGracePeriod) {
+        refundPercent = 100
+        conditionText = `Ân hạn Dabana (Còn ~${remainingMins}p)`
+        badgeColor = '#059669'
+    } else if (hoursDiff <= 0) {
         refundPercent = policy.noShowRefundPercent ?? 0
         conditionText = 'Đã quá giờ hẹn check-in'
     } else if (hoursDiff >= freeCancelLimitHours) {
@@ -219,6 +227,24 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                     )}
                     <div style={{ color: '#D97706' }}><strong><Clock size={14} style={{ verticalAlign: '-2px' }} /> Giờ check-in (Hẹn):</strong> {reservationTime.toLocaleString('vi-VN')}</div>
                 </div>
+
+                {inGracePeriod && (
+                    <div style={{
+                        background: '#ECFDF5',
+                        border: '1.5px solid #86EFAC',
+                        borderRadius: 8,
+                        padding: '.75rem 1rem',
+                        marginBottom: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '.6rem'
+                    }}>
+                        <ShieldCheck size={22} color="#059669" style={{ flexShrink: 0 }} />
+                        <div style={{ fontSize: '.82rem', color: '#065F46', lineHeight: 1.4 }}>
+                            <strong>Chính sách ân hạn Dabana:</strong> Đơn đặt bàn vừa được xác nhận. Bạn được <strong>hoàn 100% tiền cọc</strong> nếu huỷ trong thời gian ân hạn (còn khoảng {remainingMins} phút).
+                        </div>
+                    </div>
+                )}
 
                 {depositAmount > 0 && (
                     <>

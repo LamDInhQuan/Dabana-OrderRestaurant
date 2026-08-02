@@ -58,8 +58,12 @@ public class SubPayosWebhookService {
         logEntry.setRawPayload(rawBody);
         logEntry.setSignature(signature);
 
-        // orderCode gui len payOS luc tao link = chinh invoiceId (xem SubscriptionService)
-        Optional<SubscriptionInvoice> invoiceOpt = invoiceRepository.findById(orderCode);
+        // Tim SubscriptionInvoice theo orderCode truoc, neu chua co (du lieu cu) thi fallback theo id
+        Optional<SubscriptionInvoice> invoiceOpt = invoiceRepository.findByOrderCode(orderCode);
+        if (invoiceOpt.isEmpty()) {
+            invoiceOpt = invoiceRepository.findById(orderCode);
+        }
+
         if (invoiceOpt.isEmpty()) {
             logEntry.setSignatureVerified(false);
             logEntry.setProcessed(false);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { bookingApi, reviewApi } from '../../api'
-import { ClipboardList, Armchair, Users, Clock, Wallet, CreditCard, ReceiptText, Star } from 'lucide-react'
+import { ClipboardList, Armchair, Users, Clock, Wallet, CreditCard, ReceiptText, Star, ShieldCheck } from 'lucide-react'
 import wsService from '../../api/socket'
 
 // Import các modal đã được tách ra file riêng (điều chỉnh lại đường dẫn cho khớp thư mục của bạn)
@@ -200,6 +200,24 @@ export default function MyBookings() {
                     </div>
                   ))}
                 </div>
+
+                {b.inGracePeriod && (
+                  <div style={{
+                    background: '#ECFDF5',
+                    color: '#047857',
+                    border: '1px solid #A7F3D0',
+                    padding: '.4rem .75rem',
+                    borderRadius: 6,
+                    fontSize: '.78rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '.4rem',
+                    marginBottom: '.875rem'
+                  }}>
+                    <ShieldCheck size={16} color="#059669" style={{ flexShrink: 0 }} />
+                    <span>Đang trong thời gian ân hạn Dabana: Hoàn <strong>100% tiền cọc</strong> nếu huỷ trong <strong>~{Math.max(1, Math.ceil((b.gracePeriodRemainingSeconds || 0) / 60))} phút</strong> tới.</span>
+                  </div>
+                )}
 
                 <div className="flex gap-2" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {isLockingState ? (

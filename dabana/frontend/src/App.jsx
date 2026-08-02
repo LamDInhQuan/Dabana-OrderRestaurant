@@ -25,6 +25,7 @@ import CategoryManagement from './pages/admin/CategoryManagement'
 import SubscriptionPlanManagement from './pages/admin/SubscriptionPlanManagement'
 import SubscriptionInvoiceApproval from './pages/admin/SubscriptionInvoiceApproval'
 import SubscriptionPayosConfigPage from './pages/admin/SubscriptionPayosConfigPage'
+import SystemPolicySetting from './pages/admin/SystemPolicySetting'
 import Reports from './pages/admin/Reports'
 import PartnerReportsPage from './pages/partner/reports/PartnerReportsPage'
 import BookingLockPage from './pages/customer/BookingLockPage'
@@ -123,6 +124,10 @@ export default function App() {
           <Route
             path="/admin/subscription-payos-config"
             element={<ProtectedRoute role="ADMIN"><SubscriptionPayosConfigPage /></ProtectedRoute>}
+          />
+          <Route
+            path="/admin/system-policy"
+            element={<ProtectedRoute role="ADMIN"><SystemPolicySetting /></ProtectedRoute>}
           />
           <Route
             path="/admin/reports"

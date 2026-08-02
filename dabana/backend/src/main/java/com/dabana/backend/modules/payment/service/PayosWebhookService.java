@@ -38,17 +38,20 @@ public class PayosWebhookService {
     private final BookingRepository bookingRepository;
     private final AesEncryptionUtil aesEncryptionUtil;
     private final NotificationService notificationService;
+    private final com.dabana.backend.modules.admin.service.ISystemPolicyService systemPolicyService;
 
     public PayosWebhookService(DepositPaymentRepository depositPaymentRepository,
                                 PayosWebhookLogRepository payosWebhookLogRepository,
                                 BookingRepository bookingRepository,
                                 AesEncryptionUtil aesEncryptionUtil,
-                                NotificationService notificationService) {
+                                NotificationService notificationService,
+                                com.dabana.backend.modules.admin.service.ISystemPolicyService systemPolicyService) {
         this.depositPaymentRepository = depositPaymentRepository;
         this.payosWebhookLogRepository = payosWebhookLogRepository;
         this.bookingRepository = bookingRepository;
         this.aesEncryptionUtil = aesEncryptionUtil;
         this.notificationService = notificationService;
+        this.systemPolicyService = systemPolicyService;
     }
 
     @Transactional
@@ -126,24 +129,31 @@ public class PayosWebhookService {
                     && (booking.getStatus() == BookingStatus.HOLDING
                         || booking.getStatus() == BookingStatus.AWAITING_PAYMENT)) {
                 booking.setStatus(BookingStatus.CONFIRMED);
+                booking.setConfirmedAt(LocalDateTime.now());
                 bookingRepository.save(booking);
                 log.info("Webhook payOS: Booking id={} da CONFIRMED sau khi coc PAID (orderCode={})",
                         booking.getId(), orderCode);
+
+                int graceMinutes = systemPolicyService.getGracePeriodMinutes();
+                boolean graceEnabled = systemPolicyService.isGracePeriodEnabled();
+                String graceNote = (graceEnabled && graceMinutes > 0)
+                        ? String.format(" (Quý khách có thể huỷ và được hoàn 100%% tiền cọc trong vòng %d phút sau khi xác nhận)", graceMinutes)
+                        : "";
 
                 // B09 BR01: xac nhan dat ban tuc thi sau khi coc PAID.
                 // Khach vang lai (khong co tai khoan User) chua co co che gui
                 // thong bao qua Notification (recipient bat buoc la User).
                 if (booking.getCustomer() != null) {
                     String content = String.format(
-                            "Thanh toán tiền cọc thành công cho đơn đặt bàn lúc %s tại %s.",
-                            booking.getReservationTime(), booking.getBranch().getName());
+                            "Thanh toán tiền cọc thành công cho đơn đặt bàn lúc %s tại %s.%s",
+                            booking.getReservationTime(), booking.getBranch().getName(), graceNote);
                     notificationService.sendImmediate(
                             booking.getCustomer(), NotificationType.PAYMENT_SUCCESS, content, "IN_APP", booking.getBranch().getId());
                 }
                 if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null && booking.getBranch().getRestaurant().getOwner() != null) {
                     String restaurantContent = String.format(
-                            "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s (Đã cọc).",
-                            booking.getBranch().getName(), booking.getReservationTime(), booking.getContactName());
+                            "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s (Đã cọc).%s",
+                            booking.getBranch().getName(), booking.getReservationTime(), booking.getContactName(), graceNote);
                     notificationService.sendImmediate(
                             booking.getBranch().getRestaurant().getOwner(), NotificationType.BOOKING_CONFIRMED, restaurantContent, "IN_APP", booking.getBranch().getId());
                 }

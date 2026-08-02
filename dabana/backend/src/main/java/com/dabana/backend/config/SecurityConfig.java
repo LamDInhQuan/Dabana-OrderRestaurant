@@ -89,6 +89,7 @@ public class SecurityConfig {
 
                         // Trang gia cong khai - khong can dang nhap
                         .requestMatchers(HttpMethod.GET, "/api/subscription-plans/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/system-policies/**").permitAll()
 
                         // Tim kiem & xem nha hang/chi nhanh - cong khai (B01 buoc 1-2)
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**", "/api/branchs/**").permitAll()

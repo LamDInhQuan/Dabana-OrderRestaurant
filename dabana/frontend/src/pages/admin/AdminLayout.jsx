@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, Check, Users, Star, Folder, CreditCard, ReceiptText, KeyRound, TrendingUp } from 'lucide-react'
+import { BarChart3, Check, Users, Star, Folder, CreditCard, ReceiptText, KeyRound, TrendingUp, ShieldCheck } from 'lucide-react'
 import Navbar from '../../components/Navbar'
 
 const TABS = [
@@ -11,6 +11,7 @@ const TABS = [
   ['/admin/subscription-plans', <CreditCard size={16} />, 'Gói dịch vụ'],
   ['/admin/subscription-invoices', <ReceiptText size={16} />, 'Xác nhận thanh toán'],
   ['/admin/subscription-payos-config', <KeyRound size={16} />, 'Cấu hình payOS'],
+  ['/admin/system-policy', <ShieldCheck size={16} />, 'Chính sách hệ thống'],
   ['/admin/reports',    <TrendingUp size={16} />,  'Báo cáo'],
 ]
 

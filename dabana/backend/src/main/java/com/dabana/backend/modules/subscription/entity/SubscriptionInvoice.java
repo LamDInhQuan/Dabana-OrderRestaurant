@@ -61,7 +61,9 @@ public class SubscriptionInvoice extends BaseEntity {
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
-    // ---- payOS: link thanh toan cua hoa don nay (orderCode gui len payOS = chinh id cua hoa don) ----
+    // ---- payOS: link thanh toan cua hoa don nay ----
+    @Column(name = "order_code", unique = true)
+    private Long orderCode;
 
     @Column(name = "checkout_url", length = 500)
     private String checkoutUrl;

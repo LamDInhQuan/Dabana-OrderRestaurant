@@ -94,6 +94,7 @@ public class BookingService implements IBookingService {
     private final ApplicationEventPublisher eventPublisher;
     private final OtpService otpService;
     private final NotificationService notificationService; // B09: gui thong bao cho cac su kien cua B01/B11/B12
+    private final com.dabana.backend.modules.admin.service.ISystemPolicyService systemPolicyService;
 
     private static final int HOLD_MINUTES = 10;
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
@@ -196,6 +197,7 @@ public class BookingService implements IBookingService {
             booking.setEstimatedTotal(depositResult.getDepositAmount());
         } else {
             booking.setStatus(BookingStatus.CONFIRMED);
+            booking.setConfirmedAt(LocalDateTime.now());
             booking.setHoldExpiresAt(null);
             booking.setEstimatedTotal(BigDecimal.ZERO);
         }
@@ -254,14 +256,20 @@ public class BookingService implements IBookingService {
         // tuc thi. Truong hop can coc (HOLDING), xac nhan se duoc gui sau khi
         // coc PAID, xem PayosWebhookService.
         if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            int graceMinutes = systemPolicyService.getGracePeriodMinutes();
+            boolean graceEnabled = systemPolicyService.isGracePeriodEnabled();
+            String graceNote = (graceEnabled && graceMinutes > 0)
+                    ? String.format(" (Quý khách có thể huỷ và được hoàn 100%% tiền cọc trong vòng %d phút sau khi xác nhận)", graceMinutes)
+                    : "";
+
             String content = String.format(
-                    "Đặt bàn thành công tại %s lúc %s.",
-                    branch.getName(), booking.getReservationTime());
+                    "Đặt bàn thành công tại %s lúc %s.%s",
+                    branch.getName(), booking.getReservationTime(), graceNote);
             notifyCustomer(booking, NotificationType.BOOKING_CONFIRMED, content);
 
             String restaurantContent = String.format(
-                    "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s.",
-                    branch.getName(), booking.getReservationTime(), booking.getContactName());
+                    "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s.%s",
+                    branch.getName(), booking.getReservationTime(), booking.getContactName(), graceNote);
             notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
         }
         // Ví dụ gom nhóm các bàn theo Zone ID trong Java Service
@@ -641,19 +649,22 @@ public class BookingService implements IBookingService {
         }
 
         // B09: bao ket qua huy don (va hoan coc neu co) cho khach (B11)
+        boolean inGracePeriod = systemPolicyService.isWithinCancellationGracePeriod(booking);
+        String graceText = inGracePeriod ? " (Hoàn 100% cọc theo chính sách ân hạn huỷ đơn)" : "";
+
         String cancelContent = byRestaurant
-                ? String.format("Nhà hàng %s đã hủy đơn đặt bàn của bạn lúc %s.",
-                booking.getBranch().getName(), booking.getReservationTime())
-                : String.format("Đơn đặt bàn tại %s lúc %s đã được hủy thành công.",
-                booking.getBranch().getName(), booking.getReservationTime());
+                ? String.format("Nhà hàng %s đã hủy đơn đặt bàn của bạn lúc %s.%s",
+                booking.getBranch().getName(), booking.getReservationTime(), graceText)
+                : String.format("Đơn đặt bàn tại %s lúc %s đã được hủy thành công.%s",
+                booking.getBranch().getName(), booking.getReservationTime(), graceText);
         if (booking.getRefundStatus() == RefundStatus.PENDING) {
             cancelContent += String.format(" Số tiền hoàn cọc: %s VND.", booking.getRefundAmount());
         }
         notifyCustomer(booking, NotificationType.BOOKING_CANCELLED, cancelContent);
 
         if (!byRestaurant) {
-            String restaurantContent = String.format("Khách hàng %s đã huỷ đơn đặt bàn tại %s lúc %s.",
-                    booking.getContactName(), booking.getBranch().getName(), booking.getReservationTime());
+            String restaurantContent = String.format("Khách hàng %s đã huỷ đơn đặt bàn tại %s lúc %s.%s",
+                    booking.getContactName(), booking.getBranch().getName(), booking.getReservationTime(), graceText);
             notifyRestaurant(booking, NotificationType.BOOKING_CANCELLED, restaurantContent);
         }
 
@@ -667,6 +678,7 @@ public class BookingService implements IBookingService {
      * theo chinh sach da cam ket voi khach luc dat ban).
      * <p>
      * - Neu chua co lenh coc nao PAID -> khong co gi de hoan (refundStatus=NONE).
+     * - Neu huy trong thoi gian an han (CONFIRMED grace period) -> hoan 100% tien coc.
      * - Neu huy tu luc con >= freeCancellationHours gio truoc gio hen -> ap dung
      * freeRefundPercent (thuong 100%).
      * - Neu huy trong khoang duoi freeCancellationHours gio -> ap dung
@@ -705,9 +717,14 @@ public class BookingService implements IBookingService {
     }
 
     /**
-     * % hoan tien ap dung, dua tren khoang cach tu luc huy toi gio hen (reservationTime).
+     * % hoan tien ap dung, dua tren chinh sach an han hoac khoang cach tu luc huy toi gio hen (reservationTime).
      */
     private BigDecimal resolveRefundPercent(Booking booking, PolicySnapshotDto policy) {
+        // 1. Uu tien kiem tra chinh sach an han huy don toan he thong (Dabana Grace Period)
+        if (systemPolicyService.isWithinCancellationGracePeriod(booking)) {
+            return BigDecimal.valueOf(100);
+        }
+
         if (policy == null || policy.getFreeCancellationHours() == null) {
             // Khong co snapshot chinh sach huy (vd du lieu cu truoc khi co tinh nang
             // nay, hoac booking khach vang lai) -> khong tu y hoan tien khi khong ro

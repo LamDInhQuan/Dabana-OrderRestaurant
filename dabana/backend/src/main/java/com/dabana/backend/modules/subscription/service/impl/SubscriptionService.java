@@ -186,14 +186,14 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_PAYABLE);
         }
 
-        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai (orderCode = invoiceId,
-        // khong the doi, goi create() lan 2 voi cung orderCode co the bi payOS tu choi).
+        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai.
         if (invoice.getCheckoutUrl() != null) {
             return toPaymentInfoResponse(invoice, null);
         }
 
         PayOS client = payosClientProvider.getClient();
-        Long orderCode = invoice.getId();
+        // Dung System.currentTimeMillis() de sinh orderCode duy nhat theo thoi gian thuc, tranh trung lap khi test tren nhieu CSDL
+        Long orderCode = System.currentTimeMillis();
         // payOS gioi han description TOI DA 25 KY TU - khong duoc ghep ten goi vao
         // (ten goi co the dai bat ky, se lam vuot gioi han va bi APIException tu choi).
         String description = "Phi DV #" + invoice.getId();
@@ -216,6 +216,7 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.PAYOS_CREATE_PAYMENT_LINK_FAILED);
         }
 
+        invoice.setOrderCode(orderCode);
         invoice.setCheckoutUrl(payosResponse.getCheckoutUrl());
         invoice.setQrCode(payosResponse.getQrCode());
         invoiceRepository.save(invoice);
@@ -234,7 +235,8 @@ public class SubscriptionService implements ISubscriptionService {
 
         PaymentLink liveInfo;
         try {
-            liveInfo = payosClientProvider.getClient().paymentRequests().get(invoice.getId());
+            Long orderCodeToQuery = invoice.getOrderCode() != null ? invoice.getOrderCode() : invoice.getId();
+            liveInfo = payosClientProvider.getClient().paymentRequests().get(orderCodeToQuery);
         } catch (PayOSException e) {
             log.error("Dong bo thong tin thanh toan tu payOS that bai cho invoiceId={}", invoiceId, e);
             throw new BusinessException(SubscriptionErrorCode.PAYOS_SYNC_PAYMENT_FAILED);
@@ -436,7 +438,7 @@ public class SubscriptionService implements ISubscriptionService {
     private InvoicePaymentInfoResponse toPaymentInfoResponse(SubscriptionInvoice invoice, PaymentLink liveInfo) {
         return InvoicePaymentInfoResponse.builder()
                 .invoiceId(invoice.getId())
-                .orderCode(invoice.getId())
+                .orderCode(invoice.getOrderCode() != null ? invoice.getOrderCode() : invoice.getId())
                 .amount(invoice.getAmount())
                 .amountPaid(liveInfo != null && liveInfo.getAmountPaid() != null
                         ? java.math.BigDecimal.valueOf(liveInfo.getAmountPaid()) : null)

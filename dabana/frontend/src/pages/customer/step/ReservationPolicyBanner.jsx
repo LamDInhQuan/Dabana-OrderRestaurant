@@ -1,7 +1,18 @@
-import React, { useMemo } from 'react';
-import { Wallet, Check, TriangleAlert, Armchair, Utensils, Pin } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Wallet, Check, TriangleAlert, Armchair, Utensils, Pin, ShieldCheck } from 'lucide-react';
+import { systemPolicyApi } from '../../../api';
 
 function ReservationPolicyBanner({ policyLoading, policy, guestCount, formatVND }) {
+  const [systemPolicy, setSystemPolicy] = useState(null);
+
+  useEffect(() => {
+    systemPolicyApi.getCancellationGracePeriod()
+      .then(res => {
+        const data = res.data?.data || res.data;
+        if (data) setSystemPolicy(data);
+      })
+      .catch(() => {});
+  }, []);
   // 1. Logic xác định Rule phù hợp (bao gồm logic Fallback)
   const { activeRule, isFallback, maxSupportedGuest } = useMemo(() => {
     if (!policy?.depositRules?.length || !guestCount) {
@@ -231,8 +242,31 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, formatVND 
               {policy.schedules[0].timeFrom?.slice(0, 5)}–{policy.schedules[0].timeTo?.slice(0, 5)}
             </strong>
           </>
-        )}. Hủy trước 2 giờ được hoàn 100% cọc; hủy trong vòng 2 giờ hoặc không đến sẽ không hoàn cọc.
+        )}.
       </p>
+
+      {/* BẢO CHỨNG ÂN HẠN HUỶ ĐƠN DABANA */}
+      {systemPolicy?.enabled !== false && (
+        <div
+          style={{
+            background: 'rgba(239, 246, 255, 0.9)',
+            border: '1px solid #BFDBFE',
+            borderRadius: 8,
+            padding: '.45rem .75rem',
+            marginTop: '.6rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '.5rem',
+            fontSize: '.76rem',
+            color: '#1E40AF',
+          }}
+        >
+          <ShieldCheck size={16} color="#2563EB" style={{ flexShrink: 0 }} />
+          <span>
+            <strong>Bảo chứng Dabana:</strong> Hoàn <strong>100% tiền cọc</strong> nếu huỷ đơn trong vòng <strong>{systemPolicy?.gracePeriodMinutes ?? 15} phút</strong> sau khi đặt bàn thành công.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
