@@ -25,4 +25,6 @@ public interface OperatingHourRepository extends JpaRepository<OperatingHour, Lo
             Long branchId,
             OperatingDay operatingDay
     );
+
+
 }

@@ -39,28 +39,28 @@ public enum BranchErrorCode implements ErrorCode {
     // ==========================
     INVALID_OPERATING_TIME(
             "BRANCH_101",
-                    "Giờ mở cửa phải nhỏ hơn giờ đóng cửa."
+            "Giờ mở cửa phải nhỏ hơn giờ đóng cửa."
     ),
 
     OVERLAPPING_OPERATING_HOURS(
             "BRANCH_102",
-                    "Các ca hoạt động trong cùng ngày không được chồng lấn."
+            "Các ca hoạt động trong cùng ngày không được chồng lấn."
     ),
 
     EMPTY_OPERATING_HOURS(
             "BRANCH_103",
-                    "Chi nhánh phải có ít nhất một khung giờ hoạt động."
+            "Chi nhánh phải có ít nhất một khung giờ hoạt động."
     ),
 
     DUPLICATE_OPERATING_HOURS(
             "BRANCH_104",
-                    "Khung giờ hoạt động bị trùng lặp."
+            "Khung giờ hoạt động bị trùng lặp."
     ),
 
     INVALID_OPERATING_DURATION(
             "BRANCH_105",
-                    "Thời gian hoạt động của một ca không hợp lệ."
-    ) ,
+            "Thời gian hoạt động của một ca không hợp lệ."
+    ),
 
     // ==========================
 // Branch Schedule Exception
@@ -135,7 +135,7 @@ public enum BranchErrorCode implements ErrorCode {
     OVERRIDE_TIME_RANGE_INVALID(
             "BRANCH_214",
             "Giờ hoạt động ghi đè không hợp lệ."
-    ) ,
+    ),
     SINGLE_DAY_REQUIRED(
             "BRANCH_215",
             "Loại lịch ngoại lệ này chỉ được áp dụng cho một ngày."
@@ -146,8 +146,8 @@ public enum BranchErrorCode implements ErrorCode {
     ),
     OPERATING_DAY_NOT_VALID(
             "BRANCH_217",
-                    "Thứ trong tuần bạn gửi lên không hợp lệ."
-    )
+            "Thứ trong tuần bạn gửi lên không hợp lệ."
+    ), SCHEDULE_EXCEPTION_NOT_FOUND("BRANCH_218", "Không tìm thấy cấu hình ngoại lệ lịch trình chi nhánh"), // Hoặc cú pháp tương ứng của project bạn
     ;
 
     private final String code;

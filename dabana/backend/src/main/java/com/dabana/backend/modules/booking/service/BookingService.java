@@ -287,7 +287,6 @@ public class BookingService implements IBookingService {
                 )
         );
 
-        eventPublisher.publishEvent(new BookingChangedEvent(booking.getBranch().getId(), booking.getCustomer() != null ? booking.getCustomer().getId().longValue() : 0L, booking.getId()));
         return bookingMapper.toResponse(booking);
     }
 

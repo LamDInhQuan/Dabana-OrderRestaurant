@@ -63,7 +63,7 @@ public class OperatingHourService implements IOperatingHourService {
         validateOperatingHours(currentList); // Gọi validate đảm bảo không bị chồng lấn với các ca cũ
 
         // 2. Lưu vào DB
-        OperatingHour entity = operatingHourMapper.toEntity(request,branch);
+        OperatingHour entity = operatingHourMapper.toEntity(request, branch);
         entity.setBranch(branch);
 
         OperatingHour saved = operatingHourRepository.save(entity);
@@ -79,7 +79,7 @@ public class OperatingHourService implements IOperatingHourService {
         Long branchId = entity.getBranch().getId();
 
         // 1. Lấy danh sách hiện tại, thay thế cái cũ bằng request mới để validate
-        List<OperatingHour> existingEntities = operatingHourRepository.findByBranchIdOrderByDayOfWeekAscOpenTimeAsc(branchId);
+        List<OperatingHour> existingEntities = operatingHourRepository.findByBranchIdAndDayOfWeekOrderByOpenTimeAsc(branchId, request.getDayOfWeek());
         List<OperatingHourDto> currentList = new ArrayList<>();
         for (OperatingHour item : existingEntities) {
             if (item.getId().equals(id)) {
