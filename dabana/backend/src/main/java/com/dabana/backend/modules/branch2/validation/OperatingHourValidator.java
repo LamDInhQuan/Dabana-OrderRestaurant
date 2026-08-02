@@ -16,7 +16,7 @@ public class OperatingHourValidator implements ConstraintValidator<ValidOperatin
         if (value == null || value.getOpenTime() == null || value.getCloseTime() == null) {
             return true; // dành cho anotation not null kiểm tra
         }
-        if (!value.getOpenTime().isAfter(value.getCloseTime())) {
+        if (!value.getOpenTime().isBefore(value.getCloseTime())) {
             context.disableDefaultConstraintViolation();
             context.buildConstraintViolationWithTemplate(errorMessage)
                     .addPropertyNode("closeTime")

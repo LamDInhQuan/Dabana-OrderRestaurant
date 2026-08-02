@@ -82,14 +82,73 @@ public class BranchScheduleExceptionService implements IBranchScheduleExceptionS
                 .collect(Collectors.toList());
     }
 
+    @Transactional
     @Override
     public BranchScheduleExceptionResponse update(Long branchId, Long id, BranchScheduleExceptionRequest request) {
-        return null;
+        // 1. Kiểm tra chi nhánh
+        branchRepository.findById(branchId)
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
+
+        // 2. Tìm bản ghi ngoại lệ cần update
+        BranchScheduleException existingEntity = branchScheduleExceptionRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.SCHEDULE_EXCEPTION_NOT_FOUND));
+
+        if (!existingEntity.getBranch().getId().equals(branchId)) {
+            throw new BusinessException(BranchErrorCode.SCHEDULE_EXCEPTION_NOT_FOUND);
+        }
+
+        // 3. Validate dữ liệu request mới
+        validate(request);
+        Branch branch = existingEntity.getBranch();
+
+        // 4. Xử lý logic validate chi tiết và lấy OperatingHour nếu có
+        OperatingHour operatingHour = null;
+        switch (request.getExceptionType()) {
+            case CLOSE_ALL_DAY -> {
+                validateCloseAllDayBusiness(branchId, request);
+            }
+            case CLOSE_TIME_RANGE -> {
+                operatingHour = validateCloseTimeRangeBusiness(branchId, request);
+            }
+            case ADD_TIME_RANGE -> {
+                validateAddTimeRangeBusiness(branchId, request);
+            }
+            default -> throw new BusinessException(
+                    BranchErrorCode.INVALID_EXCEPTION_CONFIGURATION);
+        }
+
+        // 5. Cập nhật trực tiếp các trường dữ liệu vào entity cũ
+        // (Thay thế cho việc gọi updateEntity của MapStruct nếu chưa viết)
+        existingEntity.setExceptionType(request.getExceptionType());
+        existingEntity.setStartDate(request.getStartDate());
+        existingEntity.setEndDate(request.getEndDate());
+        existingEntity.setReason(request.getReason());
+        existingEntity.setOpenTime(request.getOpenTime());
+        existingEntity.setCloseTime(request.getCloseTime());
+        existingEntity.setOperatingHour(operatingHour);
+
+        // 6. Lưu lại và trả về response
+        BranchScheduleException savedEntity = branchScheduleExceptionRepository.save(existingEntity);
+        return branchScheduleExceptionMapper.toResponse(savedEntity);
     }
 
+    @Transactional
     @Override
     public void delete(Long branchId, Long id) {
+        // 1. Kiểm tra chi nhánh
+        branchRepository.findById(branchId)
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
+        // 2. Tìm ngoại lệ và kiểm tra thuộc chi nhánh
+        BranchScheduleException entity = branchScheduleExceptionRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(BranchErrorCode.SCHEDULE_EXCEPTION_NOT_FOUND));
+
+        if (!entity.getBranch().getId().equals(branchId)) {
+            throw new BusinessException(BranchErrorCode.SCHEDULE_EXCEPTION_NOT_FOUND);
+        }
+
+        // 3. Xóa bản ghi
+        branchScheduleExceptionRepository.delete(entity);
     }
 
     @Override

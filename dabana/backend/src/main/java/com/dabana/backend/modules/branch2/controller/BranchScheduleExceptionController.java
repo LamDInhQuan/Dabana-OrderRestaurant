@@ -47,9 +47,7 @@ public class BranchScheduleExceptionController {
     public ResponseEntity<?> delete(
             @PathVariable Long branchId,
             @PathVariable Long id){
-
         service.delete(branchId,id);
-
         return ResponseEntity.ok(
                 ResponseBuilder.success(
                         SuccessCode.DELETED , null

@@ -24,18 +24,37 @@ export default function BranchScheduleTab({ branch }) {
     })
 
     // Catch & format lỗi từ Axios/Fetch Response
+    // Catch & format lỗi từ Axios/Fetch Response
     const handleApiError = (err) => {
-        const errorData = err?.response?.data || err
-        const message = errorData?.message || 'Có lỗi xảy ra khi xử lý dữ liệu'
-        const details = errorData?.errorDetails || []
+        const errorData = err?.response?.data || err;
+        const errorCode = errorData?.errorCode;
+        const generalMessage = errorData?.message || 'Có lỗi xảy ra khi xử lý dữ liệu';
+
+        let details = [];
+        let title = generalMessage;
+
+        // Nếu là lỗi validation từ Spring (có object fields)
+        if (errorCode === 'VALIDATION_ERROR' && errorData?.fields) {
+            // Chuyển object fields thành mảng details để modal dễ hiển thị
+            // Ví dụ: fields: { closeTime: "Giờ kết thúc phải sau giờ bắt đầu" }
+            details = Object.entries(errorData.fields).map(([field, msg]) => ({
+                field: field,
+                message: msg
+            }));
+
+            // Có thể đổi title thành câu thông báo chung gọn gàng hơn nếu muốn
+            title = "Dữ liệu không hợp lệ, vui lòng kiểm tra lại các trường bên dưới!";
+        } else {
+            // Lấy errorDetails thông thường nếu có
+            details = errorData?.errorDetails || [];
+        }
 
         setErrorModal({
             isOpen: true,
-            title: message,
+            title: title,
             details: details
-        })
+        });
     }
-
     // Fetch Giờ tuần
     const fetchWeeklyHours = useCallback(async () => {
         if (!branch?.id) return
@@ -104,6 +123,8 @@ export default function BranchScheduleTab({ branch }) {
     const handleSaveWeekly = async (payload) => {
         try {
             await operatingHourApi.save(branch.id, payload)
+            console.log("vao day");
+
             await fetchWeeklyHours()
             alert('Đã cập nhật khung giờ hoạt động thành công!')
         } catch (err) {
@@ -212,6 +233,7 @@ export default function BranchScheduleTab({ branch }) {
                     onSaveWeekly={handleSaveWeekly}
                     formatTimeVN={formatTimeVN} // Truyền xuống đây
                     activeBranch={branch}
+                    onError={handleApiError} // <-- Truyền hàm handleApiError xuống đây
                 />
             ) : (
                 <ExceptionsPanel

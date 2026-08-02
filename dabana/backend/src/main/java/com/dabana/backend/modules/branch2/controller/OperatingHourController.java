@@ -6,6 +6,7 @@ import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.branch2.dto.OperatingHourDto;
 import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
 import com.dabana.backend.modules.branch2.service.OperatingHourService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,7 @@ public class OperatingHourController {
     private final OperatingHourService operatingHourService;
 
     @PostMapping("/branch/{branchId}/save")
-    public ResponseEntity<ApiResponse<Void>> saveOperatingHours(@RequestBody List<OperatingHourDto> request, @PathVariable Long branchId) {
+    public ResponseEntity<ApiResponse<Void>> saveOperatingHours(@RequestBody @Valid List<OperatingHourDto> request, @PathVariable Long branchId) {
         operatingHourService.saveOperatingHours(branchId, request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, null));
     }
@@ -41,7 +42,7 @@ public class OperatingHourController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<OperatingHourDto>> updateOperatingHour(
             @PathVariable Long id,
-            @RequestBody OperatingHourDto request) {
+            @RequestBody @Valid OperatingHourDto request) {
         OperatingHourDto response = operatingHourService.updateOperatingHour(id, request);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, response));
     }
