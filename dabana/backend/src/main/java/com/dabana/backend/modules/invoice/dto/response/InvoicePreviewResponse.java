@@ -32,6 +32,16 @@ public class InvoicePreviewResponse {
     /** = subtotalBeforeSurcharge - depositPaid (goi y so tien can thu, phu thu = 0). FE co the cong them phu thu truoc khi xac nhan. */
     private BigDecimal amountDueBeforeSurcharge;
 
+    private Long invoiceId;
+    private BigDecimal surcharge;
+    private BigDecimal grandTotal;
+    private BigDecimal amountCollected;
+    private String paymentMethod;
+    private String status;
+    private java.time.LocalDateTime paidAt;
+    private String collectedByName;
+    private Boolean isPaid;
+
     @Data
     @Builder
     public static class LineItem {
@@ -39,5 +49,6 @@ public class InvoicePreviewResponse {
         private Integer quantity;
         private BigDecimal unitPrice;
         private BigDecimal lineTotal;
+        private String type; // PREORDER, EXTRA
     }
 }

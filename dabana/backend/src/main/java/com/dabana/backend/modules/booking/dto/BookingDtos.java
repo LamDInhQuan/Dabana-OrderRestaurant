@@ -78,6 +78,7 @@ public class BookingDtos {
         private String note;
         private List<BookingItemResponse> items;
         private BigDecimal estimatedTotal;
+        private BigDecimal depositAmount;
         private BigDecimal totalPreOrderAmount;
         private String policyName;
         private LocalDateTime holdExpiresAt;

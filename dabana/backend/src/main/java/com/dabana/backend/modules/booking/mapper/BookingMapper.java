@@ -8,9 +8,12 @@ import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import com.dabana.backend.modules.admin.service.ISystemPolicyService;
 import com.dabana.backend.modules.booking.BookingStatus;
+import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
+import com.dabana.backend.modules.reservation_policy.util.DepositType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
@@ -40,6 +43,29 @@ public class BookingMapper {
         Long graceRemainingSeconds = inGracePeriod ? systemPolicyService.getRemainingGracePeriodSeconds(booking) : 0L;
         Integer graceMinutes = systemPolicyService.getGracePeriodMinutes();
 
+        BigDecimal depositAmount = booking.getEstimatedTotal();
+        if (depositAmount == null || depositAmount.compareTo(BigDecimal.ZERO) == 0) {
+            if (booking.getRefundAmount() != null || booking.getPenaltyAmount() != null) {
+                depositAmount = (booking.getRefundAmount() != null ? booking.getRefundAmount() : BigDecimal.ZERO)
+                        .add(booking.getPenaltyAmount() != null ? booking.getPenaltyAmount() : BigDecimal.ZERO);
+            }
+        }
+        if ((depositAmount == null || depositAmount.compareTo(BigDecimal.ZERO) == 0) && booking.getPolicySnapshot() != null) {
+            PolicySnapshotDto snap = booking.getPolicySnapshot();
+            if (snap.getDepositValue() != null) {
+                if (snap.getDepositType() == DepositType.PER_PERSON && booking.getGuestCount() != null) {
+                    depositAmount = snap.getDepositValue().multiply(BigDecimal.valueOf(booking.getGuestCount()));
+                } else {
+                    depositAmount = snap.getDepositValue();
+                }
+            }
+        }
+
+        BigDecimal totalPreOrder = booking.getItems() != null ? booking.getItems().stream()
+                .map(i -> (i.getSnapshotPrice() != null ? i.getSnapshotPrice() : BigDecimal.ZERO)
+                        .multiply(BigDecimal.valueOf(i.getQuantity() != null ? i.getQuantity() : 1)))
+                .reduce(BigDecimal.ZERO, BigDecimal::add) : BigDecimal.ZERO;
+
         return BookingDtos.BookingResponse.builder()
                 .id(booking.getId())
                 .restaurantName(booking.getBranch().getRestaurant().getRestaurantName())
@@ -61,9 +87,10 @@ public class BookingMapper {
                                 .map(bookingItemMapper::toResponse
                                 )
                                 .toList())
-                .totalPreOrderAmount(booking.getEstimatedTotal())
+                .totalPreOrderAmount(totalPreOrder)
                 .holdExpiresAt(booking.getHoldExpiresAt())
                 .estimatedTotal(booking.getEstimatedTotal())
+                .depositAmount(depositAmount)
                 .policySnapshotDto(booking.getPolicySnapshot())
                 .createdAt(booking.getCreatedAt())
                 .refundAmount(booking.getRefundAmount())

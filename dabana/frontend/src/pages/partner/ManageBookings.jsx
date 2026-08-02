@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { bookingApi, restaurantApi, systemPolicyApi } from '../../api'
-import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight, CalendarPlus, ShieldCheck } from 'lucide-react'
+import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight, CalendarPlus, ShieldCheck, Eye } from 'lucide-react'
 import wsService from '../../api/socket'
+import PartnerBookingDetailModal from './component/PartnerBookingDetailModal'
 
 const STATUS_META = {
   ALL: { label: 'Tất cả trạng thái', badge: 'badge-gray', actions: [] },
@@ -29,6 +30,27 @@ const DATE_FILTERS = [
   { key: 'UPCOMING', label: 'Sắp tới' },
 ]
 
+export const getBookingDeposit = (booking) => {
+  if (!booking) return 0
+  if (booking.depositAmount !== undefined && booking.depositAmount !== null && Number(booking.depositAmount) > 0) {
+    return Number(booking.depositAmount)
+  }
+  if (booking.estimatedTotal !== undefined && booking.estimatedTotal !== null && Number(booking.estimatedTotal) > 0) {
+    return Number(booking.estimatedTotal)
+  }
+  const refundTotal = (Number(booking.refundAmount) || 0) + (Number(booking.penaltyAmount) || 0)
+  if (refundTotal > 0) return refundTotal
+
+  const s = booking.policySnapshotDto || booking.policySnapshot
+  if (s && s.depositValue !== undefined && s.depositValue !== null) {
+    if (s.depositType === 'PER_PERSON') {
+      return Number(s.depositValue) * (Number(booking.guestCount) || 1)
+    }
+    return Number(s.depositValue)
+  }
+  return 0
+}
+
 export default function ManageBookings({ branchId }) {
   console.log("branchId ", branchId);
 
@@ -44,6 +66,10 @@ export default function ManageBookings({ branchId }) {
   const [selectedBookingForCancel, setSelectedBookingForCancel] = useState(null)
   const [cancellationInfo, setCancellationInfo] = useState(null)
   const [restaurantCancelPolicy, setRestaurantCancelPolicy] = useState({ minHoursBeforeReservation: 24, enabled: true })
+
+  // State xem chi tiết đơn đặt bàn
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [selectedBookingForDetail, setSelectedBookingForDetail] = useState(null)
 
   // 🚀 ĐÃ BỔ SUNG: State dạng Set lưu danh sách các ID đơn mới nhận qua WebSocket để giữ badge mark
   const [newBookingIds, setNewBookingIds] = useState(new Set())
@@ -131,13 +157,13 @@ export default function ManageBookings({ branchId }) {
 
     if (typeFilter === 'HAS_DEPOSIT') {
       list = list.filter(b => {
-        const deposit = b.depositAmount ?? b.policySnapshotDto?.depositValue ?? b.policySnapshot?.depositValue ?? 0
+        const deposit = getBookingDeposit(b)
         return Number(deposit) > 0
       })
     } else if (typeFilter === 'WITH_CANCELLATION_POLICY') {
       list = list.filter(b => {
         const s = b.policySnapshotDto || b.policySnapshot
-        const deposit = b.depositAmount ?? s?.depositValue ?? 0
+        const deposit = getBookingDeposit(b)
         return Number(deposit) > 0 && s && (
           s.freeCancellationHours !== null ||
           s.freeRefundPercent !== null ||
@@ -148,7 +174,7 @@ export default function ManageBookings({ branchId }) {
     } else if (typeFilter === 'NO_CANCELLATION_POLICY') {
       list = list.filter(b => {
         const s = b.policySnapshotDto || b.policySnapshot
-        const deposit = b.depositAmount ?? s?.depositValue ?? 0
+        const deposit = getBookingDeposit(b)
         const hasPolicy = s && (
           s.freeCancellationHours !== null ||
           s.freeRefundPercent !== null ||
@@ -199,7 +225,7 @@ export default function ManageBookings({ branchId }) {
       snapshot.noShowRefundPercent !== null
     )
 
-    const deposit = booking.depositAmount ?? snapshot?.depositValue ?? 0
+    const deposit = getBookingDeposit(booking)
 
     if (hasPolicy && Number(deposit) > 0) {
       let refundPercent = 0
@@ -259,6 +285,12 @@ export default function ManageBookings({ branchId }) {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Lỗi khi huỷ đơn')
     }
+  }
+
+  const handleOpenDetailModal = (b) => {
+    setSelectedBookingForDetail(b)
+    setDetailModalOpen(true)
+    markAsHandled(b.id)
   }
 
   // Thực hiện các action (check-in, check-out, no-show)
@@ -343,7 +375,7 @@ export default function ManageBookings({ branchId }) {
             const meta = STATUS_META[b.status] || { label: b.status, badge: 'badge-gray', actions: [] }
             const s = b.policySnapshotDto || b.policySnapshot
             const hasPolicy = s && (s.freeCancellationHours !== null || s.freeRefundPercent !== null || s.lateRefundPercent !== null || s.noShowRefundPercent !== null)
-            const depositAmount = b.depositAmount ?? s?.depositValue ?? 0
+            const depositAmount = getBookingDeposit(b)
 
             // 🚀 Kiểm tra đơn có nằm trong danh sách được mark mới qua WebSocket không
             const isNewIncoming = newBookingIds.has(b.id)
@@ -352,10 +384,12 @@ export default function ManageBookings({ branchId }) {
               <div
                 key={b.id}
                 className="card"
+                onClick={() => handleOpenDetailModal(b)}
                 style={{
                   border: isNewIncoming ? '2px solid #10b981' : '1px solid var(--border)',
                   backgroundColor: isNewIncoming ? '#f0fdf4' : 'var(--white)',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <div className="flex items-center justify-between" style={{ marginBottom: '.625rem' }}>
@@ -416,7 +450,16 @@ export default function ManageBookings({ branchId }) {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="btn-outline btn-sm"
+                    onClick={() => handleOpenDetailModal(b)}
+                    style={{ borderColor: '#cbd5e1', color: '#334155' }}
+                  >
+                    <Eye size={15} style={{ verticalAlign: '-2px' }} /> Chi tiết
+                  </button>
+
                   {meta.actions.includes('check-in') && (
                     <button className="btn-primary btn-sm" onClick={() => doAction(b.id, 'check-in')}>
                       <Check size={15} style={{ verticalAlign: '-2px' }} /> Check-in
@@ -528,6 +571,18 @@ export default function ManageBookings({ branchId }) {
           </div>
         </div>
       )}
+
+      {/* --- MODAL XEM CHI TIẾT ĐƠN ĐẶT BÀN & HOÁ ĐƠN MÓN ĂN --- */}
+      <PartnerBookingDetailModal
+        isOpen={detailModalOpen}
+        booking={selectedBookingForDetail}
+        onClose={() => setDetailModalOpen(false)}
+        onAction={(bookingId, action) => {
+          doAction(bookingId, action)
+        }}
+        onOpenCancelModal={(b) => handleOpenCancelModal(b)}
+        isNewIncoming={selectedBookingForDetail ? newBookingIds.has(selectedBookingForDetail.id) : false}
+      />
     </>
   )
 }

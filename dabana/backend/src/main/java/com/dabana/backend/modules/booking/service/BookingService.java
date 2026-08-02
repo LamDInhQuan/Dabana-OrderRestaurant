@@ -588,9 +588,6 @@ public class BookingService implements IBookingService {
     public InvoicePreviewResponse previewInvoice(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
-        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
-            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_OUT);
-        }
         return invoiceService.preview(booking);
     }
 
