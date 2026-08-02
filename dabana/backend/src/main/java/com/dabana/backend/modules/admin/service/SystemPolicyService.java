@@ -1,9 +1,12 @@
 package com.dabana.backend.modules.admin.service;
 
+import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.admin.dto.CancellationGracePeriodDto;
+import com.dabana.backend.modules.admin.dto.RestaurantCancellationLeadTimePolicyDto;
 import com.dabana.backend.modules.admin.entity.SystemSetting;
 import com.dabana.backend.modules.admin.repository.SystemSettingRepository;
 import com.dabana.backend.modules.booking.Booking;
+import com.dabana.backend.modules.booking.BookingErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,15 @@ public class SystemPolicyService implements ISystemPolicyService {
     public static final int DEFAULT_GRACE_PERIOD_MINUTES = 15;
     public static final boolean DEFAULT_GRACE_PERIOD_ENABLED = true;
     public static final String DEFAULT_DESCRIPTION = "Khách hàng được hoàn 100% tiền cọc nếu huỷ đơn trong thời gian ân hạn kể từ khi đơn chuyển sang Đã xác nhận (CONFIRMED).";
+
+    public static final String KEY_RESTAURANT_CANCEL_MIN_HOURS = "RESTAURANT_CANCEL_MIN_HOURS_BEFORE_RESERVATION";
+    public static final String KEY_RESTAURANT_CANCEL_ENABLED = "RESTAURANT_CANCEL_POLICY_ENABLED";
+    public static final String KEY_RESTAURANT_CANCEL_DESCRIPTION = "RESTAURANT_CANCEL_POLICY_DESCRIPTION";
+
+    public static final int DEFAULT_RESTAURANT_CANCEL_MIN_HOURS = 24;
+    public static final boolean DEFAULT_RESTAURANT_CANCEL_ENABLED = true;
+    public static final String DEFAULT_RESTAURANT_CANCEL_DESCRIPTION = "Nhà hàng chỉ được phép huỷ đơn đặt bàn của khách trước thời gian nhận bàn tối thiểu 24 giờ.";
+
 
     private final SystemSettingRepository systemSettingRepository;
 
@@ -148,4 +160,86 @@ public class SystemPolicyService implements ISystemPolicyService {
         // Fallback sang createdAt nếu confirmedAt chưa kịp lưu cho các đơn cũ
         return booking.getCreatedAt();
     }
+
+    @Override
+    public RestaurantCancellationLeadTimePolicyDto getRestaurantCancellationLeadTimePolicy() {
+        int hours = getRestaurantCancelMinHoursBeforeReservation();
+        boolean enabled = isRestaurantCancelPolicyEnabled();
+        String description = systemSettingRepository.findBySettingKey(KEY_RESTAURANT_CANCEL_DESCRIPTION)
+                .map(SystemSetting::getSettingValue)
+                .orElse(DEFAULT_RESTAURANT_CANCEL_DESCRIPTION);
+
+        return RestaurantCancellationLeadTimePolicyDto.builder()
+                .minHoursBeforeReservation(hours)
+                .enabled(enabled)
+                .description(description)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public RestaurantCancellationLeadTimePolicyDto updateRestaurantCancellationLeadTimePolicy(RestaurantCancellationLeadTimePolicyDto request) {
+        saveOrUpdateSetting(KEY_RESTAURANT_CANCEL_MIN_HOURS,
+                String.valueOf(request.getMinHoursBeforeReservation()),
+                "Thời gian tối thiểu nhà hàng được phép huỷ đơn trước giờ hẹn (giờ)");
+
+        saveOrUpdateSetting(KEY_RESTAURANT_CANCEL_ENABLED,
+                String.valueOf(request.getEnabled()),
+                "Trạng thái bật/tắt chính sách giới hạn thời gian huỷ đơn của nhà hàng");
+
+        if (request.getDescription() != null) {
+            saveOrUpdateSetting(KEY_RESTAURANT_CANCEL_DESCRIPTION,
+                    request.getDescription(),
+                    "Mô tả chính sách giới hạn thời gian huỷ đơn của nhà hàng");
+        }
+
+        log.info("Admin da cap nhat chinh sach thoi gian nha hang duoc huy don: minHours={}, enabled={}",
+                request.getMinHoursBeforeReservation(), request.getEnabled());
+
+        return getRestaurantCancellationLeadTimePolicy();
+    }
+
+    @Override
+    public int getRestaurantCancelMinHoursBeforeReservation() {
+        return systemSettingRepository.findBySettingKey(KEY_RESTAURANT_CANCEL_MIN_HOURS)
+                .map(s -> {
+                    try {
+                        return Integer.parseInt(s.getSettingValue());
+                    } catch (Exception e) {
+                        return DEFAULT_RESTAURANT_CANCEL_MIN_HOURS;
+                    }
+                })
+                .orElse(DEFAULT_RESTAURANT_CANCEL_MIN_HOURS);
+    }
+
+    @Override
+    public boolean isRestaurantCancelPolicyEnabled() {
+        return systemSettingRepository.findBySettingKey(KEY_RESTAURANT_CANCEL_ENABLED)
+                .map(s -> "true".equalsIgnoreCase(s.getSettingValue()))
+                .orElse(DEFAULT_RESTAURANT_CANCEL_ENABLED);
+    }
+
+    @Override
+    public void validateRestaurantCancellationAllowed(Booking booking) {
+        if (booking == null || !isRestaurantCancelPolicyEnabled()) {
+            return;
+        }
+        int minHours = getRestaurantCancelMinHoursBeforeReservation();
+        if (minHours <= 0) {
+            return;
+        }
+        LocalDateTime reservationTime = booking.getReservationTime();
+        if (reservationTime == null) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(reservationTime)) {
+            long hoursRemaining = Duration.between(now, reservationTime).toHours();
+            if (hoursRemaining < minHours) {
+                throw new BusinessException(BookingErrorCode.RESTAURANT_CANCEL_TOO_LATE);
+            }
+        }
+    }
 }
+

@@ -625,6 +625,9 @@ public class BookingService implements IBookingService {
             throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CANCEL);
         }
         boolean byRestaurant = request != null && Boolean.TRUE.equals(request.getCancelledByRestaurant());
+        if (byRestaurant) {
+            systemPolicyService.validateRestaurantCancellationAllowed(booking);
+        }
         booking.setStatus(byRestaurant ? BookingStatus.CANCELLED_BY_RESTAURANT : BookingStatus.CANCELLED_BY_CUSTOMER);
         booking.setCancelledBy(byRestaurant ? CancelledBy.STAFF : CancelledBy.CUSTOMER);
         booking.setCancelledAt(LocalDateTime.now());
@@ -658,7 +661,11 @@ public class BookingService implements IBookingService {
                 : String.format("Đơn đặt bàn tại %s lúc %s đã được hủy thành công.%s",
                 booking.getBranch().getName(), booking.getReservationTime(), graceText);
         if (booking.getRefundStatus() == RefundStatus.PENDING) {
-            cancelContent += String.format(" Số tiền hoàn cọc: %s VND.", booking.getRefundAmount());
+            if (byRestaurant) {
+                cancelContent += String.format(" Số tiền hoàn cọc: %s VND. Vui lòng vào Lịch sử đặt bàn để cung cấp thông tin tài khoản ngân hàng nhận tiền hoàn.", booking.getRefundAmount());
+            } else {
+                cancelContent += String.format(" Số tiền hoàn cọc: %s VND.", booking.getRefundAmount());
+            }
         }
         notifyCustomer(booking, NotificationType.BOOKING_CANCELLED, cancelContent);
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { bookingApi, restaurantApi } from '../../api'
+import { bookingApi, restaurantApi, systemPolicyApi } from '../../api'
 import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight, CalendarPlus, ShieldCheck } from 'lucide-react'
 import wsService from '../../api/socket'
 
@@ -43,9 +43,21 @@ export default function ManageBookings({ branchId }) {
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [selectedBookingForCancel, setSelectedBookingForCancel] = useState(null)
   const [cancellationInfo, setCancellationInfo] = useState(null)
+  const [restaurantCancelPolicy, setRestaurantCancelPolicy] = useState({ minHoursBeforeReservation: 24, enabled: true })
 
   // 🚀 ĐÃ BỔ SUNG: State dạng Set lưu danh sách các ID đơn mới nhận qua WebSocket để giữ badge mark
   const [newBookingIds, setNewBookingIds] = useState(new Set())
+
+  // Tải quy định thời gian tối thiểu nhà hàng được huỷ đơn từ System Policy
+  useEffect(() => {
+    systemPolicyApi.getRestaurantCancellationLeadTime()
+      .then(res => {
+        if (res.data?.data) {
+          setRestaurantCancelPolicy(res.data.data)
+        }
+      })
+      .catch(err => console.error('Lỗi tải quy định huỷ đơn nhà hàng:', err))
+  }, [])
 
   // Hàm gọi API lấy danh sách và sắp xếp đơn mới nhất lên đầu (theo id giảm dần)
   const fetchBookings = async () => {
@@ -172,6 +184,13 @@ export default function ManageBookings({ branchId }) {
   const handleOpenCancelModal = (booking) => {
     setSelectedBookingForCancel(booking)
 
+    const reservationTime = new Date(booking.reservationTime).getTime()
+    const now = new Date().getTime()
+    const diffHours = (reservationTime - now) / (1000 * 60 * 60)
+
+    const minHours = restaurantCancelPolicy?.enabled ? (restaurantCancelPolicy.minHoursBeforeReservation ?? 24) : 0
+    const isTooLate = restaurantCancelPolicy?.enabled && diffHours > 0 && diffHours < minHours
+
     const snapshot = booking.policySnapshotDto || booking.policySnapshot
     const hasPolicy = snapshot && (
       snapshot.freeCancellationHours !== null ||
@@ -183,10 +202,6 @@ export default function ManageBookings({ branchId }) {
     const deposit = booking.depositAmount ?? snapshot?.depositValue ?? 0
 
     if (hasPolicy && Number(deposit) > 0) {
-      const reservationTime = new Date(booking.reservationTime).getTime()
-      const now = new Date().getTime()
-      const diffHours = (reservationTime - now) / (1000 * 60 * 60)
-
       let refundPercent = 0
       let ruleType = ''
       const freeHours = snapshot.freeCancellationHours || 0
@@ -208,6 +223,8 @@ export default function ManageBookings({ branchId }) {
       setCancellationInfo({
         hasPolicy: true,
         diffHours: diffHours.toFixed(1),
+        isTooLate,
+        minHours,
         refundPercent,
         refundAmount,
         deposit,
@@ -215,7 +232,12 @@ export default function ManageBookings({ branchId }) {
         snapshot
       })
     } else {
-      setCancellationInfo({ hasPolicy: false })
+      setCancellationInfo({
+        hasPolicy: false,
+        diffHours: diffHours.toFixed(1),
+        isTooLate,
+        minHours
+      })
     }
 
     setCancelModalOpen(true)
@@ -460,7 +482,16 @@ export default function ManageBookings({ branchId }) {
               Xác nhận hủy đặt bàn #{selectedBookingForCancel?.id}
             </h3>
 
-            {cancellationInfo?.hasPolicy ? (
+            {cancellationInfo?.isTooLate ? (
+              <div style={{ background: '#FEF2F2', padding: '1rem 1.25rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1.5px solid #FECACA', color: '#991B1B' }}>
+                <p style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontWeight: 700, margin: '0 0 .35rem 0', fontSize: '.92rem' }}>
+                  <Ban size={18} /> Không thể huỷ đơn đặt bàn này
+                </p>
+                <p style={{ fontSize: '.84rem', margin: 0, lineHeight: '1.5' }}>
+                  Theo quy định của hệ thống Dabana, nhà hàng chỉ được phép huỷ đơn của khách trước giờ hẹn tối thiểu <strong>{cancellationInfo.minHours} tiếng</strong>. Hiện tại chỉ còn khoảng <strong>{cancellationInfo.diffHours} tiếng</strong> trước thời gian nhận bàn.
+                </p>
+              </div>
+            ) : cancellationInfo?.hasPolicy ? (
               <div style={{ background: '#f9fafb', padding: '1.25rem', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '.9rem' }}>
                 <p style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontWeight: 600, color: 'var(--brand)', marginBottom: '.5rem' }}>
                   <AlertCircle size={18} /> Áp dụng chính sách hoàn cọc
@@ -484,7 +515,13 @@ export default function ManageBookings({ branchId }) {
               <button type="button" className="btn-outline btn-sm" onClick={() => setCancelModalOpen(false)}>
                 Đóng
               </button>
-              <button type="button" className="btn-danger btn-sm" onClick={confirmCancelBooking}>
+              <button
+                type="button"
+                className="btn-danger btn-sm"
+                disabled={cancellationInfo?.isTooLate}
+                onClick={confirmCancelBooking}
+                style={{ opacity: cancellationInfo?.isTooLate ? 0.5 : 1, cursor: cancellationInfo?.isTooLate ? 'not-allowed' : 'pointer' }}
+              >
                 Xác nhận hủy đơn
               </button>
             </div>

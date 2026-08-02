@@ -45,7 +45,10 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
                 VALUES 
                 ('CONFIRMED_CANCELLATION_GRACE_PERIOD_MINUTES', '15', 'Thời gian ân hạn huỷ đơn sau khi xác nhận (phút)', NOW(), NOW()),
                 ('CONFIRMED_CANCELLATION_GRACE_PERIOD_ENABLED', 'true', 'Trạng thái bật/tắt chính sách ân hạn huỷ đơn', NOW(), NOW()),
-                ('CONFIRMED_CANCELLATION_GRACE_PERIOD_DESCRIPTION', 'Khách hàng được hoàn 100% tiền cọc nếu huỷ đơn trong thời gian ân hạn kể từ khi đơn chuyển sang Đã xác nhận (CONFIRMED).', NOW(), NOW());
+                ('CONFIRMED_CANCELLATION_GRACE_PERIOD_DESCRIPTION', 'Khách hàng được hoàn 100% tiền cọc nếu huỷ đơn trong thời gian ân hạn kể từ khi đơn chuyển sang Đã xác nhận (CONFIRMED).', NOW(), NOW()),
+                ('RESTAURANT_CANCEL_MIN_HOURS_BEFORE_RESERVATION', '24', 'Thời gian tối thiểu nhà hàng được phép huỷ đơn trước giờ hẹn (giờ)', NOW(), NOW()),
+                ('RESTAURANT_CANCEL_POLICY_ENABLED', 'true', 'Trạng thái bật/tắt chính sách giới hạn thời gian huỷ đơn của nhà hàng', NOW(), NOW()),
+                ('RESTAURANT_CANCEL_POLICY_DESCRIPTION', 'Nhà hàng chỉ được phép huỷ đơn đặt bàn của khách trước thời gian nhận bàn tối thiểu 24 giờ.', NOW(), NOW());
             """;
             jdbcTemplate.execute(insertDefaultsSql);
 
