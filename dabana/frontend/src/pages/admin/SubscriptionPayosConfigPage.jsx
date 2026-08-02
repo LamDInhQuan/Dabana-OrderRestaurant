@@ -52,7 +52,6 @@ export default function SubscriptionPayosConfigPage() {
   return (
     <AdminLayout
       title="Cấu hình payOS - Thu phí nền tảng"
-      subtitle="Tài khoản payOS DUY NHẤT dùng chung để thu phí subscription từ nhà hàng đối tác (khác với tài khoản payOS riêng của từng chi nhánh dùng để nhận tiền cọc khách đặt bàn)."
     >
       {loading ? <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p> : (
         <>

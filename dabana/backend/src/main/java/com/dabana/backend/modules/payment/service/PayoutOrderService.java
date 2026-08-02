@@ -22,6 +22,7 @@ import com.dabana.backend.modules.payment.util.PayoutApprovalState;
 import com.dabana.backend.modules.payment.util.PayoutState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
 import vn.payos.exception.PayOSException;
@@ -72,7 +73,7 @@ public class PayoutOrderService {
         this.payoutOrderMapper = payoutOrderMapper;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public PayoutOrderResponse createPayoutOrder(CreatePayoutOrderRequest request, User requestedBy) {
         Booking booking = bookingRepository.findById(request.getReservationId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.RESERVATION_NOT_FOUND));

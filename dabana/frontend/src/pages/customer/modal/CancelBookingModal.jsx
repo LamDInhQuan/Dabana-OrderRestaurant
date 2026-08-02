@@ -60,31 +60,49 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         setIsRefunding(true)
         setStatusMessage('Đang xử lý yêu cầu hoàn tiền, vui lòng đợi hệ thống cổng thanh toán phản hồi...')
 
+        let pollCount = 0
+        const maxPolls = 6 // tối đa 18 giây
+
         pollIntervalRef.current = setInterval(async () => {
+            pollCount++
             try {
                 // Gọi API lấy thông tin chi tiết booking mới nhất
                 const res = await bookingApi.getById(bookingId)
                 const updatedBooking = res.data?.data || res.data
 
                 const currentStatus = updatedBooking?.status
-                console.log('[CancelBookingModal] poll status =', currentStatus)
+                const refundStatus = updatedBooking?.refundStatus
+                console.log('[CancelBookingModal] poll status =', currentStatus, 'refundStatus =', refundStatus)
 
-                // Kiểm tra nếu trạng thái đã chuyển thành công sang REFUNDED hoặc CANCELLED
-                if (currentStatus === 'REFUNDED' || currentStatus === 'CANCELLED_BY_CUSTOMER' || currentStatus === 'CANCELLED') {
+                if (refundStatus === 'SUCCESS' || currentStatus === 'REFUNDED') {
                     clearInterval(pollIntervalRef.current)
                     setIsRefunding(false)
-                    toast.success('Hủy bàn và hoàn tiền thành công!')
-                    if (onRefresh) onRefresh() // Load lại dữ liệu bảng bên ngoài
-                    onClose() // Đóng modal
-                } else if (currentStatus === 'FAILED' || currentStatus === 'REFUND_FAILED') {
+                    toast.success('Hủy bàn và hoàn tiền cọc thành công!')
+                    if (onRefresh) onRefresh()
+                    onClose()
+                } else if (refundStatus === 'FAILED' || currentStatus === 'REFUND_FAILED') {
                     clearInterval(pollIntervalRef.current)
                     setIsRefunding(false)
                     setSubmitting(false)
-                    toast.error('Giao dịch hoàn tiền thất bại từ cổng thanh toán. Vui lòng thử lại!')
+                    toast.error('Giao dịch hoàn tiền chưa thành công. Vui lòng kiểm tra lại!')
+                    if (onRefresh) onRefresh()
+                    onClose()
+                } else if (pollCount >= maxPolls) {
+                    // Quá thời gian chờ trực tiếp (PayOS xử lý bất đồng bộ)
+                    clearInterval(pollIntervalRef.current)
+                    setIsRefunding(false)
+                    toast.success('Đã hủy bàn thành công! Hệ thống đang chuyển tiền cọc về tài khoản của bạn.')
+                    if (onRefresh) onRefresh()
+                    onClose()
                 }
             } catch (err) {
                 console.error("[CancelBookingModal] Lỗi kiểm tra trạng thái booking (poll):", err)
-                console.error("[CancelBookingModal] err.response?.data:", err?.response?.data)
+                if (pollCount >= maxPolls) {
+                    clearInterval(pollIntervalRef.current)
+                    setIsRefunding(false)
+                    if (onRefresh) onRefresh()
+                    onClose()
+                }
             }
         }, 3000) // Call lại mỗi 3 giây
     }

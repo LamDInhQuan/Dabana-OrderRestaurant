@@ -2,25 +2,36 @@ export const dictionary = {
   // BookingStatus
   HOLDING: 'Đang giữ bàn',
   AWAITING_PAYMENT: 'Chờ thanh toán',
-  CONFIRMED: 'Xác nhận',
-  PENDING_NO_SHOW: 'Dự kiến không đến',
+  CONFIRMED: 'Đã xác nhận',
+  PENDING_NO_SHOW: 'Chờ xác nhận đến',
   NO_SHOW: 'Không đến',
-  CHECKED_IN: 'Check In',
+  CHECKED_IN: 'Đang phục vụ',
   COMPLETED: 'Hoàn thành',
   CANCELLED_BY_CUSTOMER: 'Khách hàng hủy',
-  CANCELLED_BY_RESTAURANT: 'Nhà hàng Hủy',
+  CANCELLED_BY_RESTAURANT: 'Nhà hàng hủy',
   EXPIRED: 'Hết hạn',
   REFUNDING: 'Đang hoàn tiền',
   REFUNDED: 'Đã hoàn tiền',
+
+  // RefundStatus & PayoutState
+  NONE: 'Không có',
+  PENDING: 'Chờ xử lý',
+  SUCCESS: 'Thành công',
+  FAILED: 'Thất bại',
+  PROCESSING: 'Đang xử lý',
+  SUCCEEDED: 'Thành công',
+
+  // Payment Status
+  PAID: 'Đã thanh toán',
+  UNPAID: 'Chưa thanh toán',
 
   // SubscriptionStatus
   PENDING_PAYMENT: 'Chờ thanh toán',
   ACTIVE: 'Đang hoạt động',
   PAST_DUE: 'Quá hạn',
-  CANCELLED: 'Hủy',
+  CANCELLED: 'Đã hủy',
 
   // Restaurant ApprovalStatus / ProfileStatus
-  PENDING: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
   PENDING_UPDATE: 'Chờ cập nhật',
   REJECTED: 'Từ chối',
@@ -38,6 +49,7 @@ export const dictionary = {
   VNPAY: 'VNPay',
   ZALOPAY: 'ZaloPay',
   BANK_TRANSFER: 'Chuyển khoản',
+  PAYOS: 'PayOS',
 
   // Cashflow / Payout State
   HELD: 'Tạm giữ',
