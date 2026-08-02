@@ -106,13 +106,13 @@ public class SubscriptionService implements ISubscriptionService {
         return subscriptionRepository
                 .findFirstByRestaurant_IdAndStatusInOrderByCreatedAtDesc(restaurantId, LIVE_STATUSES)
                 .map(sub -> {
-                    long currentCount = branchRepository.findByRestaurantId(restaurantId).size();
+                    long currentCount = branchRepository.countByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus());
                     boolean allowed = currentCount < sub.getMaxBranchesSnapshot();
                     String message = allowed
-                            ? "Còn được thêm chi nhánh"
+                            ? "Còn được thêm/kích hoạt chi nhánh"
                             : "Đã đạt giới hạn " + sub.getMaxBranchesSnapshot()
-                              + " chi nhánh của gói " + sub.getPlanNameSnapshot()
-                              + ". Vui lòng nâng cấp gói để thêm chi nhánh.";
+                              + " chi nhánh đang hoạt động của gói " + sub.getPlanNameSnapshot()
+                              + ". Vui lòng nâng cấp gói để thêm hoặc kích hoạt chi nhánh.";
                     return BranchLimitCheckResponse.builder()
                             .allowed(allowed)
                             .currentBranchCount(currentCount)
@@ -129,11 +129,28 @@ public class SubscriptionService implements ISubscriptionService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public void assertCanAddBranch(Long restaurantId) {
+        restaurantRepository.findByIdForUpdate(restaurantId)
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.RESTAURANT_NOT_FOUND));
+
         RestaurantSubscription subscription = getLiveSubscriptionOrThrow(restaurantId);
-        long currentCount = branchRepository.findByRestaurantId(restaurantId).size();
+        long currentCount = branchRepository.countByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus());
         if (currentCount >= subscription.getMaxBranchesSnapshot()) {
+            throw new BusinessException(SubscriptionErrorCode.BRANCH_LIMIT_EXCEEDED);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void assertCanActivateBranch(Long restaurantId) {
+        // Khóa bi quan (Pessimistic Write Lock) trên Restaurant để chống race condition khi cập nhật nhiều chi nhánh cùng lúc
+        restaurantRepository.findByIdForUpdate(restaurantId)
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.RESTAURANT_NOT_FOUND));
+
+        RestaurantSubscription subscription = getLiveSubscriptionOrThrow(restaurantId);
+        long activeCount = branchRepository.countByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus());
+        if (activeCount >= subscription.getMaxBranchesSnapshot()) {
             throw new BusinessException(SubscriptionErrorCode.BRANCH_LIMIT_EXCEEDED);
         }
     }
@@ -169,14 +186,14 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_PAYABLE);
         }
 
-        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai (orderCode = invoiceId,
-        // khong the doi, goi create() lan 2 voi cung orderCode co the bi payOS tu choi).
+        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai.
         if (invoice.getCheckoutUrl() != null) {
             return toPaymentInfoResponse(invoice, null);
         }
 
         PayOS client = payosClientProvider.getClient();
-        Long orderCode = invoice.getId();
+        // Dung System.currentTimeMillis() de sinh orderCode duy nhat theo thoi gian thuc, tranh trung lap khi test tren nhieu CSDL
+        Long orderCode = System.currentTimeMillis();
         // payOS gioi han description TOI DA 25 KY TU - khong duoc ghep ten goi vao
         // (ten goi co the dai bat ky, se lam vuot gioi han va bi APIException tu choi).
         String description = "Phi DV #" + invoice.getId();
@@ -199,6 +216,7 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.PAYOS_CREATE_PAYMENT_LINK_FAILED);
         }
 
+        invoice.setOrderCode(orderCode);
         invoice.setCheckoutUrl(payosResponse.getCheckoutUrl());
         invoice.setQrCode(payosResponse.getQrCode());
         invoiceRepository.save(invoice);
@@ -217,7 +235,8 @@ public class SubscriptionService implements ISubscriptionService {
 
         PaymentLink liveInfo;
         try {
-            liveInfo = payosClientProvider.getClient().paymentRequests().get(invoice.getId());
+            Long orderCodeToQuery = invoice.getOrderCode() != null ? invoice.getOrderCode() : invoice.getId();
+            liveInfo = payosClientProvider.getClient().paymentRequests().get(orderCodeToQuery);
         } catch (PayOSException e) {
             log.error("Dong bo thong tin thanh toan tu payOS that bai cho invoiceId={}", invoiceId, e);
             throw new BusinessException(SubscriptionErrorCode.PAYOS_SYNC_PAYMENT_FAILED);
@@ -419,7 +438,7 @@ public class SubscriptionService implements ISubscriptionService {
     private InvoicePaymentInfoResponse toPaymentInfoResponse(SubscriptionInvoice invoice, PaymentLink liveInfo) {
         return InvoicePaymentInfoResponse.builder()
                 .invoiceId(invoice.getId())
-                .orderCode(invoice.getId())
+                .orderCode(invoice.getOrderCode() != null ? invoice.getOrderCode() : invoice.getId())
                 .amount(invoice.getAmount())
                 .amountPaid(liveInfo != null && liveInfo.getAmountPaid() != null
                         ? java.math.BigDecimal.valueOf(liveInfo.getAmountPaid()) : null)

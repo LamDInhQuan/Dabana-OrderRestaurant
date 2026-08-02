@@ -38,6 +38,12 @@ public interface ISubscriptionService {
      */
     void assertCanAddBranch(Long restaurantId);
 
+    /**
+     * Bat buoc goi tu BranchService khi chuyen trang thai chi nhanh sang ACTIVE - nem BusinessException
+     * neu so chi nhanh dang hoat dong da dat/vuot han muc cua goi.
+     */
+    void assertCanActivateBranch(Long restaurantId);
+
     List<SubscriptionInvoiceResponse> listInvoices(Long restaurantId);
 
     /**
@@ -50,8 +56,7 @@ public interface ISubscriptionService {
     /**
      * Tao link thanh toan payOS cho 1 hoa don cua CHINH restaurant nay (kiem tra
      * quyen so huu). Neu hoa don da co link con hieu luc (checkoutUrl != null,
-     * status con PENDING/OVERDUE) thi tra ve link CU, khong goi payOS tao lai -
-     * tranh trung orderCode (orderCode = invoiceId, khong doi duoc).
+     * status con PENDING/OVERDUE) thi tra ve link CU, khong goi payOS tao lai.
      */
     InvoicePaymentInfoResponse createPaymentLinkForInvoice(Long restaurantId, Long invoiceId);
 

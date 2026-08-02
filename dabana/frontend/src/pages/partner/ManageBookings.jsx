@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { bookingApi, restaurantApi } from '../../api'
-import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react'
+import { Armchair, Users, Clock, Wallet, Check, DoorOpen, X, Ban, AlertCircle, ChevronLeft, ChevronRight, CalendarPlus, ShieldCheck } from 'lucide-react'
 import wsService from '../../api/socket'
 
 const STATUS_META = {
@@ -191,7 +191,11 @@ export default function ManageBookings({ branchId }) {
       let ruleType = ''
       const freeHours = snapshot.freeCancellationHours || 0
 
-      if (diffHours >= freeHours) {
+      if (booking.inGracePeriod) {
+        refundPercent = 100
+        const remMins = Math.max(1, Math.ceil((booking.gracePeriodRemainingSeconds || 0) / 60))
+        ruleType = `Chính sách ân hạn Dabana (Vừa CONFIRMED, còn ~${remMins} phút ân hạn)`
+      } else if (diffHours >= freeHours) {
         refundPercent = snapshot.freeRefundPercent || 0
         ruleType = `Trước giờ hẹn trên ${freeHours} tiếng (Miễn phí / Hoàn tiền theo chính sách)`
       } else {
@@ -343,6 +347,12 @@ export default function ManageBookings({ branchId }) {
                     {isNewIncoming && (
                       <span style={{ background: '#10b981', color: '#fff', fontSize: '.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', animation: 'pulse 1.5s infinite' }}>
                         ✨ MỚI TẠO
+                      </span>
+                    )}
+                    {/* Badge thời gian ân hạn huỷ hoàn cọc */}
+                    {b.inGracePeriod && (
+                      <span style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', fontSize: '.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <ShieldCheck size={12} /> ÂN HẠN ({Math.max(1, Math.ceil((b.gracePeriodRemainingSeconds || 0) / 60))}p)
                       </span>
                     )}
                   </div>

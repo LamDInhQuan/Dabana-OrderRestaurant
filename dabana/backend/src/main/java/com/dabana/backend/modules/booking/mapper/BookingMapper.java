@@ -6,15 +6,20 @@ import com.dabana.backend.modules.booking.BookingItem;
 import com.dabana.backend.modules.booking.dto.BookingDtos;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
+import com.dabana.backend.modules.admin.service.ISystemPolicyService;
+import com.dabana.backend.modules.booking.BookingStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
 @Component
 public class BookingMapper {
 
-    private final BookingItemMapper bookingItemMapper ;
+    private final BookingItemMapper bookingItemMapper;
     private final DiningTableMapper diningTableMapper;
+    private final ISystemPolicyService systemPolicyService;
 
     public Booking toEntity(
             BookingDtos.CreateHoldRequest request,
@@ -30,6 +35,11 @@ public class BookingMapper {
     }
 
     public BookingDtos.BookingResponse toResponse(Booking booking) {
+        LocalDateTime confirmedAt = systemPolicyService.getEffectiveConfirmedAt(booking);
+        boolean inGracePeriod = booking.getStatus() == BookingStatus.CONFIRMED && systemPolicyService.isWithinCancellationGracePeriod(booking);
+        Long graceRemainingSeconds = inGracePeriod ? systemPolicyService.getRemainingGracePeriodSeconds(booking) : 0L;
+        Integer graceMinutes = systemPolicyService.getGracePeriodMinutes();
+
         return BookingDtos.BookingResponse.builder()
                 .id(booking.getId())
                 .restaurantName(booking.getBranch().getRestaurant().getRestaurantName())
@@ -61,6 +71,10 @@ public class BookingMapper {
                 .refundStatus(booking.getRefundStatus() != null ? booking.getRefundStatus().name() : null)
                 .cancelledAt(booking.getCancelledAt())
                 .cancelReason(booking.getCancelReason())
+                .confirmedAt(confirmedAt)
+                .inGracePeriod(inGracePeriod)
+                .gracePeriodRemainingSeconds(graceRemainingSeconds)
+                .gracePeriodMinutes(graceMinutes)
                 .build();
     }
 }

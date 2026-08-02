@@ -15,6 +15,10 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 
     List<Branch> findByRestaurantId(Long restaurantId);
 
+    List<Branch> findByRestaurantIdAndStatus(Long restaurantId, Integer status);
+
+    Long countByRestaurantIdAndStatus(Long restaurantId, Integer status);
+
     boolean existsByPhone(String phone);
 
     // List<Branch> findByApprovalStatus(ApprovalStatus status);

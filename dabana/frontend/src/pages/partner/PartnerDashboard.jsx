@@ -150,7 +150,70 @@ function WaitCountdown({ expiresAt }) {
   </span>
 }
 
-
+function SuspendedNotice({ branchName, tabName }) {
+  return (
+    <div style={{
+      background: '#FFF8F8',
+      borderRadius: 12,
+      padding: '4rem 2rem',
+      textAlign: 'center',
+      border: '1.5px solid #FECACA',
+      boxShadow: '0 4px 20px rgba(239,68,68,.06)',
+      margin: '1rem 0',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <div style={{
+        width: 72,
+        height: 72,
+        borderRadius: '50%',
+        background: '#FEE2E2',
+        color: '#EF4444',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '1.25rem',
+        boxShadow: '0 4px 14px rgba(239, 68, 68, 0.2)'
+      }}>
+        <Ban size={36} />
+      </div>
+      <h2 style={{
+        fontSize: '1.35rem',
+        fontWeight: 700,
+        color: '#991B1B',
+        marginBottom: '.6rem'
+      }}>
+        Chi nhánh này đang tạm ngưng hoạt động
+      </h2>
+      <p style={{
+        color: '#7F1D1D',
+        fontSize: '.92rem',
+        maxWidth: 540,
+        lineHeight: 1.6,
+        marginBottom: '1.5rem'
+      }}>
+        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>Tạm ngưng hoạt động (Status 5)</strong>. 
+        Tính năng <strong>{tabName}</strong> và toàn bộ các thao tác liên quan tạm thời bị khóa.
+      </p>
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '.5rem',
+        background: '#FEF2F2',
+        padding: '.6rem 1.2rem',
+        borderRadius: 99,
+        border: '1px solid #FCA5A5',
+        fontSize: '.85rem',
+        color: '#B91C1C',
+        fontWeight: 600
+      }}>
+        <TriangleAlert size={16} /> Vui lòng kích hoạt lại chi nhánh để tiếp tục sử dụng tính năng này
+      </div>
+    </div>
+  )
+}
 
 // ══════════════════════════════════════════════════════════════════
 export default function PartnerDashboard() {
@@ -181,6 +244,15 @@ export default function PartnerDashboard() {
   const [exportFromDate, setExportFromDate] = useState("");
   const [exportToDate, setExportToDate] = useState("");
   const [exportModal, setExportModal] = useState(false);
+
+  const isSuspended = Number(activeBranch?.status) === 5;
+
+  const handleTabClick = (tabId) => {
+    if (isSuspended && ['bookings', 'order_board', 'waitlist'].includes(tabId)) {
+      toast.error('Chi nhánh này đang tạm ngưng hoạt động');
+    }
+    setActiveTab(tabId);
+  };
 
   useEffect(() => {
     if (activeBranch?.id) {
@@ -218,7 +290,7 @@ export default function PartnerDashboard() {
   const [editBranchModal, setEditBranchModal] = useState(false)
   const [editingBranch, setEditingBranch] = useState(null) // chi nhánh đang sửa
   const [editBranchForm, setEditBranchForm] = useState({
-    name: '', address: '', province: '', phone: '',
+    name: '', address: '', province: '', phone: '', status: 1,
     latitude: '', longitude: '', branchImageDtos: []
   })
   const [savingEditBranch, setSavingEditBranch] = useState(false)
@@ -556,6 +628,7 @@ export default function PartnerDashboard() {
       address: b.address || '',
       province: b.province || '',
       phone: b.phone || '',
+      status: b.status ?? 1,
       latitude: b.latitude ?? '',
       longitude: b.longitude ?? '',
       branchImageDtos: b.branchImageDtos || [],
@@ -574,6 +647,7 @@ export default function PartnerDashboard() {
     try {
       const payload = {
         ...editBranchForm,
+        status: editBranchForm.status !== undefined ? Number(editBranchForm.status) : editingBranch.status,
         latitude: editBranchForm.latitude === '' ? null : Number(editBranchForm.latitude),
         longitude: editBranchForm.longitude === '' ? null : Number(editBranchForm.longitude),
         // Đưa mảng ảnh vào payload dưới tên branchImages (hoặc sửa tên trường theo đúng API của bạn)
@@ -834,7 +908,12 @@ export default function PartnerDashboard() {
             value={activeBranch?.id || ''}
             onChange={e => {
               const b = branches.find(x => x.id == e.target.value);
-              if (b) setActiveBranch(b);
+              if (b) {
+                setActiveBranch(b);
+                if (Number(b.status) === 5 && ['bookings', 'order_board', 'waitlist'].includes(activeTab)) {
+                  toast.error('Chi nhánh này đang tạm ngưng hoạt động');
+                }
+              }
             }}
             style={{
               width: '100%', padding: '.55rem .75rem', borderRadius: 4, border: 'none',
@@ -845,7 +924,7 @@ export default function PartnerDashboard() {
               // Dùng b.id + index để đảm bảo key không bao giờ bị trùng, 
               // và thêm style color để tránh chữ bị tàng hình trên một số trình duyệt
               <option key={`${b.id}-${index}`} value={b.id} style={{ color: '#333' }}>
-                {b.name}
+                {b.name} {Number(b.status) === 5 ? '(Tạm ngưng)' : ''}
               </option>
             ))}
           </select>
@@ -854,7 +933,7 @@ export default function PartnerDashboard() {
         {/* Nav links */}
         <nav style={{ padding: '1rem 0', flex: 1 }}>
           {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            <button key={tab.id} onClick={() => handleTabClick(tab.id)} style={{
               display: 'flex', alignItems: 'center', gap: '.875rem',
               width: '100%', padding: '.75rem 1.5rem', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               background: activeTab === tab.id ? 'rgba(201,168,76,.15)' : 'transparent',
@@ -905,6 +984,23 @@ export default function PartnerDashboard() {
           <div>
             <h1 style={{ fontWeight: 700, fontSize: '1.1rem', color: C.text, display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}>
               {activeMeta?.icon && <activeMeta.icon size={20} />} {activeMeta?.label}
+              {isSuspended && (
+                <span style={{
+                  background: '#FEE2E2',
+                  color: '#B91C1C',
+                  fontSize: '.72rem',
+                  fontWeight: 700,
+                  padding: '.2rem .55rem',
+                  borderRadius: 99,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '.3rem',
+                  marginLeft: '.5rem',
+                  border: '1px solid #FECACA'
+                }}>
+                  <Ban size={12} /> Tạm ngưng hoạt động
+                </span>
+              )}
             </h1>
             <p style={{ fontSize: '.78rem', color: C.muted, marginTop: '.1rem' }}>
               {activeBranch?.name} · {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -994,7 +1090,7 @@ export default function PartnerDashboard() {
                 <div style={S.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <div style={S.eyebrow}>Đặt bàn sắp tới</div>
-                    <button onClick={() => setActiveTab('bookings')} style={{ ...S.btnSm, background: C.goldSubtle, color: C.goldDark, border: `1px solid ${C.goldBorder}` }}>
+                    <button onClick={() => handleTabClick('bookings')} style={{ ...S.btnSm, background: C.goldSubtle, color: C.goldDark, border: `1px solid ${C.goldBorder}` }}>
                       Xem tất cả →
                     </button>
                   </div>
@@ -1049,12 +1145,20 @@ export default function PartnerDashboard() {
 
           {/* ══════ TAB BRANCH BOOKINGS LIST══════ */}
           {activeTab === 'bookings' && (
-            <ManageBookings branchId={activeBranch.id} />
+            isSuspended ? (
+              <SuspendedNotice branchName={activeBranch?.name} tabName="Đặt bàn" />
+            ) : (
+              <ManageBookings branchId={activeBranch?.id} />
+            )
           )}
 
           {/* ══════ GỌI MÓN (TAB GỌI MÓN - realtime bàn) ══════ */}
           {activeTab === 'order_board' && (
-            <OrderBoardTab orderBoard={orderBoard} />
+            isSuspended ? (
+              <SuspendedNotice branchName={activeBranch?.name} tabName="Gọi món" />
+            ) : (
+              <OrderBoardTab orderBoard={orderBoard} />
+            )
           )}
 
           {/* ══════ TABLES / SƠ ĐỒ BÀN ══════ */}
@@ -1071,73 +1175,77 @@ export default function PartnerDashboard() {
 
           {/* ══════ WAITLIST ══════ */}
           {activeTab === 'waitlist' && (
-            <div>
-              <div style={{ ...S.card, marginBottom: '1.25rem', background: `linear-gradient(135deg,${C.brown},${C.brownMid})` }}>
-                <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                  {[
-                    { label: 'Đang chờ', value: waitlist.filter(w => w.status === 'WAITING').length, color: C.goldLight },
-                    { label: 'Đã mời', value: waitlist.filter(w => w.status === 'INVITED').length, color: C.amber },
-                    { label: 'Đã chuyển', value: waitlist.filter(w => w.status === 'CONVERTED').length, color: C.green },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} style={{ textAlign: 'center' }}>
-                      <div style={{ ...serif, fontSize: '2rem', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
-                      <div style={{ fontSize: '.75rem', color: 'rgba(255,255,255,.5)', marginTop: '.25rem', letterSpacing: '.08em' }}>{label}</div>
+            isSuspended ? (
+              <SuspendedNotice branchName={activeBranch?.name} tabName="Hàng chờ" />
+            ) : (
+              <div>
+                <div style={{ ...S.card, marginBottom: '1.25rem', background: `linear-gradient(135deg,${C.brown},${C.brownMid})` }}>
+                  <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'Đang chờ', value: waitlist.filter(w => w.status === 'WAITING').length, color: C.goldLight },
+                      { label: 'Đã mời', value: waitlist.filter(w => w.status === 'INVITED').length, color: C.amber },
+                      { label: 'Đã chuyển', value: waitlist.filter(w => w.status === 'CONVERTED').length, color: C.green },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} style={{ textAlign: 'center' }}>
+                        <div style={{ ...serif, fontSize: '2rem', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+                        <div style={{ fontSize: '.75rem', color: 'rgba(255,255,255,.5)', marginTop: '.25rem', letterSpacing: '.08em' }}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {waitlist.length === 0 && (
+                    <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>
+                      Không có khách hàng nào trong hàng chờ
+                    </div>
+                  )}
+                  {waitlist.map((w, i) => (
+                    <div key={w.id} style={{ ...S.card, border: `1.5px solid ${w.status === 'INVITED' ? C.amber + '55' : C.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '.3rem' }}>
+                            <span style={{ fontWeight: 700 }}>#{i + 1} — {w.customer?.fullName}</span>
+                            <span style={{
+                              fontSize: '.7rem', fontWeight: 700, padding: '.2rem .6rem', borderRadius: 99,
+                              background: w.status === 'WAITING' ? C.blueBg : w.status === 'INVITED' ? C.amberBg : C.greenBg,
+                              color: w.status === 'WAITING' ? C.blue : w.status === 'INVITED' ? C.amber : C.green,
+                            }}>{w.status === 'WAITING' ? 'Đang chờ' : w.status === 'INVITED' ? 'Đã mời' : 'Đã chuyển'}</span>
+                          </div>
+                          <p style={{ fontSize: '.82rem', color: C.muted }}>
+                            <Users size={14} style={{ verticalAlign: '-2px' }} /> {w.guestCount} khách · <AlarmClock size={14} style={{ verticalAlign: '-2px' }} /> Giờ mong muốn: {new Date(w.desiredTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '.2rem' }}>
+                            Đăng ký lúc {new Date(w.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        {w.status === 'INVITED' && w.inviteExpiresAt && (
+                          <div style={{
+                            background: C.amberBg, border: `1px solid ${C.amber}33`, borderRadius: 4,
+                            padding: '.6rem 1rem', textAlign: 'center'
+                          }}>
+                            <div style={{ fontSize: '.7rem', color: C.muted, marginBottom: '.2rem' }}>Hạn phản hồi</div>
+                            <WaitCountdown expiresAt={w.inviteExpiresAt} />
+                          </div>
+                        )}
+                      </div>
+                      {w.status === 'WAITING' && (
+                        <div style={{ marginTop: '.875rem', paddingTop: '.875rem', borderTop: `1px solid ${C.creamDark}` }}>
+                          <button onClick={() => {
+                            setWaitlist(p => p.map(x => x.id === w.id ? { ...x, status: 'INVITED', inviteExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() } : x))
+                            toast.success('Đã gửi lời mời đến khách hàng!')
+                          }} style={{ ...S.btnSm, background: C.gold, color: C.brown }}><Send size={14} style={{ verticalAlign: '-2px' }} /> Gửi lời mời</button>
+                          <button onClick={() => { setWaitlist(p => p.filter(x => x.id !== w.id)); toast.success('Đã xoá khỏi hàng chờ') }}
+                            style={{ ...S.btnSm, background: C.redBg, color: C.red, border: `1px solid ${C.red}22`, marginLeft: '.5rem' }}>
+                            <X size={14} style={{ verticalAlign: '-2px' }} /> Xoá
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {waitlist.length === 0 && (
-                  <div style={{ ...S.card, textAlign: 'center', padding: '3rem', color: C.muted }}>
-                    Không có khách hàng nào trong hàng chờ
-                  </div>
-                )}
-                {waitlist.map((w, i) => (
-                  <div key={w.id} style={{ ...S.card, border: `1.5px solid ${w.status === 'INVITED' ? C.amber + '55' : C.border}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '.3rem' }}>
-                          <span style={{ fontWeight: 700 }}>#{i + 1} — {w.customer?.fullName}</span>
-                          <span style={{
-                            fontSize: '.7rem', fontWeight: 700, padding: '.2rem .6rem', borderRadius: 99,
-                            background: w.status === 'WAITING' ? C.blueBg : w.status === 'INVITED' ? C.amberBg : C.greenBg,
-                            color: w.status === 'WAITING' ? C.blue : w.status === 'INVITED' ? C.amber : C.green,
-                          }}>{w.status === 'WAITING' ? 'Đang chờ' : w.status === 'INVITED' ? 'Đã mời' : 'Đã chuyển'}</span>
-                        </div>
-                        <p style={{ fontSize: '.82rem', color: C.muted }}>
-                          <Users size={14} style={{ verticalAlign: '-2px' }} /> {w.guestCount} khách · <AlarmClock size={14} style={{ verticalAlign: '-2px' }} /> Giờ mong muốn: {new Date(w.desiredTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                        <p style={{ fontSize: '.75rem', color: C.muted, marginTop: '.2rem' }}>
-                          Đăng ký lúc {new Date(w.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      {w.status === 'INVITED' && w.inviteExpiresAt && (
-                        <div style={{
-                          background: C.amberBg, border: `1px solid ${C.amber}33`, borderRadius: 4,
-                          padding: '.6rem 1rem', textAlign: 'center'
-                        }}>
-                          <div style={{ fontSize: '.7rem', color: C.muted, marginBottom: '.2rem' }}>Hạn phản hồi</div>
-                          <WaitCountdown expiresAt={w.inviteExpiresAt} />
-                        </div>
-                      )}
-                    </div>
-                    {w.status === 'WAITING' && (
-                      <div style={{ marginTop: '.875rem', paddingTop: '.875rem', borderTop: `1px solid ${C.creamDark}` }}>
-                        <button onClick={() => {
-                          setWaitlist(p => p.map(x => x.id === w.id ? { ...x, status: 'INVITED', inviteExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() } : x))
-                          toast.success('Đã gửi lời mời đến khách hàng!')
-                        }} style={{ ...S.btnSm, background: C.gold, color: C.brown }}><Send size={14} style={{ verticalAlign: '-2px' }} /> Gửi lời mời</button>
-                        <button onClick={() => { setWaitlist(p => p.filter(x => x.id !== w.id)); toast.success('Đã xoá khỏi hàng chờ') }}
-                          style={{ ...S.btnSm, background: C.redBg, color: C.red, border: `1px solid ${C.red}22`, marginLeft: '.5rem' }}>
-                          <X size={14} style={{ verticalAlign: '-2px' }} /> Xoá
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            )
           )}
 
           {/* ══════ CUSTOMERS (B14) ══════ */}
@@ -1642,6 +1750,19 @@ export default function PartnerDashboard() {
                     <input style={S.input} value={editBranchForm.phone || ''} maxLength={20}
                       onChange={e => setEditBranchForm(p => ({ ...p, phone: e.target.value }))} />
                   </div>
+                </div>
+
+                <div>
+                  <label style={S.label}>Trạng thái hoạt động</label>
+                  <select
+                    style={S.input}
+                    value={editBranchForm.status ?? 1}
+                    onChange={e => setEditBranchForm(p => ({ ...p, status: Number(e.target.value) }))}
+                  >
+                    <option value={2}>Hoạt động</option>
+                    <option value={1}>Ngừng hoạt động</option>
+                    <option value={5}>Bị tạm ngưng</option>
+                  </select>
                 </div>
 
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '1rem' }}>

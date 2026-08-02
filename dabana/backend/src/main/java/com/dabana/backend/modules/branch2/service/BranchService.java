@@ -65,9 +65,10 @@ public class BranchService implements IBranchService {
 
     @Override
     public List<BranchResponse> findByRestaurant(Long restaurantId) {
-        // 2. Gọi Repo lấy thẳng list branch từ DB lên (chỉ quét bảng rt_branches)
-        List<Branch> branches = branchRepository.findByRestaurantId(restaurantId);
-        // 3. Map sang danh sách Response trả về cho Frontend
+        // Chỉ lấy các chi nhánh có status là 2 (ACTIVE)
+        List<Branch> branches = branchRepository.findByRestaurantIdAndStatus(restaurantId,
+                BranchStatus.ACTIVE.getStatus());
+        // Map sang danh sách Response trả về cho Frontend
         return branches.stream()
                 .map(branchMapper::toResponse)
                 .toList();
@@ -77,7 +78,8 @@ public class BranchService implements IBranchService {
     public List<BranchResponse> findAll() {
         List<Branch> branches = branchRepository.findAll();
         return branches.stream()
-                .map(branch -> branchMapper.toResponse(branch)) // Hoặc dùng new BranchResponse(branch) tuỳ dự án của bạn
+                .map(branch -> branchMapper.toResponse(branch)) // Hoặc dùng new BranchResponse(branch) tuỳ dự án của
+                                                                // bạn
                 .toList();
     }
 
@@ -91,7 +93,8 @@ public class BranchService implements IBranchService {
     @Override
     public BranchResponse create(BranchRequest request) {
         // Kiem tra han muc chi nhanh theo goi subscription dang active cua nha hang
-        // (request.getRestaurantId() la Integer - ep sang Long vi Restaurant.id la Long)
+        // (request.getRestaurantId() la Integer - ep sang Long vi Restaurant.id la
+        // Long)
         subscriptionService.assertCanAddBranch(request.getRestaurantId().longValue());
 
         if (branchRepository.existsByPhone(request.getPhone())) {
@@ -102,10 +105,10 @@ public class BranchService implements IBranchService {
         return branchMapper.toResponse(branchRepository.save(branch));
     }
 
-//    @Override
-//    public BranchResponse update(Long id, Branch branch) {
-//        return null;
-//    }
+    // @Override
+    // public BranchResponse update(Long id, Branch branch) {
+    // return null;
+    // }
 
     @Override
     public void delete(Long id) {
@@ -119,8 +122,10 @@ public class BranchService implements IBranchService {
             return Collections.emptyList(); // Nếu user chưa tạo nhà hàng thì trả về danh sách rỗng
         }
         Long restaurantId = restaurantOpt.get().getId();
-        // 2. Có restaurantId rồi thì tận dụng luôn hàm findByRestaurant bạn đã viết sẵn ở trên kìa!
-        return this.findByRestaurant(restaurantId);
+        List<Branch> branches = branchRepository.findByRestaurantId(restaurantId);
+        return branches.stream()
+                .map(branchMapper::toResponse)
+                .toList();
     }
 
     private void initializeAdditionalData(Branch branch, BranchRequest request) {
@@ -132,14 +137,12 @@ public class BranchService implements IBranchService {
         }
         branch.setStatus(BranchStatus.ACTIVE.getStatus());
         if (request.getBranchImages() != null) {
-            branch.setImages(request.getBranchImages().stream().map(dto ->
-                    BranchImage.builder()
-                            .branch(branch) // Link ngược lại cha
-                            .imageUrl(dto.getImageUrl())
-                            .isCover(dto.getIsCover())
-                            .displayOrder(dto.getDisplayOrder())
-                            .build()
-            ).toList());
+            branch.setImages(request.getBranchImages().stream().map(dto -> BranchImage.builder()
+                    .branch(branch) // Link ngược lại cha
+                    .imageUrl(dto.getImageUrl())
+                    .isCover(dto.getIsCover())
+                    .displayOrder(dto.getDisplayOrder())
+                    .build()).toList());
         }
 
     }
@@ -151,7 +154,20 @@ public class BranchService implements IBranchService {
         Branch existingBranch = branchRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
 
-        // 2. Cập nhật các trường thông tin cơ bản
+        // 2. Kiểm tra nếu chuyển từ trạng thái khác sang ACTIVE (2)
+        if (request.getStatus() != null) {
+            boolean isActivating = BranchStatus.ACTIVE.getStatus().equals(request.getStatus())
+                    && !BranchStatus.ACTIVE.getStatus().equals(existingBranch.getStatus());
+
+            if (isActivating) {
+                Long restaurantId = existingBranch.getRestaurant().getId();
+                subscriptionService.assertCanActivateBranch(restaurantId);
+            }
+
+            existingBranch.setStatus(request.getStatus());
+        }
+
+        // 3. Cập nhật các trường thông tin cơ bản
         existingBranch.setName(request.getName());
         existingBranch.setAddress(request.getAddress());
         existingBranch.setProvince(request.getProvince());
@@ -162,17 +178,16 @@ public class BranchService implements IBranchService {
             // Xóa sạch list ảnh cũ trong Hibernate (cần có orphanRemoval = true ở Entity)
             existingBranch.getImages().clear();
             // Tạo list ảnh mới và add vào collection hiện tại của existingBranch
-            List<BranchImage> newImages = request.getBranchImages().stream().map(dto ->
-                    BranchImage.builder()
-                            .branch(existingBranch)
-                            .imageUrl(dto.getImageUrl())
-                            .isCover(dto.getIsCover() != null ? dto.getIsCover() : 0)
-                            .displayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 1)
-                            .build()
-            ).toList();
+            List<BranchImage> newImages = request.getBranchImages().stream().map(dto -> BranchImage.builder()
+                    .branch(existingBranch)
+                    .imageUrl(dto.getImageUrl())
+                    .isCover(dto.getIsCover() != null ? dto.getIsCover() : 0)
+                    .displayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 1)
+                    .build()).toList();
             existingBranch.getImages().addAll(newImages);
         }
-        // (Tuỳ chọn) Xử lý cập nhật danh sách ảnh hoặc các thông tin liên quan khác nếu có trong request...
+        // (Tuỳ chọn) Xử lý cập nhật danh sách ảnh hoặc các thông tin liên quan khác nếu
+        // có trong request...
         // 3. Lưu vào cơ sở dữ liệu
         Branch savedBranch = branchRepository.save(existingBranch);
         // 4. Trả về kết quả Response DTO

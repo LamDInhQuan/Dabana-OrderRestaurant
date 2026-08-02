@@ -92,6 +92,10 @@ public class BookingDtos {
         private String refundStatus;
         private LocalDateTime cancelledAt;
         private String cancelReason;
+        private LocalDateTime confirmedAt;
+        private Boolean inGracePeriod;
+        private Long gracePeriodRemainingSeconds;
+        private Integer gracePeriodMinutes;
     }
 
     @Data

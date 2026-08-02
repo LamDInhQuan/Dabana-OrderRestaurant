@@ -22,6 +22,7 @@ import vn.payos.model.v1.payouts.Payout;
 import vn.payos.model.v1.payouts.PayoutRequests;
 import vn.payos.model.v2.paymentRequests.PaymentLink;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -116,6 +117,7 @@ public class PaymentWebhookController {
             // 3. Cập nhật trạng thái (Quân kiểm tra lại trạng thái HOLDING hoặc PENDING của dự án nhé)
             if (bookingOptional.get().getStatus() == BookingStatus.HOLDING) {
                 bookingOptional.get().setStatus(BookingStatus.CONFIRMED);
+                bookingOptional.get().setConfirmedAt(LocalDateTime.now());
                 bookingRepository.save(bookingOptional.get());
                 System.out.println("🎉 [PayOS Webhook] Đơn đặt bàn ID " + bookingId + " đã cập nhật CONFIRMED thành công!");
             } else {

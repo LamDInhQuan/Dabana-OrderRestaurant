@@ -39,6 +39,7 @@ import com.dabana.backend.modules.booking.mapper.BookingMapper;
 import com.dabana.backend.modules.booking.repository.BookingTableRepository;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.repository.BranchRepository;
+import com.dabana.backend.modules.branch2.util.BranchStatus;
 import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
@@ -80,13 +81,7 @@ public class RestaurantService {
         private final BookingMapper bookingMapper;
 
         public List<RestaurantResponse> findAll() {
-                List<Restaurant> restaurants = restaurantRepos.findAll().stream()
-                                .filter(item -> item.getApprovalStatus() != ApprovalStatus.PENDING)
-                                .toList(); // Hoặc .collect(Collectors.toList()) tùy phiên bản Java
-
-                if (restaurants.isEmpty()) {
-                        throw new BusinessException(RestaurantErrorCode.RESTAURANT_NOT_FOUND);
-                }
+                List<Restaurant> restaurants = restaurantRepos.findRestaurantsWithActiveBranches(BranchStatus.ACTIVE.getStatus());
 
                 return restaurants.stream()
                                 .map(restaurantMapper::toResponse)

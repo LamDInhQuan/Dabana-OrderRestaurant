@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Hourglass, CreditCard, Ban, TriangleAlert, X, Library, Eye, Check, MapPin, RefreshCw, Settings, Wrench, ShieldCheck, Circle, Save } from "lucide-react";
+import { Hourglass, CreditCard, Ban, TriangleAlert, X, Library, Eye, Check, MapPin, RefreshCw, Settings, Wrench, ShieldCheck, Circle, Save, Info } from "lucide-react";
 import toast from "react-hot-toast";
 import { S } from "../../../theme";
-import { branchPolicyApi, reservationPolicyApi, branchCancellationPolicyApi } from "../../../../../api";
+import { branchPolicyApi, reservationPolicyApi, branchCancellationPolicyApi, systemPolicyApi } from "../../../../../api";
 import { useAuth } from "../../../../../context/AuthContext";
 import PolicyFormWithExtras from "../components/PolicyFormWithExtras";
 
@@ -128,6 +128,7 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
   });
   const [loadingCancel, setLoadingCancel] = useState(false);
   const [savingCancel, setSavingCancel] = useState(false);
+  const [systemPolicy, setSystemPolicy] = useState(null);
 
   // 1. Fetch danh sách Deposit Policy đang áp dụng tại Chi nhánh
   const fetchBranchPolicies = useCallback(async () => {
@@ -157,18 +158,28 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
     }
   }, [restaurantId]);
 
-  // 3. Fetch Cancellation Policy của Chi nhánh
+  // 3. Fetch Cancellation Policy của Chi nhánh & Chính sách ân hạn toàn hệ thống
   const fetchCancellationPolicy = useCallback(async () => {
     if (!restaurantId || !branchId) return;
     try {
       setLoadingCancel(true);
-      const res = await branchCancellationPolicyApi.getByBranch(branchId);
-      const data = res.data?.data || res.data;
-      if (data) {
-        // Nối toàn bộ object từ API (bao gồm id, branchId, v.v.)
-        setCancelPolicy(data);
-      }
+      const [resCancel, resSystem] = await Promise.allSettled([
+        branchCancellationPolicyApi.getByBranch(branchId),
+        systemPolicyApi.getCancellationGracePeriod()
+      ]);
 
+      if (resCancel.status === 'fulfilled') {
+        const data = resCancel.value.data?.data || resCancel.value.data;
+        if (data) {
+          setCancelPolicy(data);
+        }
+      }
+      if (resSystem.status === 'fulfilled') {
+        const sysData = resSystem.value.data?.data || resSystem.value.data;
+        if (sysData) {
+          setSystemPolicy(sysData);
+        }
+      }
     } catch (err) {
       console.log("Chưa cấu hình chính sách hủy cọc cho chi nhánh");
     } finally {
@@ -710,6 +721,44 @@ export default function PolicyBranchTab({ branch, isReadOnly = false }) {
             <p style={{ fontSize: ".82rem", color: "#6B7280", margin: "4px 0 0 0" }}>
               Khách hủy bàn đúng hạn sẽ được <strong>hoàn 100% tiền cọc</strong>. Thiết lập mốc thời gian và tỷ lệ phạt khi hủy muộn bên dưới.
             </p>
+          </div>
+
+          {/* SYSTEM POLICY NOTICE BANNER */}
+          <div style={{
+            background: "#EFF6FF",
+            border: "1.5px solid #BFDBFE",
+            borderRadius: "10px",
+            padding: "1rem 1.25rem",
+            marginBottom: "1.5rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: ".75rem"
+          }}>
+            <div style={{ color: "#2563EB", marginTop: "2px", flexShrink: 0 }}>
+              <Info size={20} />
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+                <h5 style={{ margin: 0, fontSize: ".92rem", fontWeight: 700, color: "#1E40AF" }}>
+                  Chính sách ân hạn huỷ đơn toàn hệ thống Dabana
+                </h5>
+                <span style={{
+                  fontSize: ".7rem",
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: "12px",
+                  background: systemPolicy?.enabled !== false ? "#DBEAFE" : "#F3F4F6",
+                  color: systemPolicy?.enabled !== false ? "#1D4ED8" : "#6B7280"
+                }}>
+                  {systemPolicy?.enabled !== false ? `Hiệu lực ${systemPolicy?.gracePeriodMinutes ?? 15} phút` : "Đang tắt"}
+                </span>
+              </div>
+              <p style={{ margin: "4px 0 0 0", fontSize: ".82rem", color: "#1E3A8A", lineHeight: 1.5 }}>
+                {systemPolicy?.enabled !== false
+                  ? `Khi khách đặt bàn và đơn vừa chuyển sang trạng thái đã xác nhận khách hàng có ${systemPolicy?.gracePeriodMinutes ?? 15} phút để huỷ đơn và được tự động HOÀN 100% TIỀN CỌC. Hết ${systemPolicy?.gracePeriodMinutes ?? 15} phút này, hệ thống sẽ áp dụng chính sách huỷ cọc của chi nhánh được cấu hình bên dưới.`
+                  : "Chính sách ân hạn toàn hệ thống hiện đang tắt. Đơn đặt bàn sẽ áp dụng ngay chính sách huỷ cọc của chi nhánh dưới đây sau khi xác nhận."}
+              </p>
+            </div>
           </div>
 
           {loadingCancel ? (

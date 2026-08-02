@@ -537,4 +537,12 @@ export const branchBankAccountApi = {
   update: (id, payload) => api.patch(`/payment/branch-bank-accounts/${id}`, payload),
 }
 
+export const systemPolicyApi = {
+  // GET: Lấy chính sách thời gian ân hạn huỷ đơn của toàn hệ thống (Public)
+  getCancellationGracePeriod: () => api.get('/system-policies/cancellation-grace-period'),
+
+  // PUT: Quản trị viên cập nhật chính sách ân hạn huỷ đơn (Admin)
+  updateCancellationGracePeriod: (data) => api.put('/admin/system-policies/cancellation-grace-period', data),
+}
+
 export default api

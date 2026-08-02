@@ -56,6 +56,9 @@ public class Booking extends BaseEntity {
     @Column(name = "hold_expires_at")
     private LocalDateTime holdExpiresAt;
 
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
     // Lưu ý: 2 trường created_at và updated_at thường đã được xử lý tự động trong BaseEntity bằng @CreatedDate / @LastModifiedDate
 
     @NotBlank
