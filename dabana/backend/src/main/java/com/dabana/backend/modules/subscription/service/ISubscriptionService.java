@@ -38,6 +38,12 @@ public interface ISubscriptionService {
      */
     void assertCanAddBranch(Long restaurantId);
 
+    /**
+     * Bat buoc goi tu BranchService khi chuyen trang thai chi nhanh sang ACTIVE - nem BusinessException
+     * neu so chi nhanh dang hoat dong da dat/vuot han muc cua goi.
+     */
+    void assertCanActivateBranch(Long restaurantId);
+
     List<SubscriptionInvoiceResponse> listInvoices(Long restaurantId);
 
     /**

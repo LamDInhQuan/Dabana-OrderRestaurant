@@ -106,13 +106,13 @@ public class SubscriptionService implements ISubscriptionService {
         return subscriptionRepository
                 .findFirstByRestaurant_IdAndStatusInOrderByCreatedAtDesc(restaurantId, LIVE_STATUSES)
                 .map(sub -> {
-                    long currentCount = branchRepository.findByRestaurantId(restaurantId).size();
+                    long currentCount = branchRepository.countByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus());
                     boolean allowed = currentCount < sub.getMaxBranchesSnapshot();
                     String message = allowed
-                            ? "Còn được thêm chi nhánh"
+                            ? "Còn được thêm/kích hoạt chi nhánh"
                             : "Đã đạt giới hạn " + sub.getMaxBranchesSnapshot()
-                              + " chi nhánh của gói " + sub.getPlanNameSnapshot()
-                              + ". Vui lòng nâng cấp gói để thêm chi nhánh.";
+                              + " chi nhánh đang hoạt động của gói " + sub.getPlanNameSnapshot()
+                              + ". Vui lòng nâng cấp gói để thêm hoặc kích hoạt chi nhánh.";
                     return BranchLimitCheckResponse.builder()
                             .allowed(allowed)
                             .currentBranchCount(currentCount)
@@ -129,11 +129,28 @@ public class SubscriptionService implements ISubscriptionService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public void assertCanAddBranch(Long restaurantId) {
+        restaurantRepository.findByIdForUpdate(restaurantId)
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.RESTAURANT_NOT_FOUND));
+
         RestaurantSubscription subscription = getLiveSubscriptionOrThrow(restaurantId);
-        long currentCount = branchRepository.findByRestaurantId(restaurantId).size();
+        long currentCount = branchRepository.countByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus());
         if (currentCount >= subscription.getMaxBranchesSnapshot()) {
+            throw new BusinessException(SubscriptionErrorCode.BRANCH_LIMIT_EXCEEDED);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void assertCanActivateBranch(Long restaurantId) {
+        // Khóa bi quan (Pessimistic Write Lock) trên Restaurant để chống race condition khi cập nhật nhiều chi nhánh cùng lúc
+        restaurantRepository.findByIdForUpdate(restaurantId)
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.RESTAURANT_NOT_FOUND));
+
+        RestaurantSubscription subscription = getLiveSubscriptionOrThrow(restaurantId);
+        long activeCount = branchRepository.countByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus());
+        if (activeCount >= subscription.getMaxBranchesSnapshot()) {
             throw new BusinessException(SubscriptionErrorCode.BRANCH_LIMIT_EXCEEDED);
         }
     }

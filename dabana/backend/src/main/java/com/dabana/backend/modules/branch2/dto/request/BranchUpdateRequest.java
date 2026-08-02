@@ -27,6 +27,8 @@ public class BranchUpdateRequest {
     private BigDecimal latitude;
     private BigDecimal longitude;
 
+    private Integer status;
+
     private List<BranchImageDto> branchImages ;
 
 }
