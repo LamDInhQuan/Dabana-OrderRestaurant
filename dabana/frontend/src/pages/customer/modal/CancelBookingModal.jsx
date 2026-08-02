@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react"
 import { branchBankAccountApi, bookingApi, refundBankInfoApi } from "../../../api" // Đảm bảo import đúng api client của bạn
 import toast from "react-hot-toast"
 import { Clock, ScrollText, Landmark, ShieldCheck } from "lucide-react"
+import BankSelect from "../../../components/BankSelect"
 
 
 // ----------------------------------------------------------------------
@@ -299,20 +300,15 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                                 </div>
 
                                 <div style={{ marginBottom: '.75rem' }}>
-                                    <label style={{ fontSize: '.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '.3rem' }}>Chọn Ngân hàng:</label>
-                                    <select
+                                    <BankSelect
+                                        banks={banks}
                                         value={selectedBankId}
-                                        onChange={e => setSelectedBankId(e.target.value)}
+                                        onChange={setSelectedBankId}
                                         disabled={loadingBanks}
-                                        style={{ width: '100%', padding: '.5rem', borderRadius: 6, border: '1px solid var(--border)', background: '#fff', fontSize: '.87rem' }}
-                                    >
-                                        <option value="">{loadingBanks ? 'Đang tải danh sách ngân hàng...' : '-- Chọn ngân hàng thụ hưởng --'}</option>
-                                        {banks.map((bank) => (
-                                            <option key={bank.id} value={bank.id}>
-                                                {bank.name} {bank.shortName ? `(${bank.shortName})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        label="Chọn Ngân hàng:"
+                                        searchPlaceholder="Nhập tìm nhanh (VCB, MB, ACB, TPB...)..."
+                                        selectPlaceholder={loadingBanks ? "Đang tải danh sách ngân hàng..." : "-- Chọn ngân hàng thụ hưởng --"}
+                                    />
                                 </div>
 
                                 <div style={{ marginBottom: '.75rem' }}>

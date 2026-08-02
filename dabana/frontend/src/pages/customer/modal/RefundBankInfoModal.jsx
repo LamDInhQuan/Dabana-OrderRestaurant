@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { branchBankAccountApi, refundBankInfoApi } from "../../../api"
 import toast from "react-hot-toast"
 import { Landmark, AlertCircle, CheckCircle2, ShieldCheck, RefreshCw, X, ArrowRight } from "lucide-react"
+import BankSelect from "../../../components/BankSelect"
 
 export default function RefundBankInfoModal({ booking, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true)
@@ -216,29 +217,15 @@ export default function RefundBankInfoModal({ booking, onClose, onSuccess }) {
 
               {/* Chọn ngân hàng */}
               <div>
-                <label style={{ display: 'block', fontSize: '.83rem', fontWeight: 600, color: '#374151', marginBottom: '.35rem' }}>
-                  Ngân hàng thụ hưởng: <span style={{ color: '#DC2626' }}>*</span>
-                </label>
-                <select
+                <BankSelect
+                  banks={banks}
                   value={selectedBankId}
-                  onChange={e => setSelectedBankId(e.target.value)}
+                  onChange={setSelectedBankId}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '.6rem .75rem',
-                    borderRadius: 8,
-                    border: '1.5px solid #D1D5DB',
-                    fontSize: '.88rem',
-                    background: '#fff'
-                  }}
-                >
-                  <option value="">-- Chọn ngân hàng --</option>
-                  {banks.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.shortName || b.code} - {b.name}
-                    </option>
-                  ))}
-                </select>
+                  label="Ngân hàng thụ hưởng:"
+                  searchPlaceholder="Nhập tìm nhanh (VCB, MB, ACB, Techcombank...)..."
+                  selectPlaceholder={loading ? "Đang tải danh sách ngân hàng..." : "-- Chọn ngân hàng --"}
+                />
               </div>
 
               {/* Số tài khoản */}
