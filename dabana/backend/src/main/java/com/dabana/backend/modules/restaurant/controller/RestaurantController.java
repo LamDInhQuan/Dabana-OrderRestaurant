@@ -3,6 +3,7 @@ package com.dabana.backend.modules.restaurant.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
@@ -10,11 +11,13 @@ import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.booking.dto.BookingDtos.BookingResponse;
 import com.dabana.backend.modules.diningtable.dto.response.DiningTableResponse;
+import com.dabana.backend.modules.restaurant.Dto.RestaurantLicensesDto;
 import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
 import com.dabana.backend.modules.restaurant.Dto.report.PerDayReport;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
+import com.dabana.backend.modules.restaurant.entity.RestaurantLicense;
 import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.modules.report.partner.export.ReportExcelExportService;
 import com.dabana.backend.security.CustomUserDetail;
@@ -115,14 +118,14 @@ public class RestaurantController {
                     ResponseBuilder.success( SuccessCode.SUCCESS,restaurantService.getBranchBookings( branchId )));
 
      }
-     @PostMapping
-     public ResponseEntity<ApiResponse<RestaurantResponse>> RegisterRestaurant(@RequestBody RestaurantRegisterRequest request) {
-          User owner = getLoggedOwner();
-          return ResponseEntity.ok(
-                    ResponseBuilder.
-                    success(SuccessCode.CREATED, restaurantService.Register(request, owner.getId())));
+//      @PostMapping
+//      public ResponseEntity<ApiResponse<RestaurantResponse>> RegisterRestaurant(@RequestBody RestaurantRegisterRequest request) {
+//           User owner = getLoggedOwner();
+//           return ResponseEntity.ok(
+//                     ResponseBuilder.
+//                     success(SuccessCode.CREATED, restaurantService.Register(request, owner.getId())));
 
-   }
+//    }
      @PutMapping
      public ResponseEntity<ApiResponse<RestaurantResponse>> UpdateRestaurant(@RequestBody RestaurantUpdateRequest request) {
           User owner = getLoggedOwner();  
@@ -131,6 +134,27 @@ public class RestaurantController {
                     success(SuccessCode.UPDATED, restaurantService.updateRestaurantById( owner.getId(),request)));
 
      }
+
+     // @PostMapping(value = "/licenses")
+     // public ResponseEntity<ApiResponse<List<RestaurantLicensesDto>>> uploadLicenses(
+     //           @RequestParam("files") List<MultipartFile> files) {
+     //      User owner = getLoggedOwner();
+     //      return ResponseEntity.ok(
+     //                ResponseBuilder.success(SuccessCode.CREATED, restaurantService.uploadLicenses(owner.getId(), files)));
+     // }
+
+     @GetMapping("/licenses")
+     public ResponseEntity<ApiResponse<List<RestaurantLicensesDto>>> getLicenseImage() {
+          User owner = getLoggedOwner();
+          List<RestaurantLicensesDto> licenses = restaurantService.getLicenseByRestaurantId( owner.getId());
+          try {
+               return ResponseEntity.ok()
+                         .body(ResponseBuilder.success(SuccessCode.SUCCESS, licenses));
+          } catch (Exception e) {
+               throw new RuntimeException("Error reading image", e);
+          }
+     }
+
    
      private User getLoggedOwner() {
 

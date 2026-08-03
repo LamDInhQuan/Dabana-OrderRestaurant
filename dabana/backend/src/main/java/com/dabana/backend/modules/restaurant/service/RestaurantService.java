@@ -12,13 +12,18 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.dabana.backend.modules.restaurant.Dto.request.SystemOptionsResponse;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantDetailResponse;
+import javax.sql.rowset.serial.SerialBlob;
+
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -30,6 +35,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.auth.entity.User;
@@ -51,6 +57,7 @@ import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.invoice.repository.InvoiceRepository;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.RestaurantErrorCode;
+import com.dabana.backend.modules.restaurant.Dto.RestaurantLicensesDto;
 import com.dabana.backend.modules.restaurant.Dto.report.BranchReportDto;
 import com.dabana.backend.modules.restaurant.Dto.report.DetailExcelReport;
 import com.dabana.backend.modules.restaurant.Dto.report.PerDayReport;
@@ -58,6 +65,7 @@ import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterReque
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.RestaurantLicense;
 import com.dabana.backend.modules.restaurant.mapper.RestaurantMapper;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.modules.review.ReviewRepository;
@@ -81,6 +89,7 @@ public class RestaurantService {
         private final ReviewRepository reviewRepository;
         private final InvoiceRepository invoiceRepository;
         private final BranchImageRepository branchImageRepository ;
+        private final com.dabana.backend.modules.restaurant.repository.RestaurantLicenseRepository restaurantLicenseRepository;
 
 
         private final RestaurantMapper restaurantMapper;
@@ -615,20 +624,20 @@ public class RestaurantService {
                                 || status == BookingStatus.CONFIRMED;
         }
 
-        public RestaurantResponse Register(RestaurantRegisterRequest request, Long ownerId) {
-                Restaurant restaurant = new Restaurant();
-                User user = userRepository.findById(ownerId)
-                                .orElseThrow(() -> new RuntimeException("cannot found owner for id: " + ownerId));
-                if (!restaurantRepos.findByOwnerUserId(ownerId).isEmpty()) {
-                        throw new RuntimeException("owner already registered");
-                }
-                restaurant = restaurantMapper.toEntity(request);
-                restaurant.setOwner(user);
+        // public RestaurantResponse Register(RestaurantRegisterRequest request, Long ownerId) {
+        //         Restaurant restaurant = new Restaurant();
+        //         User user = userRepository.findById(ownerId)
+        //                         .orElseThrow(() -> new RuntimeException("cannot found owner for id: " + ownerId));
+        //         if (!restaurantRepos.findByOwnerUserId(ownerId).isEmpty()) {
+        //                 throw new RuntimeException("owner already registered");
+        //         }
+        //         restaurant = restaurantMapper.toEntity(request);
+        //         restaurant.setOwner(user);
 
-                restaurant.setApprovalStatus(ApprovalStatus.PENDING);
+        //         restaurant.setApprovalStatus(ApprovalStatus.PENDING);
 
-                return restaurantMapper.toResponse(restaurantRepos.save(restaurant));
-        }
+        //         return restaurantMapper.toResponse(restaurantRepos.save(restaurant));
+        // }
 
         private double roundUp(Double d) {
                 if (d == null) {
@@ -638,6 +647,69 @@ public class RestaurantService {
                 return bd.doubleValue();
         }
 
+        public List<RestaurantLicensesDto> uploadLicenses(Long ownerId, List<MultipartFile> files) {
+                Restaurant restaurant = restaurantRepos.findByOwnerUserId(ownerId)
+                                .orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId));
 
+                // Các content type hình ảnh được chấp nhận
+                Set<String> allowedImageTypes = Set.of(
+                        "image/jpeg", "image/png", 
+                        "image/bmp", "image/webp", "image/svg+xml"
+                );
+
+                List<RestaurantLicense> licenses = new ArrayList<>();
+                for (MultipartFile file : files) {
+                        // Detect content type từ magic bytes của file (không phụ thuộc client)
+                        String contentType;
+                        try {
+                                contentType = java.net.URLConnection.guessContentTypeFromStream(
+                                        new ByteArrayInputStream(file.getBytes()));
+                        } catch (IOException e) {
+                                contentType = null;
+                        }
+                        // Fallback: detect từ tên file nếu magic bytes không nhận ra
+                        if (contentType == null) {
+                                contentType = java.net.URLConnection.guessContentTypeFromName(file.getOriginalFilename());
+                        }
+
+                        if (contentType == null || !allowedImageTypes.contains(contentType.toLowerCase())) {
+                                throw new RuntimeException(
+                                        "File '" + file.getOriginalFilename() + "' không phải định dạng hình ảnh hợp lệ. "
+                                        + "Chỉ chấp nhận: JPEG, PNG, BMP, WEBP, SVG. "
+                                        + "File type nhận được: " + contentType);
+                        }
+
+                        RestaurantLicense license = new RestaurantLicense();
+                        license.setFileName(file.getOriginalFilename());
+                        license.setFileType(contentType);
+                        try {
+                                license.setImage(new SerialBlob(file.getBytes()));
+                        } catch (Exception e) {
+                                throw new RuntimeException("Error saving file", e);
+                        }
+                        license.setRestaurant(restaurant);
+                        licenses.add(license);
+                }
+                licenses = restaurantLicenseRepository.saveAll(licenses);
+                
+                // Cập nhật URL sau khi lưu (nếu cần dùng endpoint download theo ID)
+                for (RestaurantLicense license : licenses) {
+                        license.setUrl("/api/restaurants/" + restaurant.getId() + "/licenses/" + license.getId() + "/image");
+                }
+                restaurantLicenseRepository.saveAll(licenses);
+
+                return licenses.stream()
+                                .map(restaurantMapper::toRestaurantLicensesDto)
+                                .toList();
+        }
+
+        public List<RestaurantLicensesDto> getLicenseByRestaurantId(Long ownerId) {
+                Restaurant restaurant = restaurantRepos.findByOwnerUserId(ownerId)
+                                .orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId));
+                List<RestaurantLicense> licenses = Optional.of( restaurantLicenseRepository.findByRestaurantId( restaurant.getId()))
+                                .orElseThrow(() -> new RuntimeException("restaurant not found for id: " + restaurant.getId()));
+
+                return licenses.stream().map(restaurantMapper::toRestaurantLicensesDto).toList();
+        }
 
 }

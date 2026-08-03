@@ -10,12 +10,16 @@ import com.dabana.backend.modules.restaurant.Dto.request.SystemOptionsResponse;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantDetailResponse;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.RestaurantLicense;
 import com.dabana.backend.modules.restaurant.mapper.RestaurantMapper;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.modules.zone.dto.response.ZoneResponse;
 import com.dabana.backend.modules.zone.service.IZoneService;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
