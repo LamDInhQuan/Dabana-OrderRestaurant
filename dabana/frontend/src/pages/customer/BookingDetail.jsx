@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, TriangleAlert, Hourglass, RefreshCw, XCircle, AlertTriangle } from 'lucide-react';
+import { Check, TriangleAlert, Hourglass, RefreshCw, XCircle, AlertTriangle, FileText, ClipboardList } from 'lucide-react';
 
 import toast from 'react-hot-toast';
-import { paymentApi } from '../../api';
+import { paymentApi, bookingApi } from '../../api';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function BookingLockDetail({ booking, onTimeOut }) {
@@ -138,9 +138,12 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
     // GIAO DIỆN HÓA ĐƠN KHI THANH TOÁN THÀNH CÔNG
     // =========================================================
     if (isPaidSuccess) {
+        const detail = confirmedBooking || booking;
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', padding: '1rem' }}>
                 <div className="card" style={{ width: '100%', maxWidth: 550, padding: '2rem', borderRadius: 16, background: '#fff', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+                    
+                    {/* Header thông báo thành công */}
                     <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                         <div style={{ width: 64, height: 64, background: '#dcfce7', color: '#16a34a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                             <Check size={32} />
@@ -152,6 +155,101 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                             Đơn đặt bàn của bạn đã được xác nhận trên hệ thống.
                         </p>
                     </div>
+
+                    {/* Khối hóa đơn chi tiết */}
+                    <div style={{ background: '#f8fafc', borderRadius: 12, padding: '1.25rem', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #cbd5e1', paddingBottom: '.75rem', marginBottom: '.75rem' }}>
+                            <span style={{ color: '#64748b', fontSize: '.9rem' }}>Mã đặt bàn:</span>
+                            <span style={{ fontWeight: 700, color: '#0f172a' }}>#{detail.id}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem', fontSize: '.9rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#64748b' }}>Nhà hàng:</span>
+                                <span style={{ fontWeight: 600 }}>{detail.restaurantName || 'Nhà hàng'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#64748b' }}>Chi nhánh:</span>
+                                <span style={{ fontWeight: 600 }}>{detail.branchName || ''}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#64748b' }}>Vị trí bàn:</span>
+                                <span style={{ fontWeight: 600, color: '#0284c7' }}>
+                                    {detail.tables?.map(t => t.tableName || t.name).join(', ') || 'Đã giữ chỗ'}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#64748b' }}>Thời gian dùng bữa:</span>
+                                <span style={{ fontWeight: 600, color: '#d97706' }}>
+                                    {detail.reservationTime ? new Date(detail.reservationTime).toLocaleString('vi-VN') : ''}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#64748b' }}>Khách hàng:</span>
+                                <span style={{ fontWeight: 600 }}>{detail.name} ({detail.phone})</span>
+                            </div>
+                            {detail.guestCount && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#64748b' }}>Số lượng khách:</span>
+                                    <span style={{ fontWeight: 600 }}>{detail.guestCount} khách</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Danh sách món ăn đặt trước nếu có */}
+                        {detail.items && detail.items.length > 0 && (
+                            <>
+                                <hr style={{ border: 0, borderTop: '1px dashed #cbd5e1', margin: '.75rem 0' }} />
+                                <div style={{ fontWeight: 700, fontSize: '.85rem', color: '#475569', marginBottom: '.5rem' }}>
+                                    Món ăn đặt trước:
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
+                                    {detail.items.map((item, index) => (
+                                        <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.875rem' }}>
+                                            <div>
+                                                <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.name}</span>
+                                                <span style={{ color: '#64748b', marginLeft: '.5rem', fontSize: '.8rem' }}>x{item.quantity}</span>
+                                            </div>
+                                            <span style={{ fontWeight: 600, color: '#334155', fontFamily: 'monospace' }}>
+                                                {(item.price * item.quantity).toLocaleString('vi-VN')}₫
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        <hr style={{ border: 0, borderTop: '1px dashed #cbd5e1', margin: '1rem 0' }} />
+
+                        {/* Tổng tiền cọc & Thanh toán */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 700, color: '#0f172a' }}>Tiền cọc đã thanh toán:</span>
+                            <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a' }}>
+                                {detail.depositAmount || detail.estimatedTotal ? `${Number(detail.depositAmount || detail.estimatedTotal).toLocaleString('vi-VN')}₫` : '0₫'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Nút thao tác sau khi hoàn tất */}
+                    <div style={{ display: 'flex', gap: '.75rem', flexDirection: 'column' }}>
+                        <button
+                            type="button"
+                            className="btn-primary"
+                            style={{ width: '100%', padding: '.85rem', borderRadius: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '.5rem', fontWeight: 700, cursor: 'pointer' }}
+                            onClick={() => navigate(`/my-bookings/${detail.id}/invoice`)}
+                        >
+                            <FileText size={18} /> Xem hoá đơn chi tiết & Đánh giá
+                        </button>
+                        <button
+                            type="button"
+                            className="btn-outline"
+                            style={{ width: '100%', padding: '.75rem', borderRadius: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '.5rem', fontWeight: 600, cursor: 'pointer' }}
+                            onClick={() => navigate('/my-bookings')}
+                        >
+                            <ClipboardList size={18} /> Danh sách đơn đặt bàn
+                        </button>
+                    </div>
+
                 </div>
             </div>
         );
