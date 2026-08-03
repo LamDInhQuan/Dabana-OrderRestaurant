@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import { branchApi, menuApi, reviewApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
-import { MapPin, Star, Search, Phone, Map, Soup, Home, ChefHat, Utensils, Calendar } from 'lucide-react'
+import { MapPin, Star, Search, Phone, Map, Soup, Home, ChefHat, Utensils, Calendar, Clock } from 'lucide-react'
 import { resizedImageUrl, IMAGE_PRESETS } from '../partner/tab/menu/utils/imageProxy'
 
 function unwrap(res) {
@@ -99,8 +99,8 @@ export default function BranchDetail() {
         }} />
         <div className="page-container" style={{ position: 'relative', zIndex: 2, padding: '1.5rem', width: '100%', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
-            <div style={{ display: 'inline-block', padding: '4px 10px', background: 'var(--brand)', borderRadius: 20, fontSize: '.75rem', fontWeight: 600, marginBottom: '.5rem' }}>
-              Đang mở cửa
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: 'var(--brand)', borderRadius: 20, fontSize: '.75rem', fontWeight: 600, marginBottom: '.5rem' }}>
+              <Clock size={12} /> {branch.operatingCurrentDay || 'Đang cập nhật'}
             </div>
             <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)', fontWeight: 800, marginBottom: '.4rem', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
               {branch.name}
@@ -159,6 +159,9 @@ export default function BranchDetail() {
                   <Phone size={16} style={{ verticalAlign: '-3px' }} /> <strong>Hotline liên hệ:</strong> <a href={`tel:${branch.phone}`} style={{ color: 'var(--brand)', textDecoration: 'none' }}>{branch.phone}</a>
                 </p>
               )}
+              <p style={{ color: 'var(--text-muted)', marginTop: '.5rem', fontSize: '.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={16} style={{ verticalAlign: '-3px', color: 'var(--brand)' }} /> <strong>Giờ hoạt động hôm nay:</strong> <span style={{ color: '#111827', fontWeight: 600 }}>{branch.operatingCurrentDay || 'Đang cập nhật'}</span>
+              </p>
             </div>
 
             {/* BẢN ĐỒ VỊ TRÍ CHÍNH XÁC (TỪ LATITUDE & LONGITUDE) */}
@@ -216,27 +219,6 @@ export default function BranchDetail() {
                 </div>
               </div>
             )}
-
-            {/* Giờ mở cửa */}
-            <div className="card" style={{ padding: '1.25rem', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <h2 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '.75rem', color: '#111827' }}>Giờ hoạt động</h2>
-              {hours.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}>Đang cập nhật lịch hoạt động các ngày trong tuần.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
-                  {hours.map(h => (
-                    <div key={h.id} className="flex justify-between items-center" style={{ fontSize: '.88rem', borderBottom: '1px solid #f3f4f6', paddingBottom: '.4rem' }}>
-                      <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>
-                        {DAY_LABEL[h.dayOfWeek] || h.dayOfWeek}{h.shiftName ? ` · ${h.shiftName}` : ''}
-                      </span>
-                      <span style={{ fontWeight: 600, color: '#1f2937' }}>
-                        {String(h.openTime).slice(0, 5)} – {String(h.closeTime).slice(0, 5)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
 

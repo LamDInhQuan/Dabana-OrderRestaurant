@@ -1,70 +1,83 @@
-import { useState, useEffect } from 'react'
-import { Star, Eye, Ban, Trash2 } from 'lucide-react'
-import toast from 'react-hot-toast'
-import AdminLayout from './AdminLayout'
-import { adminApi } from '../../api'
+import { useState, useEffect } from 'react';
+import { Star, Eye, Ban, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import AdminLayout from './AdminLayout';
+import { adminApi } from '../../api';
 
-function Stars({ value }) {
+function Stars({ value = 5 }) {
   return (
-    <span style={{ color: '#F59E0B', display: 'inline-flex', verticalAlign: 'middle' }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} size={14} fill={i < value ? 'currentColor' : 'none'} />
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          size={14}
+          fill={star <= Number(value || 0) ? '#f59e0b' : '#e2e8f0'}
+          color={star <= Number(value || 0) ? '#f59e0b' : '#cbd5e1'}
+        />
       ))}
     </span>
-  )
+  );
 }
 
 export default function ReviewModeration() {
-  const [reviews, setReviews]       = useState([])
-  const [totalPages, setTotalPages] = useState(0)
-  const [page, setPage]             = useState(0)
-  const [filter, setFilter]         = useState('all') // all | visible | hidden
-  const [loading, setLoading]       = useState(true)
-  const [reasonFor, setReasonFor]   = useState(null)
-  const [reason, setReason]         = useState('')
+  const [reviews, setReviews] = useState([]);
+  const [totalPages, setTotalPages] = useState(0);
+  const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState('all'); // all | visible | hidden
+  const [loading, setLoading] = useState(true);
+  const [reasonFor, setReasonFor] = useState(null);
+  const [reason, setReason] = useState('');
 
   const load = () => {
-    setLoading(true)
-    const hidden = filter === 'all' ? undefined : filter === 'hidden'
+    setLoading(true);
+    const hidden = filter === 'all' ? undefined : filter === 'hidden';
     adminApi.listReviews({ hidden, page, size: 10 })
-      .then(r => { setReviews(r.data.content || []); setTotalPages(r.data.totalPages || 0) })
-      .finally(() => setLoading(false))
-  }
+      .then(r => { 
+        setReviews(r.data.content || []); 
+        setTotalPages(r.data.totalPages || 0); 
+      })
+      .catch(err => {
+        console.error("Lỗi tải danh sách đánh giá:", err);
+        toast.error('Không thể tải danh sách đánh giá');
+      })
+      .finally(() => setLoading(false));
+  };
 
-  useEffect(() => { load() }, [page, filter])
+  useEffect(() => { load(); }, [page, filter]);
 
   const hide = async (id) => {
-    if (!reason.trim()) { toast.error('Vui lòng nhập lý do ẩn đánh giá'); return }
+    if (!reason.trim()) { toast.error('Vui lòng nhập lý do ẩn đánh giá'); return; }
     try {
-      await adminApi.hideReview(id, { reason })
-      toast.success('Đã ẩn đánh giá')
-      setReasonFor(null); setReason('')
-      load()
-    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại') }
-  }
+      await adminApi.hideReview(id, { reason });
+      toast.success('Đã ẩn đánh giá');
+      setReasonFor(null); 
+      setReason('');
+      load();
+    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại'); }
+  };
 
   const unhide = async (id) => {
     try {
-      await adminApi.unhideReview(id)
-      toast.success('Đã hiện lại đánh giá')
-      load()
-    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại') }
-  }
+      await adminApi.unhideReview(id);
+      toast.success('Đã hiện lại đánh giá');
+      load();
+    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại'); }
+  };
 
   const remove = async (id) => {
-    if (!window.confirm('Xoá vĩnh viễn đánh giá này? Hành động không thể hoàn tác.')) return
+    if (!window.confirm('Xoá vĩnh viễn đánh giá này? Hành động không thể hoàn tác.')) return;
     try {
-      await adminApi.deleteReview(id)
-      toast.success('Đã xoá đánh giá')
-      load()
-    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại') }
-  }
+      await adminApi.deleteReview(id);
+      toast.success('Đã xoá đánh giá');
+      load();
+    } catch (err) { toast.error(err.response?.data?.message || 'Thao tác thất bại'); }
+  };
 
   return (
-    <AdminLayout title="Kiểm duyệt đánh giá" >
+    <AdminLayout title="Kiểm duyệt đánh giá">
       <div className="flex gap-2" style={{ marginBottom: '1.5rem' }}>
         {[['all', 'Tất cả'], ['visible', 'Đang hiển thị'], ['hidden', 'Đã ẩn']].map(([k, l]) => (
-          <button key={k} onClick={() => { setFilter(k); setPage(0) }}
+          <button key={k} onClick={() => { setFilter(k); setPage(0); }}
             className={filter === k ? 'btn-primary btn-sm' : 'btn-outline btn-sm'}>{l}</button>
         ))}
       </div>
@@ -82,7 +95,7 @@ export default function ReviewModeration() {
                 </div>
                 <span className={`badge ${r.hidden ? 'badge-red' : 'badge-green'}`}>{r.hidden ? 'Đã ẩn' : 'Hiển thị'}</span>
               </div>
-              <div className="flex gap-3" style={{ marginBottom: '.5rem', fontSize: '.85rem' }}>
+              <div className="flex gap-3" style={{ marginBottom: '.5rem', fontSize: '.85rem', flexWrap: 'wrap' }}>
                 <span>Không gian: <Stars value={r.spaceRating} /></span>
                 <span>Phục vụ: <Stars value={r.serviceRating} /></span>
                 <span>Đồ ăn: <Stars value={r.foodRating} /></span>
@@ -95,7 +108,7 @@ export default function ReviewModeration() {
               {reasonFor === r.id ? (
                 <div className="flex gap-2">
                   <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Lý do ẩn đánh giá..." style={{ flex: 1 }} />
-                  <button className="btn-outline btn-sm" onClick={() => { setReasonFor(null); setReason('') }}>Huỷ</button>
+                  <button className="btn-outline btn-sm" onClick={() => { setReasonFor(null); setReason(''); }}>Huỷ</button>
                   <button className="btn-danger btn-sm" onClick={() => hide(r.id)}>Xác nhận ẩn</button>
                 </div>
               ) : (
@@ -119,5 +132,5 @@ export default function ReviewModeration() {
         </div>
       )}
     </AdminLayout>
-  )
+  );
 }

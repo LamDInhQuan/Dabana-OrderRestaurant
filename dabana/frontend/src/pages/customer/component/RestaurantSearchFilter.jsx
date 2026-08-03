@@ -3,11 +3,11 @@ import { Search } from 'lucide-react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { restaurantApi } from '../../../api'
 
-const FIXED_PRICE_RANGES = [
-  { value: '', label: 'Tất cả Mức giá' },
-  { value: '1', label: 'Dưới 150.000đ' },
-  { value: '2', label: '150.000đ - 300.000đ' },
-  { value: '3', label: 'Trên 300.000đ' },
+const FIXED_RATINGS = [
+  { value: '', label: 'Tất cả Đánh giá' },
+  { value: '4.5', label: 'Từ 4.5 sao ★' },
+  { value: '4.0', label: 'Từ 4.0 sao ★' },
+  { value: '3.0', label: 'Từ 3.0 sao ★' },
 ]
 
 export default function RestaurantSearchFilter({ onSearch, onCuisineSelect }) {
@@ -21,7 +21,7 @@ export default function RestaurantSearchFilter({ onSearch, onCuisineSelect }) {
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '')
   const [province, setProvince] = useState(searchParams.get('province') || '')
   const [cuisine, setCuisine] = useState(searchParams.get('cuisine') || '')
-  const [priceRange, setPriceRange] = useState(searchParams.get('priceRange') || '')
+  const [minRate, setMinRate] = useState(searchParams.get('minRate') || '')
 
   const isSearchPage = location.pathname.startsWith('/search')
 
@@ -29,7 +29,7 @@ export default function RestaurantSearchFilter({ onSearch, onCuisineSelect }) {
     setKeyword(searchParams.get('keyword') || '')
     setProvince(searchParams.get('province') || '')
     setCuisine(searchParams.get('cuisine') || '')
-    setPriceRange(searchParams.get('priceRange') || '')
+    setMinRate(searchParams.get('minRate') || '')
   }, [searchParams])
 
   useEffect(() => {
@@ -59,12 +59,12 @@ export default function RestaurantSearchFilter({ onSearch, onCuisineSelect }) {
     const finalKeyword = newParams.keyword !== undefined ? newParams.keyword : keyword
     const finalProvince = newParams.province !== undefined ? newParams.province : province
     const finalCuisine = newParams.cuisine !== undefined ? newParams.cuisine : cuisine
-    const finalPriceRange = newParams.priceRange !== undefined ? newParams.priceRange : priceRange
+    const finalMinRate = newParams.minRate !== undefined ? newParams.minRate : minRate
 
     if (finalKeyword) queryParams.append('keyword', finalKeyword)
     if (finalProvince) queryParams.append('province', finalProvince)
     if (finalCuisine) queryParams.append('cuisine', finalCuisine)
-    if (finalPriceRange) queryParams.append('priceRange', finalPriceRange)
+    if (finalMinRate) queryParams.append('minRate', finalMinRate)
 
     const queryString = queryParams.toString()
     navigate(`/search${queryString ? `?${queryString}` : ''}`)
@@ -74,18 +74,15 @@ export default function RestaurantSearchFilter({ onSearch, onCuisineSelect }) {
         keyword: finalKeyword,
         province: finalProvince,
         cuisine: finalCuisine,
-        priceRange: finalPriceRange
+        minRate: finalMinRate
       })
     }
   }
 
   const handleFullSearchSubmit = () => {
-    triggerSearch({ keyword, province, cuisine, priceRange })
+    triggerSearch({ keyword, province, cuisine, minRate })
   }
 
-  // 👈 XỬ LÝ RIÊNG BIỆT CHO BADGE ẨM THỰC: 
-  // Nếu ở Trang chủ -> Chỉ gọi callback lọc nội bộ, KHÔNG gọi API hay chuyển trang.
-  // Nếu ở Trang tìm kiếm -> Thực hiện triggerSearch bình thường.
   const handleBadgeClick = (val) => {
     setCuisine(val)
     if (isSearchPage) {
@@ -132,15 +129,16 @@ export default function RestaurantSearchFilter({ onSearch, onCuisineSelect }) {
           {flattenedCuisines.map((c, idx) => <option key={idx} value={c}>{c}</option>)}
         </select>
 
+        {/* THAY THẾ PRICE RANGE BẰNG SELECT MIN RATE */}
         <select
-          value={priceRange}
+          value={minRate}
           onChange={e => {
-            setPriceRange(e.target.value)
-            if (isSearchPage) triggerSearch({ priceRange: e.target.value })
+            setMinRate(e.target.value)
+            if (isSearchPage) triggerSearch({ minRate: e.target.value })
           }}
           style={{ width: 'auto', minWidth: 160, padding: '.75rem 1rem', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', outline: 'none', fontSize: '0.9rem' }}
         >
-          {FIXED_PRICE_RANGES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          {FIXED_RATINGS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
 
         <button 

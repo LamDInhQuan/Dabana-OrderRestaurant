@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Check, TriangleAlert, Hourglass, RefreshCw, XCircle, AlertTriangle } from 'lucide-react';
+
 import toast from 'react-hot-toast';
+import { paymentApi } from '../../api';
 import { QRCodeSVG } from 'qrcode.react';
-import { paymentApi, bookingApi } from '../../api';
-import { Check, Soup, Printer, ClipboardList, TriangleAlert, RefreshCw, Hourglass } from 'lucide-react';
 
 export default function BookingLockDetail({ booking, onTimeOut }) {
     const [timeLeft, setTimeLeft] = useState(booking.remainSeconds || 0);
     const [loadingPayment, setLoadingPayment] = useState(false);
     const [paymentInfo, setPaymentInfo] = useState(null);
 
-    // State quản lý việc thanh toán thành công & Lưu trữ dữ liệu hóa đơn chi tiết
+    // State quản lý việc thanh toán thành công & Lưu trữ hóa đơn
     const [isPaidSuccess, setIsPaidSuccess] = useState(false);
     const [confirmedBooking, setConfirmedBooking] = useState(null);
+
+    // State quản lý Modal xác nhận hủy đơn
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [isCancelling, setIsCancelling] = useState(false);
 
     const navigate = useNavigate();
 
@@ -42,15 +47,11 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
         try {
             let res;
             try {
-                // Đã có lệnh thu cọc PENDING/PROCESSING cho booking này -> dùng lại (idempotent).
                 res = await paymentApi.getActiveDeposit(booking.id);
             } catch {
-                // Chưa có -> tạo lệnh thu cọc mới, ghi vào pm_deposit_payments.
-                // amount lấy từ estimatedTotal - đúng số tiền cọc đang hiển thị cho khách ở màn này.
                 res = await paymentApi.createDeposit(booking.id, booking.estimatedTotal);
             }
 
-            // DepositPaymentController trả về DepositPaymentResponse trực tiếp (không bọc { data }).
             const data = res.data?.data || res.data || {};
             const rawQr = data.qrCode || '';
 
@@ -73,14 +74,12 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
     };
 
     useEffect(() => {
-        // Nếu đơn không yêu cầu tiền cọc (0đ) hoặc trạng thái đã CONFIRMED sẵn
         if (Number(booking?.estimatedTotal || 0) === 0 || booking?.status === 'CONFIRMED') {
-            setIsPaidSuccess(true); // Nhảy thẳng sang màn hình Hóa đơn xác nhận
+            setIsPaidSuccess(true);
             setConfirmedBooking(booking);
             return;
         }
 
-        // Nếu có tiền cọc (> 0đ) mới kích hoạt lấy QR PayOS và đếm ngược giữ bàn
         fetchOrCreateQRCode();
     }, [booking.id]);
 
@@ -90,11 +89,6 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
         const checkStatusTimer = setInterval(async () => {
             try {
-                // Webhook payOS (PayosWebhookService) đã cập nhật pm_deposit_payments.status=PAID
-                // VÀ rs_reservations.status=CONFIRMED ở phía BE khi thanh toán thành công.
-                // getLatestDeposit tra ve du moi status (PENDING/PROCESSING/PAID/...),
-                // KHONG dung getActiveDeposit de poll vi no chi tra PENDING/PROCESSING
-                // -> vua PAID la 404 ngay, FE tuong nham "chua thanh toan" (bug da gap).
                 const depositRes = await paymentApi.getLatestDeposit(booking.id);
                 const deposit = depositRes.data?.data || depositRes.data;
 
@@ -102,17 +96,29 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                     clearInterval(checkStatusTimer);
                     setIsPaidSuccess(true);
                     toast.success("Thanh toán thành công! Đơn giữ bàn đã được xác nhận.");
-                    // Không tự chuyển hướng nữa - card hóa đơn hiện ra và ở lại,
-                    // khách tự bấm nút "Danh sách đơn đặt" khi nào muốn rời trang.
                 }
             } catch (err) {
-                // 404 (chưa có lệnh cọc active, hoặc lệnh cũ đã CANCELLED/EXPIRED) - bỏ qua, đợi lượt poll sau.
                 console.error("Lỗi kiểm tra trạng thái thanh toán:", err);
             }
         }, 3000);
 
         return () => clearInterval(checkStatusTimer);
     }, [booking.id, isPaidSuccess]);
+
+    // Xử lý khi người dùng xác nhận hủy đơn trong Modal
+    const handleConfirmCancel = async () => {
+        setIsCancelling(true);
+        try {
+            // Gọi api hủy đơn nếu cần, ví dụ: await bookingApi.cancelBooking(booking.id);
+            onTimeOut(); // Gọi callback timeout/hủy đơn của cha để chuyển trạng thái màn hình
+        } catch (err) {
+            console.error("Lỗi hủy đơn:", err);
+            toast.error("Không thể hủy đơn, vui lòng thử lại.");
+        } finally {
+            setIsCancelling(false);
+            setIsCancelModalOpen(false);
+        }
+    };
 
     // Format MM:SS
     const formatTime = (seconds) => {
@@ -125,14 +131,9 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
     // GIAO DIỆN HÓA ĐƠN KHI THANH TOÁN THÀNH CÔNG
     // =========================================================
     if (isPaidSuccess) {
-        const detail = confirmedBooking || booking;
-        const paidAt = detail.updatedAt || new Date().toISOString();
-
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', padding: '1rem' }}>
                 <div className="card" style={{ width: '100%', maxWidth: 550, padding: '2rem', borderRadius: 16, background: '#fff', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-
-                    {/* Header thông báo thành công */}
                     <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                         <div style={{ width: 64, height: 64, background: '#dcfce7', color: '#16a34a', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                             <Check size={32} />
@@ -144,106 +145,6 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                             Đơn đặt bàn của bạn đã được xác nhận trên hệ thống.
                         </p>
                     </div>
-
-                    {/* Khối Hóa đơn (Invoice Card) */}
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '1.25rem', marginBottom: '1.5rem' }}>
-                        {/* Header đơn */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '.75rem', marginBottom: '.75rem' }}>
-                            <div>
-                                <span style={{ fontSize: '.75rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Mã đặt bàn</span>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>#{detail.id}</div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '.75rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Trạng thái</span>
-                                <div><span style={{ background: '#dcfce7', color: '#15803d', padding: '.2rem .6rem', borderRadius: 20, fontSize: '.75rem', fontWeight: 700 }}>ĐÃ XÁC NHẬN</span></div>
-                            </div>
-                        </div>
-
-                        {/* Thông tin cơ bản */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '.6rem', fontSize: '.9rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b' }}>Nhà hàng:</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a' }}>{detail.restaurantName}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b' }}>Chi nhánh:</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a' }}>{detail.branchName}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b' }}>Bàn đã xếp:</span>
-                                <span style={{ fontWeight: 700, color: '#0284c7' }}>
-                                    {detail.tables?.map(t => `${t.tableName} (${t.zoneName})`).join(', ') || 'Đã phân bàn'}
-                                </span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b' }}>Số lượng khách:</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a' }}>{detail.guestCount} người</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b' }}>Thời gian nhận bàn:</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                                    {new Date(detail.reservationTime).toLocaleString('vi-VN')}
-                                </span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ color: '#64748b' }}>Khách hàng:</span>
-                                <span style={{ fontWeight: 600, color: '#0f172a' }}>{detail.name} - {detail.phone}</span>
-                            </div>
-                        </div>
-
-                        {/* DANH SÁCH MÓN ĂN ĐẶT TRƯỚC (NẾU CÓ) */}
-                        {detail.items && detail.items.length > 0 && (
-                            <>
-                                <hr style={{ border: 0, borderTop: '1px dashed #cbd5e1', margin: '1rem 0' }} />
-                                <div style={{ marginBottom: '.5rem' }}>
-                                    <span style={{ fontSize: '.8rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
-                                        <Soup size={14} style={{ verticalAlign: '-2px' }} /> Món ăn đặt trước ({detail.items.length})
-                                    </span>
-                                </div>
-
-                                <div style={{ background: '#ffffff', borderRadius: 8, border: '1px solid #f1f5f9', padding: '.75rem', display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
-                                    {detail.items.map((item, index) => (
-                                        <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '.875rem' }}>
-                                            <div>
-                                                <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.name}</span>
-                                                <span style={{ color: '#64748b', marginLeft: '.5rem', fontSize: '.8rem' }}>x{item.quantity}</span>
-                                            </div>
-                                            <span style={{ fontWeight: 600, color: '#334155', fontFamily: 'monospace' }}>
-                                                {(item.price * item.quantity).toLocaleString('vi-VN')}₫
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-
-                        <hr style={{ border: 0, borderTop: '1px dashed #cbd5e1', margin: '1rem 0' }} />
-
-                        {/* Tổng tiền cọc & Thanh toán */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 700, color: '#0f172a' }}>Tiền cọc đã thanh toán:</span>
-                            <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a' }}>
-                                {detail.estimatedTotal ? `${Number(detail.estimatedTotal).toLocaleString('vi-VN')}₫` : '0₫'}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Nút thao tác sau khi hoàn tất */}
-                    <div style={{ display: 'flex', gap: '.75rem' }}>
-                        <button
-                            style={{ flex: 1, padding: '.75rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontWeight: 600, cursor: 'pointer', color: '#334155' }}
-                            onClick={() => window.print()}
-                        >
-                            <Printer size={16} style={{ verticalAlign: '-3px' }} /> In hóa đơn
-                        </button>
-                        <button
-                            style={{ flex: 1.5, padding: '.75rem', borderRadius: 8, border: 'none', background: '#0284c7', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
-                            onClick={() => navigate('/my-bookings')}
-                        >
-                            <ClipboardList size={16} style={{ verticalAlign: '-3px' }} /> Danh sách đơn đặt
-                        </button>
-                    </div>
-
                 </div>
             </div>
         );
@@ -258,7 +159,9 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
                 {/* Cảnh báo giữ bàn */}
                 <div style={{ background: '#FFFDF5', border: '1px solid #FCD34D', padding: '0.75rem', borderRadius: 8, marginBottom: '1.25rem', textAlign: 'center' }}>
-                    <span style={{ color: '#D97706', fontWeight: 600, fontSize: '.9rem' }}><TriangleAlert size={15} style={{ verticalAlign: '-2px' }} /> Bàn của bạn đang được giữ tạm thời!</span>
+                    <span style={{ color: '#D97706', fontWeight: 600, fontSize: '.9rem' }}>
+                        <TriangleAlert size={15} style={{ verticalAlign: '-2px' }} /> Bàn của bạn đang được giữ tạm thời!
+                    </span>
                 </div>
 
                 {/* Đồng hồ đếm ngược */}
@@ -271,8 +174,15 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                     </h1>
                 </div>
 
-                {/* KHỐI HIỂN THỊ MÃ QR */}
+                {/* KHỐI HIỂN THỊ MÃ QR & SỐ TIỀN CỌC */}
                 <div style={{ textAlign: 'center', background: '#f8fafc', padding: '1.25rem', borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+                    <div style={{ marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px dashed #cbd5e1' }}>
+                        <span style={{ fontSize: '.85rem', color: '#64748b', display: 'block', marginBottom: '0.2rem' }}>Số tiền cọc cần thanh toán:</span>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a' }}>
+                            {booking.estimatedTotal ? `${Number(booking.estimatedTotal).toLocaleString('vi-VN')}₫` : '0₫'}
+                        </span>
+                    </div>
+
                     {loadingPayment ? (
                         <div style={{ padding: '2rem 0', color: '#64748b' }}>
                             <p><Hourglass size={15} style={{ verticalAlign: '-2px' }} /> Đang tải mã QR thanh toán...</p>
@@ -317,16 +227,129 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
                     </div>
                 )}
 
-                {/* Nút hủy đơn */}
+                {/* Nút mở Modal Hủy đơn */}
                 <div style={{ display: 'flex', gap: '.75rem' }}>
                     <button
-                        className="btn-outline"
-                        style={{ flex: 1, padding: '.75rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
-                        onClick={() => window.confirm('Bạn có chắc chắn muốn hủy lượt đặt bàn này?') && onTimeOut()}
+                        style={{
+                            flex: 1,
+                            padding: '.75rem',
+                            borderRadius: 8,
+                            border: '1px solid #fecaca',
+                            background: '#fff5f5',
+                            color: '#dc2626',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                        }}
+                        onClick={() => setIsCancelModalOpen(true)}
                     >
-                        Hủy đơn
+                        Hủy đơn đặt bàn
                     </button>
                 </div>
+
+                {/* ========================================================= */}
+                {/* MODAL XÁC NHẬN HỦY ĐƠN */}
+                {/* ========================================================= */}
+                {isCancelModalOpen && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        padding: '1rem'
+                    }}>
+                        <div style={{
+                            background: '#fff',
+                            width: '100%',
+                            maxWidth: 400,
+                            borderRadius: 16,
+                            padding: '1.75rem',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            animation: 'fadeIn 0.2s ease-out'
+                        }}>
+                            {/* Icon cảnh báo */}
+                            <div style={{
+                                width: 48,
+                                height: 48,
+                                background: '#fee2e2',
+                                color: '#dc2626',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 1rem'
+                            }}>
+                                <AlertTriangle size={24} />
+                            </div>
+
+                            <h3 style={{
+                                textAlign: 'center',
+                                fontSize: '1.25rem',
+                                fontWeight: 700,
+                                color: '#1e293b',
+                                marginBottom: '.5rem'
+                            }}>
+                                Xác nhận hủy đơn?
+                            </h3>
+
+                            <p style={{
+                                textAlign: 'center',
+                                fontSize: '.9rem',
+                                color: '#64748b',
+                                marginBottom: '1.5rem',
+                                lineHeight: '1.5'
+                            }}>
+                                Bạn có chắc chắn muốn hủy lượt giữ bàn này không? Thao tác này không thể hoàn tác.
+                            </p>
+
+                            {/* Nút hành động trong Modal */}
+                            <div style={{ display: 'flex', gap: '.75rem' }}>
+                                <button
+                                    type="button"
+                                    disabled={isCancelling}
+                                    style={{
+                                        flex: 1,
+                                        padding: '.65rem',
+                                        borderRadius: 8,
+                                        border: '1px solid #cbd5e1',
+                                        background: '#f8fafc',
+                                        color: '#334155',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                    onClick={() => setIsCancelModalOpen(false)}
+                                >
+                                    Quay lại
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isCancelling}
+                                    style={{
+                                        flex: 1,
+                                        padding: '.65rem',
+                                        borderRadius: 8,
+                                        border: 'none',
+                                        background: '#dc2626',
+                                        color: '#fff',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        opacity: isCancelling ? 0.7 : 1
+                                    }}
+                                    onClick={handleConfirmCancel}
+                                >
+                                    {isCancelling ? 'Đang xử lý...' : 'Xác nhận hủy'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>
