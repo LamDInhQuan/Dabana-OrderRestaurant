@@ -1,5 +1,8 @@
 package com.dabana.backend.modules.restaurant.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.dabana.backend.common.BaseEntity;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
@@ -9,10 +12,13 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 /**
  * B03: Ho so thuong hieu nha hang doi tac (mot tai khoan doi tac
  * chi co mot ho so duy nhat - BR01).
  */
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 @Getter
 @Setter
 @Entity
@@ -20,17 +26,19 @@ import lombok.Setter;
 public class Restaurant extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
+
     @JoinColumn(name = "owner_user_id", nullable = false, unique = true)
     private User owner;
 
     @NotBlank
-    @Column(name = "restaurant_name", nullable = false, length = 155) // Fix length = 150 theo ảnh (để 155 hoặc 150 đều được)
+    @Column(name = "restaurant_name", nullable = false, length = 155) // Fix length = 150 theo ảnh (để 155 hoặc 150 đều
+                                                                      // được)
     private String restaurantName;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "logo_url", nullable = false, length = 255) // Trong DB là Not Null [v] và varchar(255)
+    @Column(name = "logo_url", nullable = true, length = 255) // Trong DB là Not Null [v] và varchar(255)
     private String logoUrl;
 
     @Column(length = 20) // Mới bổ sung theo DB
@@ -60,4 +68,8 @@ public class Restaurant extends BaseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String pendingDescription;
+
+    @OneToMany(mappedBy = "restaurant", cascade = CascadeType.ALL, orphanRemoval = true    )
+    private List<RestaurantLicense> licenses = new ArrayList<>();
+
 }

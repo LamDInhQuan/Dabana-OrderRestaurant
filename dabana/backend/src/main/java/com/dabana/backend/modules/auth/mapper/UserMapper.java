@@ -3,6 +3,9 @@ package com.dabana.backend.modules.auth.mapper;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.entity.User;
+import com.dabana.backend.modules.restaurant.Dto.RestaurantLicensesDto;
+import com.dabana.backend.modules.restaurant.entity.RestaurantLicense;
+
 import org.springframework.stereotype.Component;
 
 @Component
@@ -32,4 +35,5 @@ public class UserMapper {
                 .role(role)
                 .build();
     }
+    
 }

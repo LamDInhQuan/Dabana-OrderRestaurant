@@ -22,6 +22,8 @@ import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
+import com.dabana.backend.modules.restaurant.service.RestaurantLicenseService;
+import com.dabana.backend.modules.restaurant.Dto.response.RestaurantAndLicenseResponse;
 import com.dabana.backend.modules.review.Review;
 import com.dabana.backend.modules.review.ReviewRepository;
 import com.dabana.backend.modules.auth.service.MailService;
@@ -70,10 +72,11 @@ public class AdminController {
     private final ReviewRepository reviewRepository;
     private final SystemCategoryRepository systemCategoryRepository;
     private final BookingRepository bookingRepository;
-    
+
     private final MailService mailService;
     private final NotificationService notificationService;
     private final AdminService adminService;
+    private final RestaurantLicenseService restaurantLicenseService;
 
     // ======================================================
     // DTOs dung chung
@@ -113,7 +116,7 @@ public class AdminController {
     @GetMapping("/users/pending")
     public ResponseEntity<List<UserResponse>> listPendingUsers() {
         List<UserResponse> data = userRepository
-                .searchUsers(RoleUser.RESTAURANT_PARTNER.name(), AccountStatus.PENDING_ADMIN.getStatus(), null,
+                .searchUsers(RoleUser.RESTAURANT_PARTNER.name(), AccountStatus.PENDING_OTP  .getStatus(), null,
                         PageRequest.of(0, 200, Sort.by("createdAt").descending()))
                 .stream().map(userMapper::userResponse).toList();
         return ResponseEntity.ok(data);
@@ -150,7 +153,8 @@ public class AdminController {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AdminErrorCode.USER_NOT_FOUND));
 
-        // Kiểm tra trạng thái phù hợp nếu cần thiết (ví dụ: PENDING_ADMIN, PENDING_OTP...)
+        // Kiểm tra trạng thái phù hợp nếu cần thiết (ví dụ: PENDING_ADMIN,
+        // PENDING_OTP...)
 
         // Lấy thông tin nhà hàng liên kết trước để dùng cho việc cập nhật và gửi email
         Restaurant restaurant = restaurantRepository.findByOwnerUserId(id).orElse(null);
@@ -174,7 +178,8 @@ public class AdminController {
                 restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
                 restaurantRepository.save(restaurant);
 
-                // Hoặc nếu anh muốn xóa luôn bản ghi nhà hàng khi bị từ chối thì bật dòng dưới lên:
+                // Hoặc nếu anh muốn xóa luôn bản ghi nhà hàng khi bị từ chối thì bật dòng dưới
+                // lên:
                 // restaurantRepository.delete(restaurant);
             }
         }
@@ -188,10 +193,12 @@ public class AdminController {
         if (Boolean.TRUE.equals(req.getApproved())) {
             mailService.sendPartnerApprovedEmail(saved.getEmail(), saved.getFullName(), restaurantName);
         } else {
-            mailService.sendPartnerRejectedEmail(saved.getEmail(), saved.getFullName(), restaurantName, req.getReason());
+            mailService.sendPartnerRejectedEmail(saved.getEmail(), saved.getFullName(), restaurantName,
+                    req.getReason());
         }
 
-        // B09: ghi nhan thong bao in-app (lich su gui/doc + retry) song song voi email o tren
+        // B09: ghi nhan thong bao in-app (lich su gui/doc + retry) song song voi email
+        // o tren
         if (Boolean.TRUE.equals(req.getApproved())) {
             notificationService.sendImmediate(
                     saved,
@@ -211,6 +218,7 @@ public class AdminController {
 
         return ResponseEntity.ok(userMapper.userResponse(saved));
     }
+
     /**
      * F44: khoa/mo khoa tai khoan Khach hang hoac Nha hang doi tac.
      */
@@ -240,11 +248,8 @@ public class AdminController {
     // F43: Phe duyet ho so nha hang (B03)
     // ======================================================
     @GetMapping("/restaurants/pending")
-    public ResponseEntity<List<Restaurant>> listPendingRestaurants() {
-    List<Restaurant> pending = new
-        ArrayList<>(restaurantRepository.findByApprovalStatus(ApprovalStatus.PENDING));
-        pending.addAll(restaurantRepository.findByApprovalStatus(ApprovalStatus.PENDING_UPDATE));
-        return ResponseEntity.ok(pending);
+    public ResponseEntity<List<RestaurantAndLicenseResponse>> listPendingRestaurants() {
+        return ResponseEntity.ok(restaurantLicenseService.getPendingRestaurantsAndLicenses());
     }
     //
     // @GetMapping("/restaurants")
@@ -266,22 +271,44 @@ public class AdminController {
     public ResponseEntity<Restaurant> approveRestaurant(@PathVariable Long id, @RequestBody ApprovalRequest req) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(AdminErrorCode.RESTAURANT_NOT_FOUND));
-
+        User user = userRepository.findById(restaurant.getOwner().getId())
+                .orElseThrow(() -> new BusinessException(AdminErrorCode.USER_NOT_FOUND));
         if (Boolean.TRUE.equals(req.getApproved())) {
             restaurant.setApprovalStatus(ApprovalStatus.APPROVED);
+            user.setStatus(AccountStatus.ACTIVE.getStatus());
+            user.setStatusReason(null);
 
-            // lúc đăng ký đã có logo với mô tả r ko cần phải update lại
-            // if (restaurant.getLogoUrl() != null) {
-            // restaurant.setLogoUrl(restaurant.getPendingLogoUrl());
-
-            // }
-            // if (restaurant.getPendingDescription() != null) {
-            // restaurant.setDescription(restaurant.getPendingDescription());
-            // restaurant.setPendingDescription(null);
-            // }
         } else {
             restaurant.setApprovalStatus(ApprovalStatus.REJECTED);
-            // restaurant.setRejectionReason(req.getReason());
+            user.setStatus(AccountStatus.REJECTED.getStatus());
+            if(req.getReason() != null && !req.getReason().trim().isEmpty()) {
+                user.setStatusReason(req.getReason());
+            }
+        }
+        if (Boolean.TRUE.equals(req.getApproved())) {
+            mailService.sendPartnerApprovedEmail(user.getEmail(), user.getFullName(), restaurant.getRestaurantName());
+        } else {
+            mailService.sendPartnerRejectedEmail(user.getEmail(), user.getFullName(), restaurant.getRestaurantName(),
+                    req.getReason());
+        }
+
+        // B09: ghi nhan thong bao in-app (lich su gui/doc + retry) song song voi email
+        // o tren
+        if (Boolean.TRUE.equals(req.getApproved())) {
+            notificationService.sendImmediate(
+                    user,
+                    NotificationType.PARTNER_APPROVED,
+                    String.format("Hồ sơ đối tác%s của bạn đã được phê duyệt.",
+                            restaurant.getRestaurantName() != null ? " \"" + restaurant.getRestaurantName() + "\"" : ""),
+                    "IN_APP", null);
+        } else {
+            notificationService.sendImmediate(
+                    user,
+                    NotificationType.PARTNER_REJECTED,
+                    String.format("Hồ sơ đối tác%s của bạn đã bị từ chối.%s",
+                            restaurant.getRestaurantName() != null ? " \"" + restaurant.getRestaurantName() + "\"" : "",
+                            req.getReason() != null ? " Lý do: " + req.getReason() : ""),
+                    "IN_APP", null);
         }
 
         return ResponseEntity.ok(restaurantRepository.save(restaurant));
@@ -310,23 +337,23 @@ public class AdminController {
     // return ResponseEntity.ok(result);
     // }
 
-        // @PostMapping("/branches/{id}/approve")
-        // @Transactional
-        // public ResponseEntity<Branch> approveBranch(@PathVariable Long id,
-        // @RequestBody ApprovalRequest req) {
-        // Branch branch = branchRepository.findById(id)
-        // .orElseThrow(() -> new BusinessException(AdminErrorCode.BRANCH_NOT_FOUND));
-        //
-        // if (Boolean.TRUE.equals(req.getApproved())) {
-        // branch.setApprovalStatus(ApprovalStatus.APPROVED);
-        // branch.setRejectionReason(null);
-        // } else {
-        // branch.setApprovalStatus(ApprovalStatus.REJECTED);
-        // branch.setRejectionReason(req.getReason());
-        // }
-        //
-        // return ResponseEntity.ok(branchRepository.save(branch));
-        // }
+    // @PostMapping("/branches/{id}/approve")
+    // @Transactional
+    // public ResponseEntity<Branch> approveBranch(@PathVariable Long id,
+    // @RequestBody ApprovalRequest req) {
+    // Branch branch = branchRepository.findById(id)
+    // .orElseThrow(() -> new BusinessException(AdminErrorCode.BRANCH_NOT_FOUND));
+    //
+    // if (Boolean.TRUE.equals(req.getApproved())) {
+    // branch.setApprovalStatus(ApprovalStatus.APPROVED);
+    // branch.setRejectionReason(null);
+    // } else {
+    // branch.setApprovalStatus(ApprovalStatus.REJECTED);
+    // branch.setRejectionReason(req.getReason());
+    // }
+    //
+    // return ResponseEntity.ok(branchRepository.save(branch));
+    // }
 
     // ======================================================
     // F41: Kiem duyet danh gia
@@ -393,7 +420,8 @@ public class AdminController {
     @PostMapping("/categories")
     @Transactional
     public ResponseEntity<SystemCategory> createCategory(@jakarta.validation.Valid @RequestBody CategoryRequest req) {
-// 1. Chuẩn hóa categoryType và categoryName trước khi kiểm tra tồn tại và lưu vào DB
+        // 1. Chuẩn hóa categoryType và categoryName trước khi kiểm tra tồn tại và lưu
+        // vào DB
         String rawType = req.getCategoryType() != null ? req.getCategoryType().trim().toUpperCase() : "";
         String rawName = req.getCategoryName() != null ? req.getCategoryName().trim() : "";
 
@@ -481,26 +509,32 @@ public class AdminController {
     public ResponseEntity<ApiResponse<AdminReport>> platformSummary() {
         // Map<String, Object> summary = new LinkedHashMap<>();
         // summary.put("totalUsers", userRepository.count());
-        // summary.put("totalActiveUsers", userRepository.countByStatus(AccountStatus.ACTIVE.getStatus()));
+        // summary.put("totalActiveUsers",
+        // userRepository.countByStatus(AccountStatus.ACTIVE.getStatus()));
         // summary.put("totalRestaurants", restaurantRepository.count());
         // summary.put("totalBranches", branchRepository.count());
         // summary.put("totalBookings", bookingRepository.count());
         // summary.put("totalReviews", reviewRepository.count());
 
-        // summary.put("pendingUserApprovals", userRepository.countByStatus(AccountStatus.PENDING_ADMIN.getStatus()));
-        // summary.put("pendingRestaurantApprovals", restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
-        // summary.put("pendingBranchApprovals", branchRepository.countByStatus(ApprovalStatus.PENDING));
+        // summary.put("pendingUserApprovals",
+        // userRepository.countByStatus(AccountStatus.PENDING_ADMIN.getStatus()));
+        // summary.put("pendingRestaurantApprovals",
+        // restaurantRepository.countByApprovalStatus(ApprovalStatus.PENDING));
+        // summary.put("pendingBranchApprovals",
+        // branchRepository.countByStatus(ApprovalStatus.PENDING));
         // summary.put("hiddenReviews", reviewRepository.countByHidden(true));
 
-        // summary.put("completedBookings", bookingRepository.countByStatus(BookingStatus.COMPLETED));
+        // summary.put("completedBookings",
+        // bookingRepository.countByStatus(BookingStatus.COMPLETED));
         // summary.put("cancelledBookings",
-        //         bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_CUSTOMER)
-        //                 + bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_RESTAURANT));
-        // summary.put("noShowBookings", bookingRepository.countByStatus(BookingStatus.NO_SHOW));
+        // bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_CUSTOMER)
+        // + bookingRepository.countByStatus(BookingStatus.CANCELLED_BY_RESTAURANT));
+        // summary.put("noShowBookings",
+        // bookingRepository.countByStatus(BookingStatus.NO_SHOW));
 
         // Double totalRevenue = bookingRepository.sumDepositRevenueByBranch().stream()
-        //         .mapToDouble(row -> ((BigDecimal) row).doubleValue())
-        //         .reduce(0.0, Double::sum);
+        // .mapToDouble(row -> ((BigDecimal) row).doubleValue())
+        // .reduce(0.0, Double::sum);
         // summary.put("totalRevenue", totalRevenue);
 
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, adminService.dashboard()));
@@ -566,53 +600,58 @@ public class AdminController {
     // ======================================================
     // F50: Xuat bao cao thong ke ra file CSV (mo duoc bang Excel)
     // ======================================================
-//    @GetMapping("/reports/export")
-//    public void exportReport(@RequestParam(defaultValue = "users") String type,
-//                              HttpServletResponse response) throws java.io.IOException {
-//        response.setContentType("text/csv; charset=UTF-8");
-//        response.setCharacterEncoding("UTF-8");
-//        response.setHeader("Content-Disposition", "attachment; filename=\"dabana_" + type + "_report.csv\"");
-//
-//        response.getOutputStream().write(0xEF);
-//        response.getOutputStream().write(0xBB);
-//        response.getOutputStream().write(0xBF);
-//
-//        PrintWriter writer = response.getWriter();
-//        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-//
-//        switch (type) {
-//            case "restaurants" -> {
-//                writer.println("ID,Ten nha hang,Trang thai,Ngay tao");
-//                for (Restaurant r : restaurantRepository.findAll()) {
-//                    writer.println(csvRow(r.getId(), r.getRestaurantName(),
-//                            r.getApprovalStatus(), r.getCreatedAt() == null ? "" : r.getCreatedAt().format(fmt)));
-//                }
-//            }
-//            case "revenue" -> {
-//                writer.println("ID nha hang,Ten nha hang,So chi nhanh,Don hoan tat,Doanh thu (VND)");
-//                for (Map<String, Object> row : revenueByRestaurant().getBody()) {
-//                    writer.println(csvRow(row.get("restaurantId"), row.get("restaurantName"),
-//                            row.get("branchCount"), row.get("completedBookings"), row.get("revenue")));
-//                }
-//            }
-//            default -> {
-//                writer.println("ID,Ho ten,Email,SDT,Vai tro,Trang thai,Ngay tao");
-//                for (User u : userRepository.findAll()) {
-//                    String role = u.getUserRoles().stream().findFirst()
-//                            .map(ur -> ur.getRole().getName()).orElse("");
-//                    writer.println(csvRow(u.getId(), u.getFullName(), u.getEmail(), u.getPhone(),
-//                            role, u.getStatus(), u.getCreatedAt() == null ? "" : u.getCreatedAt().format(fmt)));
-//                }
-//            }
-//        }
-//        writer.flush();
-//    }
+    // @GetMapping("/reports/export")
+    // public void exportReport(@RequestParam(defaultValue = "users") String type,
+    // HttpServletResponse response) throws java.io.IOException {
+    // response.setContentType("text/csv; charset=UTF-8");
+    // response.setCharacterEncoding("UTF-8");
+    // response.setHeader("Content-Disposition", "attachment; filename=\"dabana_" +
+    // type + "_report.csv\"");
+    //
+    // response.getOutputStream().write(0xEF);
+    // response.getOutputStream().write(0xBB);
+    // response.getOutputStream().write(0xBF);
+    //
+    // PrintWriter writer = response.getWriter();
+    // DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    //
+    // switch (type) {
+    // case "restaurants" -> {
+    // writer.println("ID,Ten nha hang,Trang thai,Ngay tao");
+    // for (Restaurant r : restaurantRepository.findAll()) {
+    // writer.println(csvRow(r.getId(), r.getRestaurantName(),
+    // r.getApprovalStatus(), r.getCreatedAt() == null ? "" :
+    // r.getCreatedAt().format(fmt)));
+    // }
+    // }
+    // case "revenue" -> {
+    // writer.println("ID nha hang,Ten nha hang,So chi nhanh,Don hoan tat,Doanh thu
+    // (VND)");
+    // for (Map<String, Object> row : revenueByRestaurant().getBody()) {
+    // writer.println(csvRow(row.get("restaurantId"), row.get("restaurantName"),
+    // row.get("branchCount"), row.get("completedBookings"), row.get("revenue")));
+    // }
+    // }
+    // default -> {
+    // writer.println("ID,Ho ten,Email,SDT,Vai tro,Trang thai,Ngay tao");
+    // for (User u : userRepository.findAll()) {
+    // String role = u.getUserRoles().stream().findFirst()
+    // .map(ur -> ur.getRole().getName()).orElse("");
+    // writer.println(csvRow(u.getId(), u.getFullName(), u.getEmail(), u.getPhone(),
+    // role, u.getStatus(), u.getCreatedAt() == null ? "" :
+    // u.getCreatedAt().format(fmt)));
+    // }
+    // }
+    // }
+    // writer.flush();
+    // }
     private String csvRow(Object... values) {
         return Arrays.stream(values)
                 .map(v -> v == null ? "" : v.toString().replace("\"", "\"\""))
                 .map(v -> "\"" + v + "\"")
                 .collect(Collectors.joining(","));
     }
+
     private String blankToNull(String value) {
         return (value == null || value.isBlank()) ? null : value;
     }

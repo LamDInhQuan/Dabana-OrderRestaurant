@@ -74,13 +74,16 @@ public class SecurityConfig {
                         // CONNECT header thay vi mo permitAll nay.
                         .requestMatchers("/ws/**").permitAll()
 
+                        // Cho phep /error de khong bi mask 404 thanh 401
+                        .requestMatchers("/error").permitAll()
+
                         // /api/auth/**: dang ky, dang nhap, refresh token - cong khai (B02 buoc 1-3)
                         .requestMatchers("/api/auth/**").permitAll()
 
                         // B03/B04: quan ly ho so & chi nhanh - chi nha hang doi tac
                         // (phai khai bao TRUOC rule permitAll ben duoi, vi Spring Security
                         //  khop rule theo thu tu khai bao - rule dau tien khop se duoc ap dung)
-                        .requestMatchers("/api/restaurants/me/**", "/api/branchs/me/**")
+                        .requestMatchers("/api/restaurants/me/**", "/api/branchs/me/**")    
                         .hasRole("RESTAURANT_PARTNER")
 
                         // Module Subscription (thu phi nen tang): tu quan ly goi cua CHINH minh
@@ -91,6 +94,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/subscription-plans/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/system-policies/**").permitAll()
 
+                        // Licenses: doi tac va admin
+                        .requestMatchers(HttpMethod.GET, "/api/restaurants/*/licenses").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/restaurants/*/licenses/**")
+                        .hasAnyRole("RESTAURANT_PARTNER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/restaurants/all/licenses")
+                        .hasRole("ADMIN")
                         // Tim kiem & xem nha hang/chi nhanh - cong khai (B01 buoc 1-2)
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**", "/api/branchs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/menu-items/branch/**").permitAll()

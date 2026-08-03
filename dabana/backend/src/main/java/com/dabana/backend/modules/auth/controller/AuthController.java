@@ -5,19 +5,23 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.dto.request.*;
 import com.dabana.backend.modules.auth.service.OtpService;
-import com.dabana.backend.modules.auth.dto.request.ForgotPasswordRequest;
-import com.dabana.backend.modules.auth.dto.request.LoginRequest;
-import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
-import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
-import com.dabana.backend.modules.auth.dto.request.ResendOtpRequest;
-import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
+import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
 import com.dabana.backend.security.CurrentUserProvider;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * /api/auth - dang ky, dang nhap, lam moi token, quan ly phien dang nhap
@@ -31,10 +35,29 @@ public class AuthController {
     private final AuthService authService;
     private final OtpService otpService;
     private final CurrentUserProvider currentUserProvider;
+    private final RestaurantService restaurantService;
 
     @PostMapping("/register/customer")
     public ResponseEntity<ApiResponse<UserResponse>> registerCustomer(@Valid @RequestBody RegisterAccountRequest request) {
-        UserResponse userResponse = authService.register(request);
+        UserResponse userResponse = authService.registerCustomer(request);
+        return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, userResponse));
+    }
+
+    //TODO: tối ưu đăng ký đối tác
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE ,
+        path = "/register/partner")
+    public ResponseEntity<ApiResponse<UserResponse>> registerPartner(
+        @Valid @RequestPart("request") String requestjson, 
+        @Valid @RequestPart("restaurantRegisterRequest") String restaurantRegisterRequestJson, 
+        @Valid @RequestPart(value = "licenses", required = true) List<MultipartFile> licenses,
+        ObjectMapper mapper) throws JsonProcessingException {
+    
+        RegisterAccountRequest registerAccountRequest = mapper.readValue(requestjson, RegisterAccountRequest.class);
+        RestaurantRegisterRequest restaurantRegisterRequest = mapper.readValue(restaurantRegisterRequestJson, RestaurantRegisterRequest.class);
+
+        UserResponse userResponse = authService.registerPartner(registerAccountRequest,restaurantRegisterRequest);
+        restaurantService.uploadLicenses(userResponse.getId(),licenses);
+
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, userResponse));
     }
 
