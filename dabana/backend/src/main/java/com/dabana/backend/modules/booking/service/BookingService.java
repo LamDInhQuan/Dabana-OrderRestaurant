@@ -178,9 +178,10 @@ public class BookingService implements IBookingService {
                 throw new BusinessException(BookingErrorCode.INSUFFICIENT_TABLE_CAPACITY);
             }
 
-            int maxAllowedCapacity = req.getGuestCount()
-                    + (rule.getMaxCapacitySlop() != null ? rule.getMaxCapacitySlop() : 2);
-            if (totalCapacity > maxAllowedCapacity) {
+            int allowedSlop = (rule.getMaxCapacitySlop() != null) ? rule.getMaxCapacitySlop() : 3;
+
+// Kiểm tra xem số ghế thừa ra của bàn có vượt quá mức cho phép hay không
+            if (totalCapacity - req.getGuestCount() > allowedSlop) {
                 throw new BusinessException(BookingErrorCode.EXCEEDED_MAX_CAPACITY_SLOP);
             }
         } else {
