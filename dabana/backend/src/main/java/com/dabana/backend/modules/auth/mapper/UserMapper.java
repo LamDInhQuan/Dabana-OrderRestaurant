@@ -32,21 +32,8 @@ public class UserMapper {
                 .fullName(user.getFullName())
                 .avatarUrl(user.getAvatarUrl())
                 .status(user.getStatus())
-                .role(toRealRolename(role))
+                .role(role)
                 .build();
-    }
-
-    private String toRealRolename(String name){
-        switch (name) {
-            case "ADMIN":
-                return "Quản trị viên hệ thống";
-            case "RESTAURANT_PARTNER":
-                return "Đối tác nhà hàng";
-            case "CUSTOMER":
-                return "Khách hàng";
-            default:
-                return "Không xác định";
-        }
     }
     
 }
