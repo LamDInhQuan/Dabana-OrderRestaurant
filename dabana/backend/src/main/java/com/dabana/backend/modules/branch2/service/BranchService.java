@@ -186,9 +186,17 @@ public class BranchService implements IBranchService {
             for (OperatingHour oh : entityList) {
                 LocalTime current = oh.getOpenTime();
                 LocalTime close = oh.getCloseTime();
+                if (current == null || close == null || !current.isBefore(close)) {
+                    continue;
+                }
                 while (current.isBefore(close)) {
                     slots.add(current.toString());
-                    current = current.plusMinutes(60);
+                    LocalTime next = current.plusMinutes(60);
+                    if (next.isBefore(current) || next.equals(current)) {
+                        // Vượt qua 00:00 (nửa đêm) hoặc quay vòng, dừng lặp để tránh lặp vô hạn
+                        break;
+                    }
+                    current = next;
                 }
             }
             if (date.equals(LocalDate.now())) {
