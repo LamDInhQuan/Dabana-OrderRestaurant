@@ -62,7 +62,7 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
         setStatusMessage('Đang xử lý yêu cầu hoàn tiền, vui lòng đợi hệ thống cổng thanh toán phản hồi...')
 
         let pollCount = 0
-        const maxPolls = 6 // tối đa 18 giây
+        const maxPolls = 8 // tối đa 12 giây (mỗi 1.5 giây check 1 lần)
 
         pollIntervalRef.current = setInterval(async () => {
             pollCount++
@@ -105,7 +105,7 @@ export default function CancelBookingModal({ booking, onClose, onRefresh }) {
                     onClose()
                 }
             }
-        }, 3000) // Call lại mỗi 3 giây
+        }, 1500) // Call lại mỗi 1.5 giây
     }
 
     const now = new Date()

@@ -89,7 +89,10 @@ export default function MyBookings() {
   useEffect(() => { load() }, [])
 
   const handleOpenCancelModal = (booking, e) => {
-    e.stopPropagation()
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setCancelingBooking(booking)
   }
 
@@ -181,10 +184,8 @@ export default function MyBookings() {
               <div
                 key={b.id}
                 className={`card booking-card ${isLockingState ? 'locking-active' : ''}`}
-                onClick={() => handleCardClick(b)}
                 style={{
                   border: isLockingState ? '1px solid #FCD34D' : '1px solid var(--border, #e5e7eb)',
-                  cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   background: isLockingState ? '#FFFDF5' : 'var(--white, #fff)',
                   padding: '1.25rem',
@@ -375,7 +376,7 @@ export default function MyBookings() {
 
 
                   {canCancel && (
-                    <button className="btn-danger btn-sm" onClick={(e) => handleOpenCancelModal(b, e)}>
+                    <button type="button" className="btn-danger btn-sm" onClick={(e) => handleOpenCancelModal(b, e)}>
                       Huỷ đặt bàn
                     </button>
                   )}

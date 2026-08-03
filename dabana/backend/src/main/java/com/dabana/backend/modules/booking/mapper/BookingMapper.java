@@ -9,8 +9,11 @@ import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import com.dabana.backend.modules.admin.service.ISystemPolicyService;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
-import com.dabana.backend.modules.booking.util.RefundStatus;
+import com.dabana.backend.modules.payment.entity.PayoutOrder;
+import com.dabana.backend.modules.payment.repository.PayoutOrderRepository;
 import com.dabana.backend.modules.payment.repository.RefundBankInfoRepository;
+import com.dabana.backend.modules.payment.util.PayoutApprovalState;
+import com.dabana.backend.modules.payment.util.PayoutState;
 import com.dabana.backend.modules.reservation_policy.util.DepositType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -26,6 +29,7 @@ public class BookingMapper {
     private final DiningTableMapper diningTableMapper;
     private final ISystemPolicyService systemPolicyService;
     private final RefundBankInfoRepository refundBankInfoRepository;
+    private final PayoutOrderRepository payoutOrderRepository;
 
     public Booking toEntity(
             BookingDtos.CreateHoldRequest request,
@@ -70,8 +74,22 @@ public class BookingMapper {
                 .reduce(BigDecimal.ZERO, BigDecimal::add) : BigDecimal.ZERO;
 
         boolean hasRefundBankInfo = false;
-        if (booking.getId() != null && booking.getRefundStatus() != null && booking.getRefundStatus() != RefundStatus.NONE) {
+        String refundStatusStr = booking.getRefundStatus() != null ? booking.getRefundStatus().name() : null;
+        if (booking.getId() != null) {
             hasRefundBankInfo = refundBankInfoRepository.existsByReservation_Id(booking.getId());
+            if (booking.getRefundStatus() == com.dabana.backend.modules.booking.util.RefundStatus.PENDING) {
+                var payoutOpt = payoutOrderRepository.findByReservation_Id(booking.getId());
+                if (payoutOpt.isPresent()) {
+                    var payout = payoutOpt.get();
+                    if (payout.getState() == PayoutState.SUCCEEDED 
+                            || payout.getApprovalState() == PayoutApprovalState.SUCCEEDED
+                            || (payout.getPayosPayoutId() != null && !payout.getPayosPayoutId().isBlank() && payout.getState() != PayoutState.FAILED && payout.getState() != PayoutState.CANCELLED)) {
+                        refundStatusStr = com.dabana.backend.modules.booking.util.RefundStatus.SUCCESS.name();
+                    } else if (payout.getState() == PayoutState.FAILED || payout.getState() == PayoutState.CANCELLED) {
+                        refundStatusStr = com.dabana.backend.modules.booking.util.RefundStatus.FAILED.name();
+                    }
+                }
+            }
         }
 
         return BookingDtos.BookingResponse.builder()
@@ -103,7 +121,7 @@ public class BookingMapper {
                 .createdAt(booking.getCreatedAt())
                 .refundAmount(booking.getRefundAmount())
                 .penaltyAmount(booking.getPenaltyAmount())
-                .refundStatus(booking.getRefundStatus() != null ? booking.getRefundStatus().name() : null)
+                .refundStatus(refundStatusStr)
                 .hasRefundBankInfo(hasRefundBankInfo)
                 .cancelledAt(booking.getCancelledAt())
                 .cancelReason(booking.getCancelReason())

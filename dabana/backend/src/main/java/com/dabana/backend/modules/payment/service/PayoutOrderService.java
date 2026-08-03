@@ -75,7 +75,7 @@ public class PayoutOrderService {
         this.payoutOrderMapper = payoutOrderMapper;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public PayoutOrderResponse createPayoutOrder(CreatePayoutOrderRequest request, User requestedBy) {
         Booking booking = bookingRepository.findById(request.getReservationId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.RESERVATION_NOT_FOUND));
@@ -213,6 +213,7 @@ public class PayoutOrderService {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void syncOnePayout(PayoutOrder entity) {
         Booking booking = entity.getReservation();
         if (entity.getState() == PayoutState.SUCCEEDED || entity.getApprovalState() == PayoutApprovalState.SUCCEEDED) {
@@ -276,11 +277,16 @@ public class PayoutOrderService {
         switch (name) {
             case "SUCCEEDED":
             case "COMPLETED":
+            case "SUCCESS":
+            case "PAID":
+            case "TRANSFERRED":
+            case "DONE":
                 return PayoutState.SUCCEEDED;
             case "CANCELLED":
                 return PayoutState.CANCELLED;
             case "FAILED":
             case "REVERSED":
+            case "REJECTED":
                 return PayoutState.FAILED;
             case "RECEIVED":
             case "PROCESSING":
@@ -298,6 +304,11 @@ public class PayoutOrderService {
         switch (name) {
             case "COMPLETED":
             case "SUCCEEDED":
+            case "SUCCESS":
+            case "PAID":
+            case "APPROVED":
+            case "NOT_REQUIRED":
+            case "NONE":
                 return PayoutApprovalState.SUCCEEDED;
             case "REJECTED":
                 return PayoutApprovalState.REJECTED;
@@ -307,7 +318,6 @@ public class PayoutOrderService {
                 return PayoutApprovalState.REJECTED; // khong co CANCELLED rieng trong enum rut gon
             case "DRAFTING":
             case "SUBMITTED":
-            case "APPROVED":
             case "SCHEDULED":
             case "PROCESSING":
             case "PARTIAL_COMPLETED":
