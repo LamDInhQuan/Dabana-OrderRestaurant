@@ -4,12 +4,35 @@ import { bookingApi, reviewApi } from '../../api';
 import Navbar from '../../components/Navbar';
 import toast from 'react-hot-toast';
 import { Home, ChefHat, Utensils, ShoppingCart, Star, Sparkles, Rocket } from 'lucide-react';
+import { translateLabel } from '../../utils/labelTranslator';
 
 const RATING_CATEGORIES = [
     { key: 'spaceRating', label: 'Không gian', icon: Home },
     { key: 'serviceRating', label: 'Phục vụ', icon: ChefHat },
     { key: 'foodRating', label: 'Đồ ăn', icon: Utensils },
 ];
+
+const getStatusBadgeClass = (status) => {
+    switch (status) {
+        case 'CONFIRMED':
+            return 'badge-green';
+        case 'CHECKED_IN':
+            return 'badge-blue';
+        case 'COMPLETED':
+            return 'badge-gray';
+        case 'CANCELLED_BY_CUSTOMER':
+        case 'CANCELLED_BY_RESTAURANT':
+        case 'CANCELLED':
+        case 'NO_SHOW':
+            return 'badge-red';
+        case 'HOLDING':
+        case 'AWAITING_PAYMENT':
+        case 'PENDING_NO_SHOW':
+            return 'badge-yellow';
+        default:
+            return 'badge-gray';
+    }
+};
 
 export default function BookingInvoicePage() {
     const { id } = useParams();
@@ -79,8 +102,8 @@ export default function BookingInvoicePage() {
                     <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                         <h2 style={{ fontWeight: 800, margin: 0 }}>HOÁ ĐƠN ĐẶT BÀN</h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: '.85rem' }}>Mã đơn: #{booking.id}</p>
-                        <span className="badge badge-green" style={{ marginTop: '.5rem', display: 'inline-block' }}>
-                            Trạng thái: {booking.status}
+                        <span className={`badge ${getStatusBadgeClass(booking.status)}`} style={{ marginTop: '.5rem', display: 'inline-block' }}>
+                            Trạng thái: {translateLabel(booking.status)}
                         </span>
                     </div>
 

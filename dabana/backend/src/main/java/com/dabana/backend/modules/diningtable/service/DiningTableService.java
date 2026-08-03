@@ -22,15 +22,18 @@ import com.dabana.backend.modules.zone.entity.Zone;
 import com.dabana.backend.modules.zone.repository.ZoneRepository;
 import com.dabana.backend.modules.zone.service.FloorPlanSyncService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DiningTableService implements IDiningTableService {
@@ -319,6 +322,28 @@ public class DiningTableService implements IDiningTableService {
                     }
                 }
             }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void autoReleaseCleaningTables() {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(15);
+        List<DiningTable> cleaningTables = diningTableRepository.findCleaningTablesOlderThan(DiningTableStatus.CLEANING, threshold);
+        if (cleaningTables.isEmpty()) {
+            return;
+        }
+
+        for (DiningTable table : cleaningTables) {
+            table.setStatus(DiningTableStatus.EMPTY);
+            diningTableRepository.save(table);
+
+            if (table.getZone() != null && table.getZone().getBranch() != null) {
+                eventPublisher.publishEvent(new TableBoardChangedEvent(
+                        table.getZone().getBranch().getId(), List.of(table.getId())));
+            }
+            log.info("Tu dong chuyen trang thai ban {} (id={}) tu CLEANING sang EMPTY vi qua 15 phut.",
+                    table.getTableName(), table.getId());
         }
     }
 }

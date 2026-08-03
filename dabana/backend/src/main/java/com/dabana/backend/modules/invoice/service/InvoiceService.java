@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Tinh toan + ghi nhan hoa don thanh toan cuoi buoi (rs_invoices), tach
@@ -53,7 +54,9 @@ public class InvoiceService implements IInvoiceService {
                         .name(item.getSnapshotName())
                         .quantity(item.getQuantity())
                         .unitPrice(item.getSnapshotPrice())
-                        .lineTotal(item.getSnapshotPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                        .lineTotal((item.getSnapshotPrice() != null ? item.getSnapshotPrice() : BigDecimal.ZERO)
+                                .multiply(BigDecimal.valueOf(item.getQuantity() != null ? item.getQuantity() : 1)))
+                        .type("PREORDER")
                         .build())
                 .toList();
 
@@ -62,13 +65,43 @@ public class InvoiceService implements IInvoiceService {
                         .name(item.getItemNameAtTime())
                         .quantity(item.getQuantity())
                         .unitPrice(item.getPriceAtTime())
-                        .lineTotal(item.getPriceAtTime().multiply(BigDecimal.valueOf(item.getQuantity())))
+                        .lineTotal((item.getPriceAtTime() != null ? item.getPriceAtTime() : BigDecimal.ZERO)
+                                .multiply(BigDecimal.valueOf(item.getQuantity() != null ? item.getQuantity() : 1)))
+                        .type("EXTRA")
                         .build())
                 .toList();
+
+        Optional<Invoice> invoiceOpt = invoiceRepository.findByBooking_Id(booking.getId());
+        if (invoiceOpt.isPresent()) {
+            Invoice invoice = invoiceOpt.get();
+            BigDecimal subtotal = invoice.getPreorderSubtotal().add(invoice.getExtraOrderSubtotal());
+            return InvoicePreviewResponse.builder()
+                    .bookingId(booking.getId())
+                    .preorderItems(preorderLines)
+                    .extraOrderItems(extraLines)
+                    .preorderSubtotal(invoice.getPreorderSubtotal())
+                    .extraOrderSubtotal(invoice.getExtraOrderSubtotal())
+                    .depositPaid(invoice.getDepositPaid())
+                    .subtotalBeforeSurcharge(subtotal)
+                    .amountDueBeforeSurcharge(subtotal.subtract(invoice.getDepositPaid()))
+                    .invoiceId(invoice.getId())
+                    .surcharge(invoice.getSurcharge())
+                    .grandTotal(invoice.getGrandTotal())
+                    .amountCollected(invoice.getGrandTotal().subtract(invoice.getDepositPaid()))
+                    .paymentMethod(invoice.getPaymentMethod() != null ? invoice.getPaymentMethod().name() : null)
+                    .status(invoice.getStatus() != null ? invoice.getStatus().name() : null)
+                    .paidAt(invoice.getPaidAt())
+                    .collectedByName(invoice.getCollectedBy() != null ? invoice.getCollectedBy().getFullName() : null)
+                    .isPaid(true)
+                    .build();
+        }
 
         BigDecimal preorderSubtotal = sumLines(preorderLines);
         BigDecimal extraOrderSubtotal = sumLines(extraLines);
         BigDecimal depositPaid = resolveDepositPaid(booking.getId());
+        if (depositPaid.compareTo(BigDecimal.ZERO) == 0 && booking.getEstimatedTotal() != null) {
+            depositPaid = booking.getEstimatedTotal();
+        }
         BigDecimal subtotalBeforeSurcharge = preorderSubtotal.add(extraOrderSubtotal);
 
         return InvoicePreviewResponse.builder()
@@ -80,6 +113,7 @@ public class InvoiceService implements IInvoiceService {
                 .depositPaid(depositPaid)
                 .subtotalBeforeSurcharge(subtotalBeforeSurcharge)
                 .amountDueBeforeSurcharge(subtotalBeforeSurcharge.subtract(depositPaid))
+                .isPaid(false)
                 .build();
     }
 

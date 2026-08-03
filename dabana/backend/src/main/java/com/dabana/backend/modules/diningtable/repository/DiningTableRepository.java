@@ -41,7 +41,8 @@ public interface DiningTableRepository extends JpaRepository<DiningTable, Long> 
 
     long countByZone_Branch_IdAndStatusIn(Long branchId, List<DiningTableStatus> statuses);
 
-    // long countByBookingBookingTable_Id(Long id);
+    @Query("SELECT t FROM DiningTable t WHERE t.status = :status AND (t.updatedAt <= :threshold OR (t.updatedAt IS NULL AND t.createdAt <= :threshold))")
+    List<DiningTable> findCleaningTablesOlderThan(@Param("status") DiningTableStatus status, @Param("threshold") java.time.LocalDateTime threshold);
 
 
 }

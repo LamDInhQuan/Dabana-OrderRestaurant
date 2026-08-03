@@ -130,7 +130,8 @@ public enum BookingErrorCode implements ErrorCode {
             "Tổng số ghế của bàn quá lớn so với số khách (vượt quá mức chênh lệch cho phép mặc định (2) ghế, vui lòng chọn bàn phù hợp hơn"
     ),
     MISSING_REFUND_BANK_INFO("BOOKING_404", "Thiếu thông tin tài khoản ngân hàng nhận hoàn tiền"),
-    REFUND_FAILED("BOOKING_405", "Lỗi trong quá trình xử lý hoàn tiền");;;
+    REFUND_FAILED("BOOKING_405", "Lỗi trong quá trình xử lý hoàn tiền"),
+    RESTAURANT_CANCEL_TOO_LATE("BOOKING_406", "Nhà hàng chỉ được phép huỷ đơn trước thời gian nhận bàn theo quy định tối thiểu của hệ thống");
 
     private final String code;
     private final String message;

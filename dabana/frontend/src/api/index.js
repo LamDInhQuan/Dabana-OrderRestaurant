@@ -546,6 +546,12 @@ export const systemPolicyApi = {
 
   // PUT: Quản trị viên cập nhật chính sách ân hạn huỷ đơn (Admin)
   updateCancellationGracePeriod: (data) => api.put('/admin/system-policies/cancellation-grace-period', data),
+
+  // GET: Lấy quy định thời gian tối thiểu nhà hàng được huỷ đơn của khách (Public)
+  getRestaurantCancellationLeadTime: () => api.get('/system-policies/restaurant-cancellation-lead-time'),
+
+  // PUT: Quản trị viên cập nhật quy định thời gian tối thiểu nhà hàng được huỷ đơn (Admin)
+  updateRestaurantCancellationLeadTime: (data) => api.put('/admin/system-policies/restaurant-cancellation-lead-time', data),
 }
 
 export default api

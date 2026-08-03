@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { branchBankAccountApi } from '../../../../api'
+import BankSelect from '../../../../components/BankSelect'
 
 const C = {
   brown: '#5C3A1E',
@@ -173,16 +174,17 @@ export default function BranchBankAccountSettings({ branchId }) {
         <p style={{ fontSize: '.85rem', color: C.muted }}>Đang tải...</p>
       ) : editing ? (
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
             <div>
-              <label style={S.label}>Ngân hàng *</label>
-              <select style={S.select} value={form.bankId} required
-                onChange={(e) => setForm((p) => ({ ...p, bankId: e.target.value }))}>
-                <option value="">-- Chọn ngân hàng --</option>
-                {banks.map((b) => (
-                  <option key={b.id} value={b.id}>{b.shortName || b.name}</option>
-                ))}
-              </select>
+              <BankSelect
+                banks={banks}
+                value={form.bankId}
+                onChange={(val) => setForm((p) => ({ ...p, bankId: val }))}
+                required
+                label="Ngân hàng"
+                searchPlaceholder="Tìm nhanh (VCB, MB, ACB...)..."
+                selectPlaceholder="-- Chọn ngân hàng --"
+              />
             </div>
             <div>
               <label style={S.label}>Số tài khoản *</label>

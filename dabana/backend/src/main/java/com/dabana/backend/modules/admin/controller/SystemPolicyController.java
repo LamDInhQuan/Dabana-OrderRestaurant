@@ -4,6 +4,7 @@ import com.dabana.backend.common.ApiResponse;
 import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.admin.dto.CancellationGracePeriodDto;
+import com.dabana.backend.modules.admin.dto.RestaurantCancellationLeadTimePolicyDto;
 import com.dabana.backend.modules.admin.service.ISystemPolicyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,4 +47,29 @@ public class SystemPolicyController {
                 systemPolicyService.updateCancellationGracePeriodPolicy(request)
         ));
     }
+
+    /**
+     * Public API: Khach hang, Nha hang doi tac va Admin deu co the doc quy dinh thoi gian nha hang duoc huy don.
+     */
+    @GetMapping("/api/system-policies/restaurant-cancellation-lead-time")
+    public ResponseEntity<ApiResponse<RestaurantCancellationLeadTimePolicyDto>> getRestaurantCancellationLeadTime() {
+        return ResponseEntity.ok(ResponseBuilder.success(
+                SuccessCode.SUCCESS,
+                systemPolicyService.getRestaurantCancellationLeadTimePolicy()
+        ));
+    }
+
+    /**
+     * Admin API: Quan tri vien thay doi cau hinh quy dinh thoi gian nha hang duoc huy don.
+     */
+    @PutMapping("/api/admin/system-policies/restaurant-cancellation-lead-time")
+    public ResponseEntity<ApiResponse<RestaurantCancellationLeadTimePolicyDto>> updateRestaurantCancellationLeadTime(
+            @Valid @RequestBody RestaurantCancellationLeadTimePolicyDto request
+    ) {
+        return ResponseEntity.ok(ResponseBuilder.success(
+                SuccessCode.UPDATED,
+                systemPolicyService.updateRestaurantCancellationLeadTimePolicy(request)
+        ));
+    }
 }
+

@@ -11,6 +11,7 @@ import com.dabana.backend.modules.branch2.repository.BranchRepository;
 import com.dabana.backend.modules.diningtable.entity.DiningTable;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableErrorCode;
+import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.extraorder.entity.ExtraOrder;
 import com.dabana.backend.modules.extraorder.repository.ExtraOrderRepository;
 import com.dabana.backend.modules.orderboard.dto.response.ActiveBookingResponse;
@@ -286,13 +287,25 @@ public class OrderBoardService implements IOrderBoardService {
             // - Nếu đơn đang CHECKED_IN (khách đang ngồi ăn thực tế): Trạng thái bàn là Đang dùng (Mã 3)
             // - Nếu đơn là CONFIRMED (đặt lịch trước cho slot giờ đó): Trạng thái bàn là Đã đặt (Mã 2)
             if (activeBooking.getStatus() == BookingStatus.CHECKED_IN) {
-                response.setStatus(3); // Giả định 3 là mã trạng thái "Đang dùng" (Occupied)
+                response.setStatus(DiningTableStatus.OCCUPIED.getCode());
             } else {
-                response.setStatus(2); // Giả định 2 là mã trạng thái "Đã đặt" (Reserved)
+                response.setStatus(DiningTableStatus.RESERVED.getCode());
             }
         } else {
-            // Không có lịch/khách vào khung giờ này -> Bàn Trống (Mã 1)
-            response.setStatus(1); // Giả định 1 là mã trạng thái "Trống" (Empty)
+            // Neu khong co khach/lich dat, giu nguyen trang thai vat ly thuc te cua ban neu dang Don dep (4) hoac Bao tri (5)
+            int currentStatusCode = table.getStatus() != null ? table.getStatus().getCode() : DiningTableStatus.EMPTY.getCode();
+            if (currentStatusCode == DiningTableStatus.CLEANING.getCode()) {
+                LocalDateTime lastUpdated = table.getUpdatedAt() != null ? table.getUpdatedAt() : table.getCreatedAt();
+                if (lastUpdated != null && lastUpdated.isBefore(LocalDateTime.now().minusMinutes(15))) {
+                    response.setStatus(DiningTableStatus.EMPTY.getCode());
+                } else {
+                    response.setStatus(DiningTableStatus.CLEANING.getCode());
+                }
+            } else if (currentStatusCode == DiningTableStatus.MAINTENANCE.getCode()) {
+                response.setStatus(currentStatusCode);
+            } else {
+                response.setStatus(DiningTableStatus.EMPTY.getCode());
+            }
         }
 
         return response;

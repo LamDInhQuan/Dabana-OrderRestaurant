@@ -146,7 +146,8 @@ public class BookingService implements IBookingService {
             totalPreorderAmount = bookingItemService.calculateTotalPreorderAmountFromRequests(req.getItems());
         }
 
-        // 5. Resolve policy + tính tiền cọc (Loại bỏ try-catch nuốt lỗi ngầm, dùng Optional / check an toàn)
+        // 5. Resolve policy + tính tiền cọc (Loại bỏ try-catch nuốt lỗi ngầm, dùng
+        // Optional / check an toàn)
         BranchPolicy branchPolicy = branchPolicyResolverService.resolve(branch.getId(), req.getReservationTime());
         DepositResult depositResult;
 
@@ -155,8 +156,7 @@ public class BookingService implements IBookingService {
                     branchPolicy,
                     req.getGuestCount(),
                     req.getReservationTime(),
-                    totalPreorderAmount
-            );
+                    totalPreorderAmount);
         } else {
             depositResult = new DepositResult(null, BigDecimal.ZERO);
         }
@@ -170,14 +170,16 @@ public class BookingService implements IBookingService {
                 throw new BusinessException(BookingErrorCode.EXCEEDED_MAX_TABLES);
             }
 
-            // 6b. Kiểm tra Sức chứa (Capacity) & Mức chênh lệch ghế cho phép (maxCapacitySlop)
+            // 6b. Kiểm tra Sức chứa (Capacity) & Mức chênh lệch ghế cho phép
+            // (maxCapacitySlop)
             int totalCapacity = tables.stream().mapToInt(DiningTable::getCapacity).sum();
 
             if (totalCapacity < req.getGuestCount()) {
                 throw new BusinessException(BookingErrorCode.INSUFFICIENT_TABLE_CAPACITY);
             }
 
-            int maxAllowedCapacity = req.getGuestCount() + (rule.getMaxCapacitySlop() != null ? rule.getMaxCapacitySlop() : 2);
+            int maxAllowedCapacity = req.getGuestCount()
+                    + (rule.getMaxCapacitySlop() != null ? rule.getMaxCapacitySlop() : 2);
             if (totalCapacity > maxAllowedCapacity) {
                 throw new BusinessException(BookingErrorCode.EXCEEDED_MAX_CAPACITY_SLOP);
             }
@@ -222,12 +224,16 @@ public class BookingService implements IBookingService {
         booking.setNote(req.getNote());
 
         // 8. Snapshot policy
-        // Luu y: KHONG duoc goi branchCancellationPolicyService.loadByBranch(...) o day.
+        // Luu y: KHONG duoc goi branchCancellationPolicyService.loadByBranch(...) o
+        // day.
         // Method do nam trong 1 bean @Transactional khac; khi branch chua co
         // BranchCancellationPolicy, no throw BusinessException (RuntimeException) ngay
-        // trong nested transaction (propagation REQUIRED = dung chung transaction vat ly
-        // voi createHold). Spring se danh dau transaction hien tai la rollback-only ngay
-        // tai thoi diem do, DU cho exception bi catch va nuot o day. Ket qua: createHold
+        // trong nested transaction (propagation REQUIRED = dung chung transaction vat
+        // ly
+        // voi createHold). Spring se danh dau transaction hien tai la rollback-only
+        // ngay
+        // tai thoi diem do, DU cho exception bi catch va nuot o day. Ket qua:
+        // createHold
         // van chay tiep va return binh thuong, nhung khi commit, Spring phat hien
         // rollback-only flag va nem UnexpectedRollbackException thay vi commit
         // => loi 500 dù toan bo logic phia tren da chay dung.
@@ -259,7 +265,9 @@ public class BookingService implements IBookingService {
             int graceMinutes = systemPolicyService.getGracePeriodMinutes();
             boolean graceEnabled = systemPolicyService.isGracePeriodEnabled();
             String graceNote = (graceEnabled && graceMinutes > 0)
-                    ? String.format(" (Quý khách có thể huỷ và được hoàn 100%% tiền cọc trong vòng %d phút sau khi xác nhận)", graceMinutes)
+                    ? String.format(
+                            " (Quý khách có thể huỷ và được hoàn 100%% tiền cọc trong vòng %d phút sau khi xác nhận)",
+                            graceMinutes)
                     : "";
 
             String content = String.format(
@@ -269,7 +277,7 @@ public class BookingService implements IBookingService {
 
             String restaurantContent = String.format(
                     "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s.%s",
-                    branch.getName(), booking.getReservationTime(), booking.getContactName(), graceNote);
+                    branch.getName(), booking.getReservationTime(), booking.getContactName());
             notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
         }
         // Ví dụ gom nhóm các bàn theo Zone ID trong Java Service
@@ -278,7 +286,7 @@ public class BookingService implements IBookingService {
                 .distinct()
                 .toList();
 
-// Hoặc nếu muốn lấy riêng danh sách ID của các bàn
+        // Hoặc nếu muốn lấy riêng danh sách ID của các bàn
         List<Long> tableIds = tables.stream()
                 .map(BaseEntity::getId) // hoặc item -> item.getId()
                 .toList();
@@ -291,9 +299,7 @@ public class BookingService implements IBookingService {
                         booking.getCustomer().getId().longValue(),
                         req.getReservationTime(),
                         zoneIds,
-                        booking.getContactEmail()
-                )
-        );
+                        booking.getContactEmail()));
 
         return bookingMapper.toResponse(booking);
     }
@@ -378,14 +384,14 @@ public class BookingService implements IBookingService {
         // 💡 Lấy phần tử đầu tiên của Deposit Rules (nếu có)
         var firstRule = (branchPolicy != null && branchPolicy.getDepositRules() != null
                 && !branchPolicy.getDepositRules().isEmpty())
-                ? branchPolicy.getDepositRules().iterator().next()
-                : null;
+                        ? branchPolicy.getDepositRules().iterator().next()
+                        : null;
 
         // 💡 Lấy phần tử đầu tiên của Schedules (nếu có)
         var firstSchedule = (branchPolicy != null && branchPolicy.getSchedules() != null
                 && !branchPolicy.getSchedules().isEmpty())
-                ? branchPolicy.getSchedules().iterator().next()
-                : null;
+                        ? branchPolicy.getSchedules().iterator().next()
+                        : null;
 
         return PolicySnapshotDto.builder()
                 // --- 1. Thông tin chung từ ReservationPolicy ---
@@ -432,7 +438,8 @@ public class BookingService implements IBookingService {
             return Collections.emptyList();
         }
 
-        // 2. Lấy danh sách các booking_id mà user này đã đánh giá (Chỉ 1 câu query duy nhất)
+        // 2. Lấy danh sách các booking_id mà user này đã đánh giá (Chỉ 1 câu query duy
+        // nhất)
         List<Long> reviewedBookingIds = reviewRepository.findReviewedBookingIdsByCustomerId(user.getId());
         // Đưa vào Set để tối ưu hóa tốc độ kiểm tra (O(1) thay vì O(N))
         Set<Long> reviewedSet = new HashSet<>(reviewedBookingIds);
@@ -447,7 +454,8 @@ public class BookingService implements IBookingService {
 
     @Override
     public BookingResponse getBookingDetail(Long bookingId, User user) {
-        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ ResourceNotFoundException
+        // 1. Tìm booking theo ID, nếu không thấy thì ném ngoại lệ
+        // ResourceNotFoundException
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
 
@@ -462,17 +470,20 @@ public class BookingService implements IBookingService {
         // 4. Kiểm tra trạng thái đánh giá (isReviewed) cho riêng booking này
         if (user != null) {
             boolean isReviewed = reviewRepository.existsByBookingId(bookingId);
-            // Hoặc nếu bạn muốn tận dụng lại câu query tập hợp hoặc viết query check tồn tại, ví dụ:
+            // Hoặc nếu bạn muốn tận dụng lại câu query tập hợp hoặc viết query check tồn
+            // tại, ví dụ:
             // boolean isReviewed = reviewRepository.existsByBookingId(bookingId);
             response.setIsReviewed(isReviewed);
         } else {
             response.setIsReviewed(false);
         }
 
-        // 5. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt, remainSeconds, paymentAvailable)
+        // 5. Tính toán các trường động dành riêng cho trang Lock bàn (holdExpiresAt,
+        // remainSeconds, paymentAvailable)
         if (booking.getStatus() == BookingStatus.HOLDING || booking.getStatus() == BookingStatus.AWAITING_PAYMENT) {
             LocalDateTime now = LocalDateTime.now();
-            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn giữ bàn
+            LocalDateTime expiresAt = booking.getHoldExpiresAt(); // Giả sử bảng Booking có trường lưu thời gian hết hạn
+                                                                  // giữ bàn
 
             if (expiresAt != null && expiresAt.isAfter(now)) {
                 // Tính số giây còn lại: holdExpiresAt - bây giờ
@@ -577,9 +588,6 @@ public class BookingService implements IBookingService {
     public InvoicePreviewResponse previewInvoice(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
-        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
-            throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CHECK_OUT);
-        }
         return invoiceService.preview(booking);
     }
 
@@ -625,6 +633,9 @@ public class BookingService implements IBookingService {
             throw new BusinessException(BookingErrorCode.BOOKING_CANNOT_CANCEL);
         }
         boolean byRestaurant = request != null && Boolean.TRUE.equals(request.getCancelledByRestaurant());
+        if (byRestaurant) {
+            systemPolicyService.validateRestaurantCancellationAllowed(booking);
+        }
         booking.setStatus(byRestaurant ? BookingStatus.CANCELLED_BY_RESTAURANT : BookingStatus.CANCELLED_BY_CUSTOMER);
         booking.setCancelledBy(byRestaurant ? CancelledBy.STAFF : CancelledBy.CUSTOMER);
         booking.setCancelledAt(LocalDateTime.now());
@@ -654,11 +665,17 @@ public class BookingService implements IBookingService {
 
         String cancelContent = byRestaurant
                 ? String.format("Nhà hàng %s đã hủy đơn đặt bàn của bạn lúc %s.%s",
-                booking.getBranch().getName(), booking.getReservationTime(), graceText)
+                        booking.getBranch().getName(), booking.getReservationTime(), graceText)
                 : String.format("Đơn đặt bàn tại %s lúc %s đã được hủy thành công.%s",
-                booking.getBranch().getName(), booking.getReservationTime(), graceText);
+                        booking.getBranch().getName(), booking.getReservationTime(), graceText);
         if (booking.getRefundStatus() == RefundStatus.PENDING) {
-            cancelContent += String.format(" Số tiền hoàn cọc: %s VND.", booking.getRefundAmount());
+            if (byRestaurant) {
+                cancelContent += String.format(
+                        " Số tiền hoàn cọc: %s VND. Vui lòng vào Lịch sử đặt bàn để cung cấp thông tin tài khoản ngân hàng nhận tiền hoàn.",
+                        booking.getRefundAmount());
+            } else {
+                cancelContent += String.format(" Số tiền hoàn cọc: %s VND.", booking.getRefundAmount());
+            }
         }
         notifyCustomer(booking, NotificationType.BOOKING_CANCELLED, cancelContent);
 
@@ -678,12 +695,14 @@ public class BookingService implements IBookingService {
      * theo chinh sach da cam ket voi khach luc dat ban).
      * <p>
      * - Neu chua co lenh coc nao PAID -> khong co gi de hoan (refundStatus=NONE).
-     * - Neu huy trong thoi gian an han (CONFIRMED grace period) -> hoan 100% tien coc.
+     * - Neu huy trong thoi gian an han (CONFIRMED grace period) -> hoan 100% tien
+     * coc.
      * - Neu huy tu luc con >= freeCancellationHours gio truoc gio hen -> ap dung
      * freeRefundPercent (thuong 100%).
      * - Neu huy trong khoang duoi freeCancellationHours gio -> ap dung
      * lateRefundPercent (thuong < 100%, phan con lai la penaltyAmount).
-     * - Ket qua duoc luu vao Booking.refundAmount/penaltyAmount/refundStatus=PENDING,
+     * - Ket qua duoc luu vao
+     * Booking.refundAmount/penaltyAmount/refundStatus=PENDING,
      * PayoutOrderService se doc refundAmount nay de tao lenh chi qua payOS.
      */
     private void applyCancellationRefundPolicy(Booking booking) {
@@ -703,7 +722,8 @@ public class BookingService implements IBookingService {
         BigDecimal refundAmount = paidAmount
                 .multiply(refundPercent)
                 .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
-        // Chan an toan: khong bao gio hoan qua so tien da thu, du policy nhap sai > 100%.
+        // Chan an toan: khong bao gio hoan qua so tien da thu, du policy nhap sai >
+        // 100%.
         if (refundAmount.compareTo(paidAmount) > 0) {
             refundAmount = paidAmount;
         }
@@ -717,10 +737,12 @@ public class BookingService implements IBookingService {
     }
 
     /**
-     * % hoan tien ap dung, dua tren chinh sach an han hoac khoang cach tu luc huy toi gio hen (reservationTime).
+     * % hoan tien ap dung, dua tren chinh sach an han hoac khoang cach tu luc huy
+     * toi gio hen (reservationTime).
      */
     private BigDecimal resolveRefundPercent(Booking booking, PolicySnapshotDto policy) {
-        // 1. Uu tien kiem tra chinh sach an han huy don toan he thong (Dabana Grace Period)
+        // 1. Uu tien kiem tra chinh sach an han huy don toan he thong (Dabana Grace
+        // Period)
         if (systemPolicyService.isWithinCancellationGracePeriod(booking)) {
             return BigDecimal.valueOf(100);
         }
@@ -762,7 +784,8 @@ public class BookingService implements IBookingService {
      * B09: gui thong bao (in-app) cho khach hang gan voi mot booking.
      * Khach vang lai (dat ban khong co tai khoan User, booking.customer = null)
      * hien chua co co che gui thong bao vi Notification.recipient bat buoc la
-     * mot User - bo qua trong truong hop nay thay vi lam loi ca luong nghiep vu goc.
+     * mot User - bo qua trong truong hop nay thay vi lam loi ca luong nghiep vu
+     * goc.
      */
     private void notifyCustomer(Booking booking, NotificationType type, String content) {
         if (booking == null || booking.getCustomer() == null) {
@@ -772,8 +795,10 @@ public class BookingService implements IBookingService {
     }
 
     private void notifyRestaurant(Booking booking, NotificationType type, String content) {
-        if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null && booking.getBranch().getRestaurant().getOwner() != null) {
-            notificationService.sendImmediate(booking.getBranch().getRestaurant().getOwner(), type, content, "IN_APP", booking.getBranch().getId());
+        if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null
+                && booking.getBranch().getRestaurant().getOwner() != null) {
+            notificationService.sendImmediate(booking.getBranch().getRestaurant().getOwner(), type, content, "IN_APP",
+                    booking.getBranch().getId());
         }
     }
 
@@ -792,10 +817,12 @@ public class BookingService implements IBookingService {
 
     // ============================================================
     // B11 buoc 5-7 (rut gon, tu dong): CONFIRMED da qua gio hen + 1 khoang dem
-    // se tu chuyen sang NO_SHOW - chay dinh ky cung nhip voi expireOverdueHoldings().
+    // se tu chuyen sang NO_SHOW - chay dinh ky cung nhip voi
+    // expireOverdueHoldings().
     // Truoc day CHI co markNoShow() cho nhan vien bam tay, khong co tien trinh
     // tu dong nao ca -> booking qua gio hen "treo" o CONFIRMED mai mai, khien
-    // OrderBoardService van hien no la active booking cua ban du gio da qua rat lau.
+    // OrderBoardService van hien no la active booking cua ban du gio da qua rat
+    // lau.
     // NO_SHOW_GRACE_MINUTES: cho khach mot khoang tre nho truoc khi chot no-show,
     // tranh vua qua gio hen 1 phut da bi huy oan - dieu chinh so nay neu can.
     // ============================================================
@@ -811,7 +838,8 @@ public class BookingService implements IBookingService {
             booking = bookingRepository.save(booking);
             applyTableStatus(booking, DiningTableStatus.CLEANING);
 
-            // B09: bao ket qua no-show cho khach (tu dong chot, khong co xac nhan nhan vien)
+            // B09: bao ket qua no-show cho khach (tu dong chot, khong co xac nhan nhan
+            // vien)
             notifyCustomer(booking, NotificationType.NO_SHOW_WARNING,
                     String.format("Đơn đặt bàn tại %s lúc %s đã được ghi nhận là không đến (no-show).",
                             booking.getBranch().getName(), booking.getReservationTime()));
