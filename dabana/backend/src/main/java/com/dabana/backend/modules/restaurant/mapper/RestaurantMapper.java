@@ -73,7 +73,9 @@ public class RestaurantMapper {
     public RestaurantDetailResponse toDetailResponse(
             Restaurant restaurant,
             List<Branch> branches,
-            Map<Long, List<BranchImage>> imagesByBranchMap) {
+            Map<Long, List<BranchImage>> imagesByBranchMap,
+            Map<Long, Double> ratingMap         // Thêm map điểm đánh giá
+    ) {
 
         // Map thông tin cơ bản của nhà hàng + Owner (dùng lại hàm toResponse cũ của bạn)
         RestaurantResponse baseResponse = toResponse(restaurant);
@@ -90,7 +92,7 @@ public class RestaurantMapper {
         detailResponse.setWebsite(baseResponse.getWebsite());
         detailResponse.setCuisineType(baseResponse.getCuisineType());
 
-        // Map danh sách Branch và nhét ảnh tương ứng vào từng Branch từ Map có sẵn (Không phát sinh thêm query SQL nào)
+        // Map danh sách Branch và gán thêm operatingCurrentDay, rate cùng ảnh tương ứng
         List<BranchResponse> branchResponses = branches.stream().map(branch -> {
             BranchResponse branchRes = new BranchResponse();
             branchRes.setId(branch.getId());
@@ -104,6 +106,11 @@ public class RestaurantMapper {
             branchRes.setStatus(branch.getStatus());
             branchRes.setCreatedAt(branch.getCreatedAt());
             branchRes.setUpdatedAt(branch.getUpdatedAt());
+
+            // Gán giờ hoạt động hiện tại (lấy từ Map truyền vào)
+
+            // Gán số sao trung bình (lấy từ Map truyền vào, mặc định 0.0)
+            branchRes.setRate(ratingMap.getOrDefault(branch.getId(), 0.0));
 
             // Lấy danh sách ảnh từ Map dựa theo branch.getId()
             List<BranchImage> images = imagesByBranchMap.getOrDefault(branch.getId(), List.of());

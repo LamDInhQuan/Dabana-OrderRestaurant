@@ -26,4 +26,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Long> findReviewedBookingIdsByCustomerId(@Param("customerId") Long customerId);
 
     boolean existsByBookingId(Long bookingId);
+
+    @Query("SELECT r.branch.id AS branchId, AVG((COALESCE(r.spaceRating, 5) + COALESCE(r.serviceRating, 5) + COALESCE(r.foodRating, 5)) / 3.0) AS avgRate " +
+            "FROM Review r WHERE r.branch.id IN :branchIds GROUP BY r.branch.id")
+    List<Object[]> getAverageRatingByBranchIds(@Param("branchIds") List<Long> branchIds);
 }

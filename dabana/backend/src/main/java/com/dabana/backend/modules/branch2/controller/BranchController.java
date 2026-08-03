@@ -80,9 +80,12 @@ public class BranchController extends BaseController {
 //
     // 2. LẤY CHI NHÁNH THEO ID
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BranchResponse>> getBranchById(@PathVariable Long id) {
-        // Service sẽ xử lý việc tìm kiếm và convert, Controller chỉ việc trả về
-        BranchResponse response = branchService.findById(id);
+    public ResponseEntity<ApiResponse<BranchResponse>> getBranchById(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        // Truyền thêm date xuống service (nếu null, service sẽ tự động lấy LocalDate.now())
+        BranchResponse response = branchService.findById(id, date);
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, response));
     }
 

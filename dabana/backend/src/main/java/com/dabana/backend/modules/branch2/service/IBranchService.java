@@ -19,7 +19,7 @@ public interface IBranchService {
 
     List<BranchResponse> findAll();
 
-    BranchResponse findById(Long id);
+    BranchResponse findById(Long id , LocalDate date);
 
     BranchResponse create(BranchRequest branch);
 

@@ -22,6 +22,7 @@ import com.dabana.backend.modules.booking.BookingRepository;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.branch.BranchOperatingStatus;
 import com.dabana.backend.modules.branch2.dto.BranchImageDto;
+import com.dabana.backend.modules.branch2.dto.OperatingPeriod;
 import com.dabana.backend.modules.branch2.dto.request.BranchRequest;
 import com.dabana.backend.modules.branch2.dto.request.BranchUpdateRequest;
 import com.dabana.backend.modules.branch2.dto.response.BranchAvailabilityResponse;
@@ -87,6 +88,7 @@ public class BranchService implements IBranchService {
     private final DiningTableAvailabilityService diningTableAvailabilityService;
     private final DiningTableRepository diningTableRepository;
     private final BookingRepository bookingRepository;
+    private final AvailableSlotService availableSlotService ;
 
     private static final List<BookingStatus> CONFLICT_STATUSES = List.of(
             BookingStatus.HOLDING,
@@ -261,10 +263,29 @@ public class BranchService implements IBranchService {
     }
 
     @Override
-    public BranchResponse findById(Long id) {
-        return branchRepository.findById(id)
+    public BranchResponse findById(Long id, LocalDate date) {
+        // 1. Tìm thông tin cơ bản của chi nhánh
+        BranchResponse response = branchRepository.findById(id)
                 .map(branch -> branchMapper.toResponse(branch))
                 .orElseThrow(() -> new BusinessException(BranchErrorCode.BRANCH_NOT_FOUND));
+
+        // 2. Nếu không truyền ngày thì mặc định lấy ngày hiện tại (LocalDate.now())
+        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+
+        // 3. Gọi getEffectiveOperatingPeriods để check lịch + ngoại lệ theo ngày
+        List<OperatingPeriod> periods = availableSlotService.getEffectiveOperatingPeriods(id, targetDate);
+
+        if (periods == null || periods.isEmpty()) {
+            response.setOperatingCurrentDay("Hôm nay đóng cửa");
+        } else {
+            // Lấy giờ bắt đầu của ca đầu tiên và giờ kết thúc của ca cuối cùng
+            LocalTime openTime = periods.get(0).getStartTime();
+            LocalTime closeTime = periods.get(periods.size() - 1).getEndTime();
+
+            response.setOperatingCurrentDay(openTime + " - " + closeTime);
+        }
+
+        return response;
     }
 
     @Override

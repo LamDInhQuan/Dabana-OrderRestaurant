@@ -22,4 +22,6 @@ public class BranchResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<BranchImageDto> branchImageDtos ;
+    private String operatingCurrentDay ;
+    private Double rate; // <-- Thêm trường điểm đánh giá (số sao trung bình)
 }
