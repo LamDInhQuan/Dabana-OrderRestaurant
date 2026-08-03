@@ -37,4 +37,9 @@ public interface IDiningTableService {
     List<DiningTableResponse> bulkUpdatePositions(BulkUpdateDiningTablePositionsRequest request);
 
     void deleteDiningTable(Long tableId);
+
+    /**
+     * Tu dong chuyen cac ban dang o trang thai CLEANING sang EMPTY neu qua 15 phut.
+     */
+    void autoReleaseCleaningTables();
 }
