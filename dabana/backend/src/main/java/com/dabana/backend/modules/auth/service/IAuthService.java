@@ -8,11 +8,14 @@ import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 public interface IAuthService {
     UserResponse registerCustomer(RegisterAccountRequest request);
 
-    UserResponse registerPartner(RegisterAccountRequest request,RestaurantRegisterRequest restaurantRegisterRequest);
+    UserResponse registerPartner(RegisterAccountRequest request, RestaurantRegisterRequest restaurantRegisterRequest, List<MultipartFile> licenses);
 
     Boolean verifyOtp(VerifyOtpRequest req);
 

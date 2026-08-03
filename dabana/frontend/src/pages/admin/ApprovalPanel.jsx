@@ -4,6 +4,7 @@ import { User, Hourglass, Store, FileText, Link as LinkIcon, X, Check, PartyPopp
 import toast from 'react-hot-toast'
 import AdminLayout from './AdminLayout'
 import api, { adminApi } from '../../api'
+import { translateLabel } from '../../utils/labelTranslator'
 
 function ImageLightbox({ src, alt, onClose }) {
   useEffect(() => {
@@ -97,7 +98,7 @@ function UserCard({ item, onApprove, onReject }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center' }}><User size={20} /></span>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{item.fullName || `ID: ${item.id}`}</h3>
-            <span style={{ fontSize: '0.75rem', background: '#e0e7ff', color: '#4f46e5', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>{item.role || 'RESTAURANT_PARTNER'}</span>
+            <span style={{ fontSize: '0.75rem', background: '#e0e7ff', color: '#4f46e5', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>{translateLabel (item.role || 'RESTAURANT_PARTNER')}</span>
           </div>
           <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0, paddingLeft: '1.75rem' }}>
             Email: <strong style={{ color: '#334155' }}>{item.email}</strong> • SĐT: <strong style={{ color: '#334155' }}>{item.phone || 'Chưa cập nhật'}</strong>
@@ -240,32 +241,6 @@ function RestaurantCard({ item, onApprove, onReject }) {
     </div>
   )
 }
-
-// function BranchCard({ item, onApprove, onReject }) {
-//   return (
-//     <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-//       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem' }}>
-//         <div>
-//           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-//             <span style={{ display: 'inline-flex', alignItems: 'center' }}><Store size={20} /></span>
-//             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{item.name}</h3>
-//           </div>
-//           <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0, paddingLeft: '1.75rem' }}>
-//             Địa chỉ: <strong style={{ color: '#334155' }}>{item.address}</strong>
-//           </p>
-//         </div>
-//         <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', borderRadius: '99px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
-//           <Hourglass size={13} /> Chờ duyệt chi nhánh
-//         </span>
-//       </div>
-
-//       <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-//         <button onClick={() => onReject(item.id)} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><X size={16} /> Từ chối</button>
-//         <button onClick={() => onApprove(item.id)} style={{ background: '#4f46e5', color: '#fff', border: 'none', padding: '0.6rem 1.25rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Check size={16} /> Phê duyệt</button>
-//       </div>
-//     </div>
-//   )
-// }
 
 export default function ApprovalPanel() {
   const [searchParams, setSearchParams] = useSearchParams()

@@ -26,6 +26,7 @@ import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterReque
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.mapper.RestaurantMapper;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
+import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
 import com.dabana.backend.security.JwtService;
@@ -38,9 +39,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.SecureRandom;
 import java.util.HashSet;
+import java.util.List;
 
 /**
  * Trien khai dac ta B02: Dang ky va tro thanh nha hang doi tac
@@ -60,8 +63,9 @@ public class AuthService implements IAuthService {
     private final AuthenticationManager authenticationManager;
     private final UserMapper userMapper;
     private final MailService mailService;
-    private final RestaurantRepository restaurantRepository ;
+    private final RestaurantRepository restaurantRepository;
     private final RestaurantMapper restaurantMapper;
+    private final RestaurantService restaurantService;
 
     private static final String PASSWORD_CHARS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -102,7 +106,7 @@ public class AuthService implements IAuthService {
 
     @Override
     @Transactional
-    public UserResponse registerPartner(RegisterAccountRequest req,RestaurantRegisterRequest restaurantReq) {
+    public UserResponse registerPartner(RegisterAccountRequest req, RestaurantRegisterRequest restaurantReq, List<MultipartFile> licenses) {
         if (restaurantReq.getRestaurantName() == null || restaurantReq.getRestaurantName().trim().isEmpty()) {
             throw new BusinessException(AuthErrorCode.RESTAURANT_NAME_REQUIRED);
         }
@@ -127,19 +131,22 @@ public class AuthService implements IAuthService {
         user.setStatus(AccountStatus.PENDING_OTP.getStatus());
         user = userRepository.saveAndFlush(user);
 
-        // === TẠO BẢN GHI NHÀ HÀNG NẾU LÀ RESTAURANT_PARTNER ===
+        // === TẠ BẢN GHI NHÀ HÀNG NẾU LÀ RESTAURANT_PARTNER ===
         Restaurant restaurant = restaurantMapper.toEntity(restaurantReq);
         restaurant.setOwner(user); // Gắn khóa ngoại liên kết với User vừa tạo
         restaurant.setApprovalStatus(ApprovalStatus.PENDING); // Trạng thái chờ admin duyệt nhà hàng
 
-        restaurantRepository.save(restaurant);
+        restaurantRepository.saveAndFlush(restaurant);
+
+        // === UPLOAD LICENSES TRONG CÙNG TRANSACTION - nếu lỗi sẽ rollback user và restaurant ===
+        restaurantService.uploadLicenses(user.getId(), licenses);
 
         UserResponse userResponse = userMapper.userResponse(user);
-        String otp = otpService.generateAndSend(req.getEmail(), OtpPurpose.REGISTER); // B02 Buoc 3: gui OTP that qua email
-        if (exposeOtpInResponse) {
-            // Chi dung khi dev/test chua cau hinh SMTP that, de tien kiem tra luong ma khong can mo email.
-            userResponse.setOtp(otp);
-        }
+        // String otp = otpService.generateAndSend(req.getEmail(), OtpPurpose.REGISTER); // B02 Buoc 3: gui OTP that qua email
+        // if (exposeOtpInResponse) {
+        //     // Chi dung khi dev/test chua cau hinh SMTP that, de tien kiem tra luong ma khong can mo email.
+        //     userResponse.setOtp(otp);
+        // }
 
         return userResponse;
     }
