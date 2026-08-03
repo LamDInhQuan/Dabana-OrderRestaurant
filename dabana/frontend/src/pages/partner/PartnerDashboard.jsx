@@ -229,6 +229,7 @@ export default function PartnerDashboard() {
   const [menu, setMenu] = useState([])
   const [waitlist, setWaitlist] = useState([])
   const [reviews, setReviews] = useState([])          // B13
+  const [hasViewedReviews, setHasViewedReviews] = useState(false)
   const [notifications, setNotifications] = useState([])  // B09
   const [customerQuery, setCustomerQuery] = useState('')  // B14
   const [reviewFilter, setReviewFilter] = useState('ALL')
@@ -257,6 +258,9 @@ export default function PartnerDashboard() {
     if (isBlocked && ['bookings', 'order_board', 'waitlist'].includes(tabId)) {
       const msg = isInactive ? 'Chi nhánh này đang ngừng hoạt động' : 'Chi nhánh này đang tạm ngưng hoạt động';
       toast.error(msg);
+    }
+    if (tabId === 'reviews') {
+      setHasViewedReviews(true);
     }
     setActiveTab(tabId);
   };
@@ -334,9 +338,9 @@ export default function PartnerDashboard() {
       )
       .catch(() => { setRestaurant(null); setRestaurantForm(f => ({ ...f, restaurantName: '', logoUrl: '', description: '', cuisineType: '', phone: '', email: '', website: '' })) })
   }, [])
-  // console.log("activeBranch", activeBranch);
   useEffect(() => {
     if (!activeBranch) return
+    setHasViewedReviews(false)
     const bid = activeBranch.id
     setBranchForm({
       name: activeBranch.name || '',
@@ -500,8 +504,9 @@ export default function PartnerDashboard() {
     star, count: visibleReviews.filter(r => r.rating === star).length,
   }))
   const filteredReviews = reviewFilter === 'ALL' ? visibleReviews
-    : reviewFilter === 'UNREPLIED' ? visibleReviews.filter(r => !r.reply)
+    : reviewFilter === 'UNREPLIED' ? visibleReviews.filter(r => !(r.restaurantReply || r.reply))
       : visibleReviews.filter(r => String(r.rating) === reviewFilter)
+  const unrepliedReviewCount = visibleReviews.filter(r => !(r.restaurantReply || r.reply)).length
   // B09: thông báo chưa đọc
   const unreadCount = notifications.filter(n => !n.read).length
   // B14: hồ sơ khách hàng & lịch sử đặt bàn (gộp từ bookings)
@@ -529,7 +534,7 @@ export default function PartnerDashboard() {
       await reviewApi.reply(reviewId, { reply: text });
 
       // Cập nhật state local sau khi gọi API thành công
-      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, reply: text } : r));
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, reply: text, restaurantReply: text } : r));
       setReplyDrafts(prev => ({ ...prev, [reviewId]: '' }));
       toast.success('Đã gửi phản hồi đánh giá!');
     } catch (err) {
@@ -818,7 +823,7 @@ export default function PartnerDashboard() {
     { id: 'menu', icon: Soup, label: 'Thực đơn' },
     { id: 'waitlist', icon: Hourglass, label: 'Hàng chờ' },
     { id: 'customers', icon: User, label: 'Khách hàng' },
-    { id: 'reviews', icon: Star, label: 'Đánh giá', badge: reviews.filter(r => !r.reply && !r.hidden).length },
+    { id: 'reviews', icon: Star, label: 'Đánh giá', badge: (hasViewedReviews || activeTab === 'reviews') ? 0 : unrepliedReviewCount },
     { id: 'reports', icon: TrendingUp, label: 'Thống kê' },
     { id: 'policy', icon: Wallet, label: 'Chính sách' },
     { id: 'operating-hours', icon: AlarmClock, label: 'Khung giờ hoạt động' },
