@@ -45,8 +45,8 @@ public class ReviewService implements IReviewService {
             throw new BusinessException(ReviewErrorCode.BOOKING_NOT_COMPLETED);
         }
 
-        // Chỉ chính chủ đơn mới được đánh giá
-        if (!booking.getCustomer().getId().equals(currentUser.getId())) {
+        // Chỉ chính chủ đơn mới được đánh giá (không áp dụng cho khách vãng lai)
+        if (booking.getCustomer() == null || !booking.getCustomer().getId().equals(currentUser.getId())) {
             throw new BusinessException(ReviewErrorCode.FORBIDDEN);
         }
 

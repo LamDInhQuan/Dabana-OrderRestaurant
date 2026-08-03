@@ -98,9 +98,18 @@ function PolicyDepositRules({
     }
     if (
       form.preorderDepositPercent !== "" &&
+      form.preorderDepositPercent !== null &&
       (Number(form.preorderDepositPercent) < 0 || Number(form.preorderDepositPercent) > 100)
     ) {
       toast.error("Phần trăm cọc món ăn phải từ 0% đến 100%");
+      return false;
+    }
+    if (form.maxTables !== "" && form.maxTables !== null && Number(form.maxTables) < 1) {
+      toast.error("Số lượng bàn gộp tối đa phải từ 1 bàn trở lên hoặc để trống");
+      return false;
+    }
+    if (form.maxCapacitySlop !== "" && form.maxCapacitySlop !== null && Number(form.maxCapacitySlop) < 0) {
+      toast.error("Dung sai ghế dư không được là số âm hoặc để trống");
       return false;
     }
     return true;
@@ -121,10 +130,10 @@ function PolicyDepositRules({
         minGuests: Number(form.minGuests),
         maxGuests: Number(form.maxGuests),
         depositValue: Number(form.depositValue),
-        maxCapacitySlop: form.maxCapacitySlop !== "" ? Number(form.maxCapacitySlop) : null,
-        maxTables: form.maxTables !== "" ? Number(form.maxTables) : null,
-        minPreorderAmount: form.minPreorderAmount !== "" ? Number(form.minPreorderAmount) : null,
-        preorderDepositPercent: form.preorderDepositPercent !== "" ? Number(form.preorderDepositPercent) : null,
+        maxCapacitySlop: form.maxCapacitySlop !== "" && form.maxCapacitySlop !== null && form.maxCapacitySlop !== undefined ? Number(form.maxCapacitySlop) : null,
+        maxTables: form.maxTables !== "" && form.maxTables !== null && form.maxTables !== undefined ? Number(form.maxTables) : null,
+        minPreorderAmount: form.minPreorderAmount !== "" && form.minPreorderAmount !== null && form.minPreorderAmount !== undefined ? Number(form.minPreorderAmount) : null,
+        preorderDepositPercent: form.preorderDepositPercent !== "" && form.preorderDepositPercent !== null && form.preorderDepositPercent !== undefined ? Number(form.preorderDepositPercent) : null,
       };
 
       // Phân tách API call theo chế độ Chi nhánh hay Template giống như PolicyDateSchedules

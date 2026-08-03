@@ -30,7 +30,7 @@ const TABLE_STATUS_META = {
 const DOW = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const GUEST_PRESETS = [2, 4, 6, 8]
 const SLOT_STEP_MIN = 30
-const MIN_LEAD_MIN = 30
+const MIN_LEAD_MIN = 10
 const FALLBACK_HOURS = [{ dayOfWeek: null, openTime: '10:00', closeTime: '22:00', shiftName: null }]
 
 function unwrap(res) {
@@ -87,17 +87,70 @@ function formatVND(n) {
   return Number(n || 0).toLocaleString('vi-VN') + '₫'
 }
 
-// Tính bậc cọc + có yêu cầu cọc theo khung giờ hay không, dùng chung ở bước 1 và bước 4
-function computeDepositInfo(policy, guestCount, timeSlot) {
-  if (!policy?.depositRules?.length) return { rule: null, needsDeposit: false }
-  const rule = policy.depositRules.find(r => guestCount >= r.minGuest && guestCount <= r.maxGuest) || null
-  if (!rule) return { rule: null, needsDeposit: false }
+function isPerPersonDeposit(type) {
+  if (!type) return false
+  const t = typeof type === 'object' ? (type.name || '') : String(type)
+  return t.trim().toUpperCase() === 'PER_PERSON' || t.trim().toUpperCase() === 'PER_GUEST'
+}
+
+// Tìm rule cọc phù hợp (khớp chính xác hoặc fallback về mốc gần nhất tương tự backend)
+function findMatchingDepositRule(depositRules, guestCount) {
+  if (!depositRules?.length || !guestCount) return null
+  const sortedRules = [...depositRules].sort((a, b) => (Number(a.minGuest) || 0) - (Number(b.minGuest) || 0))
+
+  // 1. Kiểm tra khớp chính xác khoảng (minGuest <= guestCount <= maxGuest)
+  const exactMatch = sortedRules.find(
+    r => guestCount >= Number(r.minGuest) && (r.maxGuest == null || guestCount <= Number(r.maxGuest))
+  )
+  if (exactMatch) return exactMatch
+
+  // 2. Nếu vượt quá mốc lớn nhất hoặc lọt giữa các mốc: lấy rule gần nhất phía dưới (minGuest <= guestCount)
+  const lowerRule = sortedRules
+    .filter(r => Number(r.minGuest) <= guestCount)
+    .pop()
+  if (lowerRule) return lowerRule
+
+  // 3. Nếu số khách nhỏ hơn cả mốc nhỏ nhất: lấy mốc nhỏ nhất
+  return sortedRules[0] || null
+}
+
+// Tính bậc cọc + có yêu cầu cọc theo khung giờ hay không, dùng chung ở các bước
+function computeDepositInfo(policy, guestCount, timeSlot, dateStr) {
+  if (!policy?.depositRules?.length) return { rule: null, needsDeposit: false, isFallback: false }
+  const rule = findMatchingDepositRule(policy.depositRules, guestCount)
+  if (!rule) return { rule: null, needsDeposit: false, isFallback: false }
+
+  // Nếu policy không có schedules hoặc rỗng, mặc định áp dụng khi policy ACTIVE
+  if (!policy.schedules || policy.schedules.length === 0) {
+    const isExact = guestCount >= Number(rule.minGuest) && (rule.maxGuest == null || guestCount <= Number(rule.maxGuest))
+    return { rule, needsDeposit: policy.status === 'ACTIVE', isFallback: !isExact }
+  }
+
   const slotMin = toMinutes(timeSlot)
-  const inSchedule = policy.status === 'ACTIVE' && policy.schedules?.some(sch => {
-    if (sch.status !== 'ACTIVE') return false
-    return slotMin >= toMinutes(sch.timeFrom) && slotMin < toMinutes(sch.timeTo)
+  let reqDOW = null
+  if (dateStr) {
+    const d = new Date(dateStr)
+    const dowNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+    reqDOW = dowNames[d.getDay()]
+  }
+
+  const inSchedule = policy.status === 'ACTIVE' && policy.schedules.some(sch => {
+    if (sch.status && sch.status !== 'ACTIVE') return false
+    if (sch.dayOfWeek && reqDOW && sch.dayOfWeek !== reqDOW) return false
+    if (sch.timeFrom && sch.timeTo) {
+      const from = toMinutes(sch.timeFrom)
+      const to = toMinutes(sch.timeTo)
+      if (from <= to) {
+        return slotMin >= from && slotMin <= to
+      } else {
+        return slotMin >= from || slotMin <= to
+      }
+    }
+    return true
   })
-  return { rule, needsDeposit: !!inSchedule }
+
+  const isExact = guestCount >= Number(rule.minGuest) && (rule.maxGuest == null || guestCount <= Number(rule.maxGuest))
+  return { rule, needsDeposit: !!inSchedule, isFallback: !isExact }
 }
 
 export default function BookingFlow() {
@@ -354,15 +407,24 @@ export default function BookingFlow() {
   const totalCapacity = selectedTables.reduce((s, t) => s + (t.capacity || 0), 0)
 
   const { rule: depositRule, needsDeposit } = useMemo(
-    () => computeDepositInfo(policy, guestCount, timeSlot || '00:00'),
-    [policy, guestCount, timeSlot]
+    () => computeDepositInfo(policy, guestCount, timeSlot || '00:00', date),
+    [policy, guestCount, timeSlot, date]
   )
   const depositAmount = useMemo(() => {
     if (!needsDeposit || !depositRule) return 0
-    return depositRule.depositType === 'PER_PERSON'
+    const isPerPerson = isPerPersonDeposit(depositRule.depositType)
+    const tableDeposit = isPerPerson
       ? Number(depositRule.depositValue) * guestCount
       : Number(depositRule.depositValue)
-  }, [needsDeposit, depositRule, guestCount])
+
+    let foodDeposit = 0
+    if (depositRule.preorderDepositPercent && preOrderTotal > 0) {
+      if (!depositRule.minPreorderAmount || preOrderTotal >= Number(depositRule.minPreorderAmount)) {
+        foodDeposit = (preOrderTotal * Number(depositRule.preorderDepositPercent)) / 100
+      }
+    }
+    return tableDeposit + foodDeposit
+  }, [needsDeposit, depositRule, guestCount, preOrderTotal])
 
   const goToContactStep = () => {
     if (!timeSlot) { toast.error('Vui lòng chọn khung giờ đến'); return }
@@ -761,18 +823,18 @@ function StepTimeAndTable({
   const zonesFromApi = useMemo(() => (Array.isArray(zones) ? zones : []), [zones]);
 
   const { rule: activeDepositRule } = useMemo(
-    () => computeDepositInfo(policy, guestCount, timeSlot || '00:00'),
-    [policy, guestCount, timeSlot]
+    () => computeDepositInfo(policy, guestCount, timeSlot || '00:00', date),
+    [policy, guestCount, timeSlot, date]
   );
 
   const isSlotUnderDeposit = (slotTime) => {
     if (!policy?.depositRules?.length) return false;
-    const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, slotTime);
+    const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, slotTime, date);
     return !!rule && needsDeposit;
   };
 
   const depositLabel = activeDepositRule
-    ? activeDepositRule.depositType === 'PER_PERSON'
+    ? isPerPersonDeposit(activeDepositRule.depositType)
       ? `${formatVND(activeDepositRule.depositValue)}/người`
       : formatVND(activeDepositRule.depositValue)
     : null;
@@ -1376,7 +1438,7 @@ function StepConfirm({
   onBack, onSubmit
 }) {
   const [y, m, d] = date.split('-')
-  const { rule, needsDeposit } = computeDepositInfo(policy, guestCount, timeSlot)
+  const { rule, needsDeposit, isFallback } = computeDepositInfo(policy, guestCount, timeSlot, date)
 
   const cartItems = Object.entries(cart)
     .filter(([, q]) => q > 0)
@@ -1446,31 +1508,51 @@ function StepConfirm({
         )}
 
         {rule && (
-          <p style={{ fontSize: '.78rem', color: needsDeposit ? '#B45309' : 'var(--text-muted)', marginTop: '1rem' }}>
-            {needsDeposit
-              ? `Khung giờ này yêu cầu đặt cọc theo chính sách ${policy?.policy?.name || ''}. Hủy trước 2 giờ được hoàn 100% cọc; hủy trong vòng 2 giờ hoặc không đến sẽ không hoàn cọc.`
-              : 'Không yêu cầu đặt cọc cho lượt đặt bàn này.'}
-          </p>
+          <div style={{ marginTop: '1rem' }}>
+            {isFallback && (
+              <div
+                style={{
+                  background: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  borderRadius: 8,
+                  padding: '.5rem .75rem',
+                  marginBottom: '.65rem',
+                  fontSize: '.78rem',
+                  color: '#92400E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '.45rem'
+                }}
+              >
+                <span>⚠️ Số lượng <strong>{guestCount} khách</strong> vượt định mức thiết lập. Hệ thống áp dụng mức cọc của mốc <strong>{rule.minGuest}{rule.maxGuest ? `–${rule.maxGuest}` : '+'} khách</strong> ({isPerPersonDeposit(rule.depositType) ? `${formatVND(rule.depositValue)}/người` : formatVND(rule.depositValue)}).</span>
+              </div>
+            )}
+            <p style={{ fontSize: '.78rem', color: needsDeposit ? '#B45309' : 'var(--text-muted)', margin: 0 }}>
+              {needsDeposit
+                ? `Khung giờ này yêu cầu đặt cọc theo chính sách ${policy?.policy?.name || policy?.name || ''}.`
+                : 'Không yêu cầu đặt cọc cho lượt đặt bàn này.'}
+            </p>
+          </div>
         )}
       </div>
 
       <div className="ticket-perforation" />
 
       <div className="ticket-footer">
-        {Number(depositAmount) > 0 ? (
+        {needsDeposit && Number(depositAmount) > 0 ? (
           <div className="flex justify-between items-center" style={{ marginBottom: '.9rem' }}>
             <span style={{ opacity: .85, fontSize: '.88rem' }}>Tiền cọc cần thanh toán (ước tính)</span>
             <strong style={{ fontSize: '1.15rem', color: 'var(--gold-light)' }}>{formatVND(depositAmount)}</strong>
           </div>
         ) : (
-          <p style={{ opacity: .85, fontSize: '.85rem', marginBottom: '.9rem' }}>Chi nhánh này không yêu cầu đặt cọc.</p>
+          <p style={{ opacity: .85, fontSize: '.85rem', marginBottom: '.9rem' }}>Lượt đặt bàn này không yêu cầu đặt cọc.</p>
         )}
         <div className="flex gap-3">
           <button className="btn-outline" onClick={onBack} disabled={loading}
             style={{ padding: '.85rem 1rem', borderColor: 'rgba(255,255,255,.4)', color: '#fff' }}>←</button>
           <button className="btn-primary" onClick={onSubmit} disabled={loading}
             style={{ flex: 1, padding: '.85rem', fontWeight: 700, opacity: loading ? .6 : 1 }}>
-            {loading ? 'Đang xử lý...' : (Number(depositAmount) > 0 ? 'Thanh toán cọc' : 'Xác nhận đặt bàn')}
+            {loading ? 'Đang xử lý...' : (needsDeposit && Number(depositAmount) > 0 ? 'Thanh toán cọc' : 'Xác nhận đặt bàn')}
           </button>
         </div>
       </div>

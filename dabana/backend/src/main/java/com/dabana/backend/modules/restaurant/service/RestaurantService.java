@@ -468,7 +468,10 @@ public class RestaurantService {
                 List<Booking> branchBookings30Day = bookingRepository.findByBranchIdAndCreatedAtAfter(branchId,
                                 now.minusDays(30));
                 List<Booking> bookingsForToday = branchBookings.stream()
-                                .filter(booking -> isSameDate(booking.getCreatedAt(), now))
+                                .filter(booking -> isSameDate(booking.getReservationTime(), now)
+                                                && (booking.getStatus() == BookingStatus.CONFIRMED
+                                                                || booking.getStatus() == BookingStatus.CHECKED_IN
+                                                                || booking.getStatus() == BookingStatus.COMPLETED))
                                 .toList();
 
                 long todayBooking = bookingsForToday.size();
@@ -541,8 +544,8 @@ public class RestaurantService {
 
                 List<Booking> branchBookings = bookingRepository.findByBranchId(branchId);
 
-                if (branchBookings.isEmpty()) {
-                        throw new RuntimeException("no booking found");
+                if (branchBookings == null || branchBookings.isEmpty()) {
+                        return List.of();
                 }
 
                 Map<LocalDate, List<Booking>> bookingsByDate = branchBookings.stream()

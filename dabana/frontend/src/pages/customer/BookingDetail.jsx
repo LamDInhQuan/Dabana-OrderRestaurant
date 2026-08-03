@@ -100,10 +100,15 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
                 if (deposit?.status === 'PAID') {
                     clearInterval(checkStatusTimer);
+                    try {
+                        const updatedBookingRes = await bookingApi.getById(booking.id);
+                        const updatedBooking = updatedBookingRes.data?.data || updatedBookingRes.data;
+                        if (updatedBooking) setConfirmedBooking(updatedBooking);
+                    } catch (e) {
+                        console.error("Lỗi lấy thông tin booking mới:", e);
+                    }
                     setIsPaidSuccess(true);
                     toast.success("Thanh toán thành công! Đơn giữ bàn đã được xác nhận.");
-                    // Không tự chuyển hướng nữa - card hóa đơn hiện ra và ở lại,
-                    // khách tự bấm nút "Danh sách đơn đặt" khi nào muốn rời trang.
                 }
             } catch (err) {
                 // 404 (chưa có lệnh cọc active, hoặc lệnh cũ đã CANCELLED/EXPIRED) - bỏ qua, đợi lượt poll sau.

@@ -331,7 +331,7 @@ public class BookingService implements IBookingService {
         // 3. Tao Booking - CHECKED_IN ngay, khong qua HOLDING/CONFIRMED, khong dat coc.
         Booking booking = new Booking();
         booking.setBranch(branch);
-        booking.setCustomer(staff);
+        booking.setCustomer(null);
         booking.setGuestCount(req.getGuestCount().byteValue());
         booking.setStatus(BookingStatus.CHECKED_IN);
         booking.setContactName(StringUtils.hasText(req.getContactName())
@@ -342,7 +342,7 @@ public class BookingService implements IBookingService {
                 : "N/A");
         booking.setContactEmail(StringUtils.hasText(req.getContactEmail())
                 ? req.getContactEmail()
-                : staff.getEmail());
+                : "N/A");
         booking.setNote(req.getNote());
         booking.setEstimatedTotal(BigDecimal.ZERO);
         booking.setReservationTime(LocalDateTime.now());
@@ -459,9 +459,15 @@ public class BookingService implements IBookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-        // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ
-        if (user != null && !booking.getCustomer().getId().equals(user.getId())) {
-            throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
+        // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ (nếu là đơn của khách)
+        if (user != null && booking.getCustomer() != null && !booking.getCustomer().getId().equals(user.getId())) {
+            boolean isRestaurantOwner = booking.getBranch() != null
+                    && booking.getBranch().getRestaurant() != null
+                    && booking.getBranch().getRestaurant().getOwner() != null
+                    && booking.getBranch().getRestaurant().getOwner().getId().equals(user.getId());
+            if (!isRestaurantOwner) {
+                throw new BusinessException(AuthErrorCode.ACCESS_DENIED);
+            }
         }
 
         // 3. Map dữ liệu sang BookingResponse DTO
@@ -789,6 +795,12 @@ public class BookingService implements IBookingService {
      */
     private void notifyCustomer(Booking booking, NotificationType type, String content) {
         if (booking == null || booking.getCustomer() == null) {
+            return;
+        }
+        // Khong gui thong bao cua customer (nhu moi danh gia, xac nhan...) cho chu nha hang
+        if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null
+                && booking.getBranch().getRestaurant().getOwner() != null
+                && booking.getBranch().getRestaurant().getOwner().getId().equals(booking.getCustomer().getId())) {
             return;
         }
         notificationService.sendImmediate(booking.getCustomer(), type, content, "IN_APP", booking.getBranch().getId());
