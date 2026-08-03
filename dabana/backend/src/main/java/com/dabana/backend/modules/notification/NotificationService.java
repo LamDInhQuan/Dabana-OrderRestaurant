@@ -156,7 +156,6 @@ public class NotificationService {
      * B09 Buoc 5: nhac lich hen 15-30 phut truoc gio an.
      * Chay moi 5 phut de phat hien cac don can nhac.
      */
-    @Scheduled(fixedRate = 300_000)
     @Transactional
     public void sendBookingReminders() {
         LocalDateTime now = LocalDateTime.now();
@@ -186,7 +185,6 @@ public class NotificationService {
     /**
      * B11 Buoc 5: canh bao no-show sau 15 phut qua gio hen.
      */
-//    @Scheduled(fixedRate = 60_000)
 //    @Transactional
 //    public void warnNoShow() {
 //        LocalDateTime threshold = LocalDateTime.now().minusMinutes(15);
@@ -204,7 +202,6 @@ public class NotificationService {
     /**
      * B09 BR02: retry gui lai cho cac thong bao that bai, toi da 3 lan.
      */
-    @Scheduled(fixedRate = 60_000)
     @Transactional
     public void retryFailedNotifications() {
         List<Notification> failed = notificationRepository

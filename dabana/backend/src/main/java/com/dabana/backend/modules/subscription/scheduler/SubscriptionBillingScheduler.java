@@ -69,7 +69,6 @@ public class SubscriptionBillingScheduler {
         private final NotificationService notificationService;
         private final ISubscriptionService subscriptionService;
 
-        @Scheduled(cron = "*/30 * * * * *")
         @Transactional
         public void generateRenewalInvoices() {
                 LocalDate today = LocalDate.now();
@@ -134,7 +133,6 @@ public class SubscriptionBillingScheduler {
                 }
         }
 
-        @Scheduled(cron = "*/30 * * * * *")
         @Transactional
         public void markOverdueAndStartGracePeriod() {
                 List<SubscriptionInvoice> overdueInvoices = invoiceRepository
@@ -173,7 +171,6 @@ public class SubscriptionBillingScheduler {
                 }
         }
 
-        @Scheduled(cron = "*/30 * * * * *")
         @Transactional
         public void expireAndSuspendOverLimitBranches() {
                 List<RestaurantSubscription> pastDueExpired = subscriptionRepository

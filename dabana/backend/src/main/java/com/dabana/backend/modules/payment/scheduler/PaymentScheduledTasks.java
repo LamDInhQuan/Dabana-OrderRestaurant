@@ -21,7 +21,6 @@ public class PaymentScheduledTasks {
 
     private final PayoutOrderService payoutOrderService;
 
-    @Scheduled(fixedRate = 60_000) // moi 60 giay - dieu chinh neu can nhanh/cham hon
     public void syncProcessingPayouts() {
         payoutOrderService.syncProcessingPayouts();
     }

@@ -18,7 +18,6 @@ public class DiningTableScheduledTasks {
 
     private final IDiningTableService diningTableService;
 
-    @Scheduled(fixedRate = 30_000) // Chạy định kỳ mỗi 30 giây
     public void autoReleaseCleaningTables() {
         try {
             diningTableService.autoReleaseCleaningTables();
