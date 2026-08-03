@@ -21,6 +21,12 @@ public interface RestaurantSubscriptionRepository extends JpaRepository<Restaura
     Optional<RestaurantSubscription> findFirstByRestaurant_IdAndStatusInOrderByCreatedAtDesc(
             Long restaurantId, List<SubscriptionStatus> statuses);
 
+    /** Phuc vu scheduler gia han: sap den han trong khoang [minPeriodEnd, maxPeriodEnd], con auto renew. */
+    @Query("SELECT rs FROM RestaurantSubscription rs WHERE rs.status = :status AND rs.autoRenew = true AND rs.currentPeriodEnd <= :maxPeriodEnd AND rs.currentPeriodEnd >= :minPeriodEnd")
+    List<RestaurantSubscription> findDueForRenewal(@Param("status") SubscriptionStatus status,
+                                                   @Param("maxPeriodEnd") LocalDate maxPeriodEnd,
+                                                   @Param("minPeriodEnd") LocalDate minPeriodEnd);
+
     /** Phuc vu scheduler gia han: sap den han, con auto renew. */
     List<RestaurantSubscription> findByStatusAndAutoRenewTrueAndCurrentPeriodEnd(
             SubscriptionStatus status, LocalDate periodEnd);

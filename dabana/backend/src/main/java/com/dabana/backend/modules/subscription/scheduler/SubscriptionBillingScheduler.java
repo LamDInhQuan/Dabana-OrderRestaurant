@@ -72,20 +72,18 @@ public class SubscriptionBillingScheduler {
         @Scheduled(cron = "*/30 * * * * *")
         @Transactional
         public void generateRenewalInvoices() {
-                LocalDate targetPeriodEnd = LocalDate.now().plusDays(renewalLeadDays);
+                LocalDate today = LocalDate.now();
+                LocalDate maxPeriodEnd = today.plusDays(renewalLeadDays);
 
                 List<RestaurantSubscription> dueForRenewal = subscriptionRepository
-                                .findByStatusAndAutoRenewTrueAndCurrentPeriodEnd(SubscriptionStatus.ACTIVE,
-                                                targetPeriodEnd);
+                                .findDueForRenewal(SubscriptionStatus.ACTIVE, maxPeriodEnd, today);
 
                 for (RestaurantSubscription subscription : dueForRenewal) {
                         LocalDate expectedRenewalPeriodStart = subscription.getCurrentPeriodEnd().plusDays(1);
 
                         boolean alreadyHasRenewalInvoice = invoiceRepository
-                                        .findFirstBySubscription_IdOrderByCreatedAtDesc(subscription.getId())
-                                        .filter(inv -> inv.getInvoiceType() == InvoiceType.RENEWAL
-                                                        && inv.getPeriodStart().equals(expectedRenewalPeriodStart))
-                                        .isPresent();
+                                        .existsBySubscription_IdAndInvoiceTypeAndPeriodStart(
+                                                        subscription.getId(), InvoiceType.RENEWAL, expectedRenewalPeriodStart);
                         if (alreadyHasRenewalInvoice) {
                                 continue;
                         }

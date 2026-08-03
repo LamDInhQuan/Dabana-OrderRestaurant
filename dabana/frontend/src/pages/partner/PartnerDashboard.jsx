@@ -150,7 +150,10 @@ function WaitCountdown({ expiresAt }) {
   </span>
 }
 
-function SuspendedNotice({ branchName, tabName }) {
+function SuspendedNotice({ branchName, tabName, status }) {
+  const isInactive = Number(status) === 1
+  const statusLabel = isInactive ? 'Ngừng hoạt động' : 'Tạm ngưng hoạt động'
+
   return (
     <div style={{
       background: '#FFF8F8',
@@ -185,7 +188,7 @@ function SuspendedNotice({ branchName, tabName }) {
         color: '#991B1B',
         marginBottom: '.6rem'
       }}>
-        Chi nhánh này đang tạm ngưng hoạt động
+        Chi nhánh này đang {statusLabel.toLowerCase()}
       </h2>
       <p style={{
         color: '#7F1D1D',
@@ -194,7 +197,7 @@ function SuspendedNotice({ branchName, tabName }) {
         lineHeight: 1.6,
         marginBottom: '1.5rem'
       }}>
-        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>Tạm ngưng hoạt động (Status 5)</strong>. 
+        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>{statusLabel}</strong>.
         Tính năng <strong>{tabName}</strong> và toàn bộ các thao tác liên quan tạm thời bị khóa.
       </p>
       <div style={{
@@ -245,11 +248,15 @@ export default function PartnerDashboard() {
   const [exportToDate, setExportToDate] = useState("");
   const [exportModal, setExportModal] = useState(false);
 
-  const isSuspended = Number(activeBranch?.status) === 5;
+  const branchStatus = Number(activeBranch?.status);
+  const isSuspended = branchStatus === 5;
+  const isInactive = branchStatus === 1;
+  const isBlocked = activeBranch && branchStatus !== 2;
 
   const handleTabClick = (tabId) => {
-    if (isSuspended && ['bookings', 'order_board', 'waitlist'].includes(tabId)) {
-      toast.error('Chi nhánh này đang tạm ngưng hoạt động');
+    if (isBlocked && ['bookings', 'order_board', 'waitlist'].includes(tabId)) {
+      const msg = isInactive ? 'Chi nhánh này đang ngừng hoạt động' : 'Chi nhánh này đang tạm ngưng hoạt động';
+      toast.error(msg);
     }
     setActiveTab(tabId);
   };
@@ -874,7 +881,7 @@ export default function PartnerDashboard() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem' }}>
           <div style={{ width: 760, maxWidth: '100%', background: C.white, borderRadius: 8, padding: '1rem 1.25rem', boxShadow: '0 6px 30px rgba(0,0,0,.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
-       
+
               <button onClick={() => setExportModal(false)} style={{ ...S.btnOut }}>Đóng</button>
             </div>
             <ExportExcelBar branches={branches} onClose={() => setExportModal(false)} />
@@ -984,7 +991,7 @@ export default function PartnerDashboard() {
           <div>
             <h1 style={{ fontWeight: 700, fontSize: '1.1rem', color: C.text, display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}>
               {activeMeta?.icon && <activeMeta.icon size={20} />} {activeMeta?.label}
-              {isSuspended && (
+              {isBlocked && (
                 <span style={{
                   background: '#FEE2E2',
                   color: '#B91C1C',
@@ -998,7 +1005,7 @@ export default function PartnerDashboard() {
                   marginLeft: '.5rem',
                   border: '1px solid #FECACA'
                 }}>
-                  <Ban size={12} /> Tạm ngưng hoạt động
+                  <Ban size={12} /> {isInactive ? 'Ngừng hoạt động' : isSuspended ? 'Tạm ngưng hoạt động' : 'Chưa kích hoạt'}
                 </span>
               )}
             </h1>
@@ -1145,8 +1152,8 @@ export default function PartnerDashboard() {
 
           {/* ══════ TAB BRANCH BOOKINGS LIST══════ */}
           {activeTab === 'bookings' && (
-            isSuspended ? (
-              <SuspendedNotice branchName={activeBranch?.name} tabName="Đặt bàn" />
+            isBlocked ? (
+              <SuspendedNotice branchName={activeBranch?.name} tabName="Đặt bàn" status={activeBranch?.status} />
             ) : (
               <ManageBookings branchId={activeBranch?.id} />
             )
@@ -1154,8 +1161,8 @@ export default function PartnerDashboard() {
 
           {/* ══════ GỌI MÓN (TAB GỌI MÓN - realtime bàn) ══════ */}
           {activeTab === 'order_board' && (
-            isSuspended ? (
-              <SuspendedNotice branchName={activeBranch?.name} tabName="Gọi món" />
+            isBlocked ? (
+              <SuspendedNotice branchName={activeBranch?.name} tabName="Gọi món" status={activeBranch?.status} />
             ) : (
               <OrderBoardTab orderBoard={orderBoard} />
             )
@@ -1175,8 +1182,8 @@ export default function PartnerDashboard() {
 
           {/* ══════ WAITLIST ══════ */}
           {activeTab === 'waitlist' && (
-            isSuspended ? (
-              <SuspendedNotice branchName={activeBranch?.name} tabName="Hàng chờ" />
+            isBlocked ? (
+              <SuspendedNotice branchName={activeBranch?.name} tabName="Hàng chờ" status={activeBranch?.status} />
             ) : (
               <div>
                 <div style={{ ...S.card, marginBottom: '1.25rem', background: `linear-gradient(135deg,${C.brown},${C.brownMid})` }}>
@@ -1429,7 +1436,7 @@ export default function PartnerDashboard() {
             //     </div>
             //   </div>
             // </div>
-            <PartnerReportsPage/>
+            <PartnerReportsPage />
           )}
 
           {/* ══════ NOTIFICATIONS (B09) ══════ */}

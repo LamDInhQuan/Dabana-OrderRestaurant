@@ -97,7 +97,11 @@ public class SubscriptionService implements ISubscriptionService {
     @Override
     @Transactional(readOnly = true)
     public RestaurantSubscriptionResponse getCurrentSubscription(Long restaurantId) {
-        return subscriptionMapper.toResponse(getLiveSubscriptionOrThrow(restaurantId));
+        return subscriptionRepository
+                .findFirstByRestaurant_IdAndStatusInOrderByCreatedAtDesc(restaurantId,
+                        List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE, SubscriptionStatus.EXPIRED, SubscriptionStatus.PENDING_PAYMENT))
+                .map(subscriptionMapper::toResponse)
+                .orElse(null);
     }
 
     @Override

@@ -28,6 +28,9 @@ public interface SubscriptionInvoiceRepository extends JpaRepository<Subscriptio
 
     Optional<SubscriptionInvoice> findFirstBySubscription_IdOrderByCreatedAtDesc(Long subscriptionId);
 
+    /** Kiem tra da ton tai hoa don gia han cho chu ky periodStart chua de tranh sinh trung lap. */
+    boolean existsBySubscription_IdAndInvoiceTypeAndPeriodStart(Long subscriptionId, InvoiceType invoiceType, LocalDate periodStart);
+
     /** Tim hoa don theo orderCode gui len payOS (dung cho webhook/poll). */
     Optional<SubscriptionInvoice> findByOrderCode(Long orderCode);
 
