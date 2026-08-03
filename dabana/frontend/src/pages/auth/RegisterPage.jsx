@@ -54,6 +54,23 @@ export default function RegisterPage() {
            setLoading(false);
            return;
         }
+        
+        if (licenses.length > 5) {
+           toast.error("Chỉ được tải lên tối đa 5 ảnh giấy phép kinh doanh.");
+           setLoading(false);
+           return;
+        }
+
+        // Kiểm tra kích thước từng ảnh tối đa 5 MB
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+        const oversizedFiles = licenses.filter(f => f.size > MAX_FILE_SIZE);
+        if (oversizedFiles.length > 0) {
+          toast.error(
+            `Các ảnh sau vượt quá dung lượng cho phép (tối đa 5 MB): ${oversizedFiles.map(f => f.name).join(', ')}`
+          );
+          setLoading(false);
+          return;
+        }
 
         const formData = new FormData()
         formData.append("request", JSON.stringify({
@@ -259,7 +276,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Ảnh giấy phép kinh doanh *</label>
+                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Ảnh giấy phép kinh doanh * <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(tối đa 5 ảnh, mỗi ảnh tối đa 5 MB)</span></label>
                 <input 
                   type="file" 
                   multiple 
@@ -269,7 +286,16 @@ export default function RegisterPage() {
                 />
                 {licenses.length > 0 && (
                   <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--brand)', fontWeight: 500 }}>
-                    Đã chọn {licenses.length} ảnh.
+                    Đã chọn {licenses.length} ảnh:
+                    
+                    <ul style={{ margin: '0.2rem 0 0', paddingLeft: '1.2rem', fontWeight: 400, color: 'var(--text-muted)' }}>
+                      {licenses.map((f, i) => (
+                        <li key={i} style={{ color: f.size > 5 * 1024 * 1024 ? '#e74c3c' : 'inherit' }}>
+                          {f.name} — {(f.size / (1024 * 1024)).toFixed(2)} MB
+                          {f.size > 5 * 1024 * 1024 && ' ⚠ Vượt 5 MB'}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
                 {errors.licenses && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.licenses}</span>}

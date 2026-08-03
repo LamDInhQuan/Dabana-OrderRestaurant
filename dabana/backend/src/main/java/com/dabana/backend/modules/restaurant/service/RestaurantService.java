@@ -624,21 +624,6 @@ public class RestaurantService {
                                 || status == BookingStatus.CONFIRMED;
         }
 
-        // public RestaurantResponse Register(RestaurantRegisterRequest request, Long ownerId) {
-        //         Restaurant restaurant = new Restaurant();
-        //         User user = userRepository.findById(ownerId)
-        //                         .orElseThrow(() -> new RuntimeException("cannot found owner for id: " + ownerId));
-        //         if (!restaurantRepos.findByOwnerUserId(ownerId).isEmpty()) {
-        //                 throw new RuntimeException("owner already registered");
-        //         }
-        //         restaurant = restaurantMapper.toEntity(request);
-        //         restaurant.setOwner(user);
-
-        //         restaurant.setApprovalStatus(ApprovalStatus.PENDING);
-
-        //         return restaurantMapper.toResponse(restaurantRepos.save(restaurant));
-        // }
-
         private double roundUp(Double d) {
                 if (d == null) {
                         return 0.0;
@@ -647,18 +632,34 @@ public class RestaurantService {
                 return bd.doubleValue();
         }
 
+        @Transactional
         public List<RestaurantLicensesDto> uploadLicenses(Long ownerId, List<MultipartFile> files) {
                 Restaurant restaurant = restaurantRepos.findByOwnerUserId(ownerId)
                                 .orElseThrow(() -> new RuntimeException("Restaurant not found for ownerId: " + ownerId));
 
+                if (files.size() > 5) {
+                        throw new RuntimeException("Chỉ được tải lên tối đa 5 file.");
+                }
+
+                // Giới hạn kích thước mỗi file tối đa 5 MB
+                final long MAX_FILE_SIZE = 5L * 1024 * 1024; // 5 MB
+
                 // Các content type hình ảnh được chấp nhận
                 Set<String> allowedImageTypes = Set.of(
-                        "image/jpeg", "image/png", 
-                        "image/bmp", "image/webp", "image/svg+xml"
+                        "image/jpeg", "image/png",
+                        "image/bmp", "image/webp"
                 );
 
                 List<RestaurantLicense> licenses = new ArrayList<>();
                 for (MultipartFile file : files) {
+                        // Kiểm tra kích thước file
+                        if (file.getSize() > MAX_FILE_SIZE) {
+                                throw new RuntimeException(
+                                        "File '" + file.getOriginalFilename() + "' vượt quá dung lượng cho phép. "
+                                        + "Kích thước tối đa là 5 MB, file hiện tại: "
+                                        + String.format("%.2f", file.getSize() / (1024.0 * 1024)) + " MB");
+                        }
+
                         // Detect content type từ magic bytes của file (không phụ thuộc client)
                         String contentType;
                         try {
@@ -675,7 +676,7 @@ public class RestaurantService {
                         if (contentType == null || !allowedImageTypes.contains(contentType.toLowerCase())) {
                                 throw new RuntimeException(
                                         "File '" + file.getOriginalFilename() + "' không phải định dạng hình ảnh hợp lệ. "
-                                        + "Chỉ chấp nhận: JPEG, PNG, BMP, WEBP, SVG. "
+                                        + "Chỉ chấp nhận: JPEG, PNG, BMP, WEBP "
                                         + "File type nhận được: " + contentType);
                         }
 
@@ -685,7 +686,7 @@ public class RestaurantService {
                         try {
                                 license.setImage(new SerialBlob(file.getBytes()));
                         } catch (Exception e) {
-                                throw new RuntimeException("Error saving file", e);
+                                throw new RuntimeException("Error saving file: " + file.getOriginalFilename(), e);
                         }
                         license.setRestaurant(restaurant);
                         licenses.add(license);

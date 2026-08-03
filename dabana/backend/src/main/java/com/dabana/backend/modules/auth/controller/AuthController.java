@@ -6,7 +6,6 @@ import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.modules.auth.dto.request.*;
 import com.dabana.backend.modules.auth.service.OtpService;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
-import com.dabana.backend.modules.restaurant.service.RestaurantService;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
 import com.dabana.backend.security.CurrentUserProvider;
@@ -35,7 +34,6 @@ public class AuthController {
     private final AuthService authService;
     private final OtpService otpService;
     private final CurrentUserProvider currentUserProvider;
-    private final RestaurantService restaurantService;
 
     @PostMapping("/register/customer")
     public ResponseEntity<ApiResponse<UserResponse>> registerCustomer(@Valid @RequestBody RegisterAccountRequest request) {
@@ -55,8 +53,9 @@ public class AuthController {
         RegisterAccountRequest registerAccountRequest = mapper.readValue(requestjson, RegisterAccountRequest.class);
         RestaurantRegisterRequest restaurantRegisterRequest = mapper.readValue(restaurantRegisterRequestJson, RestaurantRegisterRequest.class);
 
-        UserResponse userResponse = authService.registerPartner(registerAccountRequest,restaurantRegisterRequest);
-        restaurantService.uploadLicenses(userResponse.getId(),licenses);
+        // uploadLicenses được gọi bên trong registerPartner cùng transaction
+        // -> rollback toàn bộ (user + restaurant + licenses) nếu có lỗi
+        UserResponse userResponse = authService.registerPartner(registerAccountRequest, restaurantRegisterRequest, licenses);
 
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.CREATED, userResponse));
     }

@@ -32,6 +32,15 @@ spring:
         format_sql: false
         dialect: org.hibernate.dialect.MySQLDialect
 
+  servlet:
+
+    multipart:
+      enabled: true
+
+      max-file-size: 5MB      # Giới hạn mỗi file tối đa 5 MB
+      max-request-size: 25MB  # Tổng request (nhiều file) tối đa 25 MB
+
+
   jackson:
     time-zone: Asia/Ho_Chi_Minh
     date-format: yyyy-MM-dd'T'HH:mm:ss
