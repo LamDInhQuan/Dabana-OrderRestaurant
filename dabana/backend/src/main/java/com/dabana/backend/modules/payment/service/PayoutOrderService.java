@@ -36,11 +36,13 @@ import java.util.UUID;
 
 /**
  * API that su cua SDK (xac nhan qua source github.com/payOSHQ/payos-lib-java):
- *   client.payouts().create(PayoutRequests, String idempotencyKey) -> Payout
+ * client.payouts().create(PayoutRequests, String idempotencyKey) -> Payout
  *
- * LUU Y VE ENUM: enum that su cua SDK (PayoutTransactionState, PayoutApprovalState
+ * LUU Y VE ENUM: enum that su cua SDK (PayoutTransactionState,
+ * PayoutApprovalState
  * trong package vn.payos.model.v1.payouts) co NHIEU gia tri hon enum rut gon
- * PayoutState/PayoutApprovalState cua Dabana (com.dabana.backend.modules.payment.util).
+ * PayoutState/PayoutApprovalState cua Dabana
+ * (com.dabana.backend.modules.payment.util).
  * 2 ham mapSdkState()/mapSdkApprovalState() ben duoi quy doi ve enum rut gon
  * cua minh - neu can giu nguyen 100% chi tiet tu payOS thi nen mo rong enum/
  * cot DB thay vi mapping (bao em neu muon doi huong nay).
@@ -58,12 +60,12 @@ public class PayoutOrderService {
     private final PayoutOrderMapper payoutOrderMapper;
 
     public PayoutOrderService(PayoutOrderRepository payoutOrderRepository,
-                               RefundBankInfoRepository refundBankInfoRepository,
-                               BranchBankAccountRepository branchBankAccountRepository,
-                               DepositPaymentRepository depositPaymentRepository,
-                               BookingRepository bookingRepository,
-                               PayosClientProvider payosClientProvider,
-                               PayoutOrderMapper payoutOrderMapper) {
+            RefundBankInfoRepository refundBankInfoRepository,
+            BranchBankAccountRepository branchBankAccountRepository,
+            DepositPaymentRepository depositPaymentRepository,
+            BookingRepository bookingRepository,
+            PayosClientProvider payosClientProvider,
+            PayoutOrderMapper payoutOrderMapper) {
         this.payoutOrderRepository = payoutOrderRepository;
         this.refundBankInfoRepository = refundBankInfoRepository;
         this.branchBankAccountRepository = branchBankAccountRepository;
@@ -73,7 +75,7 @@ public class PayoutOrderService {
         this.payoutOrderMapper = payoutOrderMapper;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public PayoutOrderResponse createPayoutOrder(CreatePayoutOrderRequest request, User requestedBy) {
         Booking booking = bookingRepository.findById(request.getReservationId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.RESERVATION_NOT_FOUND));
@@ -112,7 +114,8 @@ public class PayoutOrderService {
         String idempotencyKey = "refund_" + booking.getId() + "_" + UUID.randomUUID();
         String referenceId = "REFUND-" + booking.getId() + "-" + System.currentTimeMillis();
         String description = request.getDescription() != null
-                ? request.getDescription() : "Hoan coc dat ban " + booking.getId();
+                ? request.getDescription()
+                : "Hoan coc dat ban " + booking.getId();
         String category = request.getCategory() != null ? request.getCategory() : "refund_deposit";
 
         Payout payosResponse;
@@ -131,7 +134,8 @@ public class PayoutOrderService {
             throw new BusinessException(PaymentErrorCode.PAYOS_CREATE_PAYOUT_FAILED);
         }
 
-        PayoutTransaction firstTxn = payosResponse.getTransactions().get(0);
+        PayoutTransaction firstTxn = (payosResponse.getTransactions() != null && !payosResponse.getTransactions().isEmpty())
+                ? payosResponse.getTransactions().get(0) : null;
 
         PayoutOrder entity = new PayoutOrder();
         entity.setReservation(booking);
@@ -147,17 +151,23 @@ public class PayoutOrderService {
         entity.setRequestedBy(requestedBy);
 
         entity.setPayosPayoutId(payosResponse.getId());
-        entity.setPayosTransactionId(firstTxn.getId());
-        entity.setToAccountName(firstTxn.getToAccountName());
-        PayoutState mappedState = mapSdkState(firstTxn.getState());
+        if (firstTxn != null) {
+            entity.setPayosTransactionId(firstTxn.getId());
+            entity.setToAccountName(firstTxn.getToAccountName());
+        }
+
+        PayoutState mappedState = firstTxn != null ? mapSdkState(firstTxn.getState()) : mapSdkState(null);
+        PayoutApprovalState mappedApprovalState = mapSdkApprovalState(payosResponse.getApprovalState());
+        if (mappedApprovalState == PayoutApprovalState.SUCCEEDED) {
+            mappedState = PayoutState.SUCCEEDED;
+        }
+
         entity.setState(mappedState);
-        entity.setApprovalState(mapSdkApprovalState(payosResponse.getApprovalState()));
+        entity.setApprovalState(mappedApprovalState);
 
         entity = payoutOrderRepository.save(entity);
 
-        // Dong bo refundStatus cua booking theo ket qua tao lenh chi. Neu payOS
-        // van dang xu ly (PROCESSING) thi giu nguyen PENDING - PaymentScheduledTasks
-        // (chay dinh ky) se tu poll va cap nhat SUCCESS/FAILED sau (xem syncProcessingPayouts()).
+        // Dong bo refundStatus cua booking theo ket qua tao lenh chi
         if (mappedState == PayoutState.SUCCEEDED) {
             booking.setRefundStatus(RefundStatus.SUCCESS);
             bookingRepository.save(booking);
@@ -191,7 +201,8 @@ public class PayoutOrderService {
      */
     @Transactional
     public void syncProcessingPayouts() {
-        List<PayoutOrder> processing = payoutOrderRepository.findByState(PayoutState.PROCESSING);
+        List<PayoutOrder> processing = payoutOrderRepository.findPendingOrProcessing(
+                PayoutState.PROCESSING, RefundStatus.PENDING);
         for (PayoutOrder entity : processing) {
             try {
                 syncOnePayout(entity);
@@ -202,18 +213,22 @@ public class PayoutOrderService {
         }
     }
 
-    private void syncOnePayout(PayoutOrder entity) {
+    public void syncOnePayout(PayoutOrder entity) {
+        Booking booking = entity.getReservation();
+        if (entity.getState() == PayoutState.SUCCEEDED || entity.getApprovalState() == PayoutApprovalState.SUCCEEDED) {
+            if (booking.getRefundStatus() != RefundStatus.SUCCESS) {
+                booking.setRefundStatus(RefundStatus.SUCCESS);
+                bookingRepository.save(booking);
+                log.info("Dong bo ngay: bookingId={} refundStatus=SUCCESS tu PayoutOrder da thanh cong", booking.getId());
+            }
+            return;
+        }
+
         if (entity.getPayosPayoutId() == null) {
             return;
         }
-        Booking booking = entity.getReservation();
         PayOS client = payosClientProvider.getPayoutClientForBranch(booking.getBranch().getId());
 
-        // LUU Y: chua the xac minh chinh xac ten method cua SDK payos-lib-java cho
-        // GET /v1/payouts/{payoutId} (khong co jar SDK trong moi truong nay de doc
-        // truc tiep) - dua theo cung pattern voi client.payouts().create(...) da
-        // dung o createPayoutOrder(). Neu ten method thuc te khac (vd .retrieve()
-        // thay vi .get()), chi can sua dong duoi day, phan con lai giu nguyen.
         Payout payosResponse;
         try {
             payosResponse = client.payouts().get(entity.getPayosPayoutId());
@@ -223,18 +238,19 @@ public class PayoutOrderService {
             return;
         }
 
-        PayoutTransaction firstTxn = payosResponse.getTransactions().get(0);
-        PayoutState newState = mapSdkState(firstTxn.getState());
+        PayoutTransaction firstTxn = (payosResponse.getTransactions() != null && !payosResponse.getTransactions().isEmpty())
+                ? payosResponse.getTransactions().get(0) : null;
+        PayoutState newState = firstTxn != null ? mapSdkState(firstTxn.getState()) : mapSdkState(null);
         PayoutApprovalState newApprovalState = mapSdkApprovalState(payosResponse.getApprovalState());
 
-        boolean changed = newState != entity.getState() || newApprovalState != entity.getApprovalState();
+        if (newApprovalState == PayoutApprovalState.SUCCEEDED) {
+            newState = PayoutState.SUCCEEDED;
+        }
+
         entity.setState(newState);
         entity.setApprovalState(newApprovalState);
-        if (firstTxn.getToAccountName() != null) {
+        if (firstTxn != null && firstTxn.getToAccountName() != null) {
             entity.setToAccountName(firstTxn.getToAccountName());
-        }
-        if (!changed) {
-            return;
         }
         payoutOrderRepository.save(entity);
 
@@ -251,47 +267,50 @@ public class PayoutOrderService {
         }
     }
 
-    /** Quy doi vn.payos.model.v1.payouts.PayoutTransactionState (SDK) -> PayoutState (Dabana). */
-    private PayoutState mapSdkState(vn.payos.model.v1.payouts.PayoutTransactionState sdkState) {
+    /** Quy doi trang thai SDK -> PayoutState (Dabana). */
+    private PayoutState mapSdkState(Object sdkState) {
         if (sdkState == null) {
             return PayoutState.PROCESSING;
         }
-        switch (sdkState) {
-            case SUCCEEDED:
+        String name = String.valueOf(sdkState).trim().toUpperCase();
+        switch (name) {
+            case "SUCCEEDED":
+            case "COMPLETED":
                 return PayoutState.SUCCEEDED;
-            case CANCELLED:
+            case "CANCELLED":
                 return PayoutState.CANCELLED;
-            case FAILED:
-            case REVERSED:
+            case "FAILED":
+            case "REVERSED":
                 return PayoutState.FAILED;
-            case RECEIVED:
-            case PROCESSING:
-            case ON_HOLD:
+            case "RECEIVED":
+            case "PROCESSING":
+            case "ON_HOLD":
             default:
                 return PayoutState.PROCESSING;
         }
     }
-
-    /** Quy doi vn.payos.model.v1.payouts.PayoutApprovalState (SDK) -> PayoutApprovalState (Dabana). */
-    private PayoutApprovalState mapSdkApprovalState(vn.payos.model.v1.payouts.PayoutApprovalState sdkState) {
+    /** Quy doi trang thai SDK -> PayoutApprovalState (Dabana). */
+    private PayoutApprovalState mapSdkApprovalState(Object sdkState) {
         if (sdkState == null) {
             return PayoutApprovalState.PROCESSING;
         }
-        switch (sdkState) {
-            case COMPLETED:
+        String name = String.valueOf(sdkState).trim().toUpperCase();
+        switch (name) {
+            case "COMPLETED":
+            case "SUCCEEDED":
                 return PayoutApprovalState.SUCCEEDED;
-            case REJECTED:
+            case "REJECTED":
                 return PayoutApprovalState.REJECTED;
-            case FAILED:
+            case "FAILED":
                 return PayoutApprovalState.FAILED;
-            case CANCELLED:
+            case "CANCELLED":
                 return PayoutApprovalState.REJECTED; // khong co CANCELLED rieng trong enum rut gon
-            case DRAFTING:
-            case SUBMITTED:
-            case APPROVED:
-            case SCHEDULED:
-            case PROCESSING:
-            case PARTIAL_COMPLETED:
+            case "DRAFTING":
+            case "SUBMITTED":
+            case "APPROVED":
+            case "SCHEDULED":
+            case "PROCESSING":
+            case "PARTIAL_COMPLETED":
             default:
                 return PayoutApprovalState.PROCESSING;
         }

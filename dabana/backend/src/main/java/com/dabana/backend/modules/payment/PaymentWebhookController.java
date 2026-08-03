@@ -269,7 +269,7 @@ public class PaymentWebhookController {
 
             if (isRefundSuccess) {
                 // Cập nhật trạng thái đơn thành đã hủy hoàn tất sau khi refund thành công
-                booking.setStatus(BookingStatus.REFUNDED); // hoặc CANCELLED_BY_RESTAURANT tùy luồng
+                booking.setRefundStatus(com.dabana.backend.modules.booking.util.RefundStatus.SUCCESS);
                 bookingRepository.save(booking);
 
                 // TODO: (Tùy chọn) Cập nhật thêm bảng/trạng thái hoàn tiền riêng nếu bạn có bảng booking_refunds

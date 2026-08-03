@@ -91,6 +91,7 @@ public class BookingDtos {
         private BigDecimal refundAmount;
         private BigDecimal penaltyAmount;
         private String refundStatus;
+        private Boolean hasRefundBankInfo;
         private LocalDateTime cancelledAt;
         private String cancelReason;
         private LocalDateTime confirmedAt;

@@ -729,6 +729,15 @@ public class BookingService implements IBookingService {
         }
 
         BigDecimal paidAmount = paidDepositOpt.get().getAmountPaid();
+
+        // Neu nha hang chu dong huy don -> Luon hoan 100% tien coc cho khach
+        if (booking.getStatus() == BookingStatus.CANCELLED_BY_RESTAURANT) {
+            booking.setRefundAmount(paidAmount);
+            booking.setPenaltyAmount(BigDecimal.ZERO);
+            booking.setRefundStatus(paidAmount.compareTo(BigDecimal.ZERO) > 0 ? RefundStatus.PENDING : RefundStatus.NONE);
+            return;
+        }
+
         BigDecimal refundPercent = resolveRefundPercent(booking, booking.getPolicySnapshot());
 
         BigDecimal refundAmount = paidAmount

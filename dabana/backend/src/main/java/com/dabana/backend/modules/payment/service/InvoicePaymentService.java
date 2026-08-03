@@ -25,12 +25,14 @@ import java.math.BigDecimal;
 
 /**
  * Tao/tra cuu QR thanh toan HOA DON CUOI BUOI qua payOS - dung lai
- * PayosClientProvider (client rieng cho tung branch) GIONG DepositPaymentService,
+ * PayosClientProvider (client rieng cho tung branch) GIONG
+ * DepositPaymentService,
  * nhung KHONG PERSIST gi vao DB (khong co bang rieng, khong dung
  * pm_deposit_payments de tranh lam sai lech InvoiceService.resolveDepositPaid()
  * dang doc bang do de tinh "coc da thu").
  *
- * Trang thai duoc hoi TRUC TIEP tu payOS moi lan poll (client.paymentRequests().get()),
+ * Trang thai duoc hoi TRUC TIEP tu payOS moi lan poll
+ * (client.paymentRequests().get()),
  * khong qua webhook/DB trung gian - orderCode chi song trong session cua modal
  * thanh toan o FE. Sau khi FE thay status=PAID, nhan vien bam "Xac nhan" de goi
  * BookingService.checkOut() nhu binh thuong, hoan tat tao rs_invoices.
@@ -87,7 +89,7 @@ public class InvoicePaymentService {
 
         CreatePaymentLinkRequest payload = CreatePaymentLinkRequest.builder()
                 .orderCode(orderCode)
-                .amount(2000L)
+                .amount(amount.longValue())
                 .description(description)
                 .buyerName(booking.getContactName())
                 .buyerPhone(booking.getContactPhone())
@@ -119,7 +121,10 @@ public class InvoicePaymentService {
                 .build();
     }
 
-    /** FE poll endpoint nay (hoi thang payOS, khong qua DB) de biet khach da quet QR xong chua. */
+    /**
+     * FE poll endpoint nay (hoi thang payOS, khong qua DB) de biet khach da quet QR
+     * xong chua.
+     */
     public InvoicePaymentResponse getStatus(Long reservationId, Long orderCode) {
         Booking booking = bookingRepository.findById(reservationId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.RESERVATION_NOT_FOUND));
@@ -140,7 +145,8 @@ public class InvoicePaymentService {
                 .amount(BigDecimal.valueOf(info.getAmount()))
                 .status(String.valueOf(info.getStatus()))
                 .amountPaid(info.getAmountPaid() != null ? BigDecimal.valueOf(info.getAmountPaid()) : BigDecimal.ZERO)
-                .amountRemaining(info.getAmountRemaining() != null ? BigDecimal.valueOf(info.getAmountRemaining()) : null)
+                .amountRemaining(
+                        info.getAmountRemaining() != null ? BigDecimal.valueOf(info.getAmountRemaining()) : null)
                 .build();
     }
 }

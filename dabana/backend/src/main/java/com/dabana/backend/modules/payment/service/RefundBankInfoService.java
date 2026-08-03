@@ -62,21 +62,29 @@ public class RefundBankInfoService {
         entity.setAccountNumber(request.getAccountNumber());
         entity.setAccountHolderName(request.getAccountHolderName());
 
-        entity = refundBankInfoRepository.save(entity);
+        entity = refundBankInfoRepository.saveAndFlush(entity);
 
-        // Neu booking da bi huy va refundStatus dang o trang thai PENDING va chua co PayoutOrder
-        // -> Tu dong goi PayOS tao lenh chi hoan coc ngay lap tuc
+        // Neu booking da bi huy va refundStatus dang o trang thai PENDING
         if (booking.getRefundStatus() == RefundStatus.PENDING
-                && !payoutOrderRepository.existsByReservation_Id(booking.getId())
                 && booking.getRefundAmount() != null
                 && booking.getRefundAmount().compareTo(BigDecimal.ZERO) > 0) {
-            try {
-                CreatePayoutOrderRequest payoutReq = new CreatePayoutOrderRequest();
-                payoutReq.setReservationId(booking.getId());
-                payoutOrderService.createPayoutOrder(payoutReq, null);
-                log.info("Da tu dong tao lenh chi hoan coc PayOS sau khi khach nhap thong tin ngan hang cho bookingId={}", booking.getId());
-            } catch (Exception e) {
-                log.warn("Chua the tu dong tao lenh chi PayOS ngay cho bookingId={}: {}", booking.getId(), e.getMessage());
+            if (!payoutOrderRepository.existsByReservation_Id(booking.getId())) {
+                try {
+                    CreatePayoutOrderRequest payoutReq = new CreatePayoutOrderRequest();
+                    payoutReq.setReservationId(booking.getId());
+                    payoutOrderService.createPayoutOrder(payoutReq, null);
+                    log.info("Da tu dong tao lenh chi hoan coc PayOS sau khi khach nhap thong tin ngan hang cho bookingId={}", booking.getId());
+                } catch (Exception e) {
+                    log.warn("Chua the tu dong tao lenh chi PayOS ngay cho bookingId={}: {}", booking.getId(), e.getMessage());
+                }
+            } else {
+                try {
+                    payoutOrderRepository.findByReservation_Id(booking.getId())
+                            .ifPresent(payoutOrderService::syncOnePayout);
+                    log.info("Da dong bo trang thai lenh chi PayOS cho bookingId={}", booking.getId());
+                } catch (Exception e) {
+                    log.warn("Chua the dong bo lai lenh chi PayOS cho bookingId={}: {}", booking.getId(), e.getMessage());
+                }
             }
         }
 

@@ -9,6 +9,8 @@ import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import com.dabana.backend.modules.admin.service.ISystemPolicyService;
 import com.dabana.backend.modules.booking.BookingStatus;
 import com.dabana.backend.modules.booking.dto.PolicySnapshotDto;
+import com.dabana.backend.modules.booking.util.RefundStatus;
+import com.dabana.backend.modules.payment.repository.RefundBankInfoRepository;
 import com.dabana.backend.modules.reservation_policy.util.DepositType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,7 @@ public class BookingMapper {
     private final BookingItemMapper bookingItemMapper;
     private final DiningTableMapper diningTableMapper;
     private final ISystemPolicyService systemPolicyService;
+    private final RefundBankInfoRepository refundBankInfoRepository;
 
     public Booking toEntity(
             BookingDtos.CreateHoldRequest request,
@@ -66,6 +69,11 @@ public class BookingMapper {
                         .multiply(BigDecimal.valueOf(i.getQuantity() != null ? i.getQuantity() : 1)))
                 .reduce(BigDecimal.ZERO, BigDecimal::add) : BigDecimal.ZERO;
 
+        boolean hasRefundBankInfo = false;
+        if (booking.getId() != null && booking.getRefundStatus() != null && booking.getRefundStatus() != RefundStatus.NONE) {
+            hasRefundBankInfo = refundBankInfoRepository.existsByReservation_Id(booking.getId());
+        }
+
         return BookingDtos.BookingResponse.builder()
                 .id(booking.getId())
                 .restaurantName(booking.getBranch().getRestaurant().getRestaurantName())
@@ -96,6 +104,7 @@ public class BookingMapper {
                 .refundAmount(booking.getRefundAmount())
                 .penaltyAmount(booking.getPenaltyAmount())
                 .refundStatus(booking.getRefundStatus() != null ? booking.getRefundStatus().name() : null)
+                .hasRefundBankInfo(hasRefundBankInfo)
                 .cancelledAt(booking.getCancelledAt())
                 .cancelReason(booking.getCancelReason())
                 .confirmedAt(confirmedAt)

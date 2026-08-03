@@ -14,9 +14,11 @@ import org.springframework.stereotype.Component;
  * Master Scheduler tập trung quản lý toàn bộ các tác vụ định kỳ trong hệ thống.
  * 
  * Ưu điểm:
- * 1. Chạy tuần tự trên 1 luồng (single thread), chỉ chiếm tối đa 1 connection DB tại một thời điểm.
+ * 1. Chạy tuần tự trên 1 luồng (single thread), chỉ chiếm tối đa 1 connection
+ * DB tại một thời điểm.
  * 2. Tránh cạn kiệt Connection Pool (HikariCP) và giảm tải CPU/RAM cho VPS.
- * 3. Bọc try-catch độc lập cho từng tác vụ để tránh 1 lỗi làm gián đoạn toàn bộ hệ thống.
+ * 3. Bọc try-catch độc lập cho từng tác vụ để tránh 1 lỗi làm gián đoạn toàn bộ
+ * hệ thống.
  */
 @Component
 @RequiredArgsConstructor
@@ -30,7 +32,8 @@ public class SystemMasterScheduler {
     private final SubscriptionBillingScheduler subscriptionBillingScheduler;
 
     /**
-     * Tác vụ thời gian thực: Chạy mỗi 60 giây (bắt đầu sau khi server khởi động 10 giây).
+     * Tác vụ thời gian thực: Chạy mỗi 60 giây (bắt đầu sau khi server khởi động 10
+     * giây).
      */
     @Scheduled(fixedRate = 60_000, initialDelay = 10_000)
     public void runRealtimeTasks() {
@@ -87,10 +90,11 @@ public class SystemMasterScheduler {
     }
 
     /**
-     * Tác vụ Subscription / Gói dịch vụ: Chạy mỗi 5 phút (bắt đầu sau khi server khởi động 30 giây).
+     * Tác vụ Subscription / Gói dịch vụ: Chạy mỗi 5 phút (bắt đầu sau khi server
+     * khởi động 30 giây).
      * Không cần chạy mỗi 30s vì hóa đơn gói dịch vụ tính theo chu kỳ ngày/tháng.
      */
-    @Scheduled(fixedRate = 300_000, initialDelay = 30_000)
+    @Scheduled(fixedRate = 30_000, initialDelay = 30_000)
     public void runSubscriptionBillingTasks() {
         log.debug("[MasterScheduler] Bắt đầu chu kỳ tác vụ Subscription");
 

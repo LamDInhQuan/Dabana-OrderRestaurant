@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { bookingApi, reviewApi } from '../../api'
-import { ClipboardList, Armchair, Users, Clock, Wallet, CreditCard, ReceiptText, Star, ShieldCheck, Landmark } from 'lucide-react'
+import { ClipboardList, Armchair, Users, Clock, Wallet, CreditCard, ReceiptText, Star, ShieldCheck, Landmark, RefreshCw } from 'lucide-react'
 import wsService from '../../api/socket'
 
 // Import các modal đã được tách ra file riêng
@@ -22,6 +22,11 @@ const STATUS_META = {
   NO_SHOW: { label: 'Không đến', badge: 'badge-red' },
   EXPIRED: { label: 'Hết hạn', badge: 'badge-gray' },
   PENDING_NO_SHOW: { label: 'Chờ xác nhận đến', badge: 'badge-yellow' },
+}
+
+const getBookingDeposit = (booking) => {
+  if (!booking) return 0
+  return Number(booking.depositAmount || booking.totalPreOrderAmount || booking.refundAmount || 0)
 }
 
 export default function MyBookings() {
@@ -247,7 +252,52 @@ export default function MyBookings() {
                         Đã hoàn <strong>{Number(b.refundAmount || b.depositAmount || 0).toLocaleString('vi-VN')}₫</strong> tiền cọc về tài khoản ngân hàng của bạn thành công qua PayOS.
                       </span>
                     </div>
-                  ) : b.status === 'CANCELLED_BY_RESTAURANT' && (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0) ? (
+                  ) : b.hasRefundBankInfo && (b.refundStatus === 'PENDING' || (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0)) ? (
+                    <div style={{
+                      background: '#EFF6FF',
+                      border: '1.5px solid #BFDBFE',
+                      borderRadius: 8,
+                      padding: '.75rem 1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '.75rem',
+                      marginBottom: '.875rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontSize: '.83rem', color: '#1E40AF' }}>
+                        <RefreshCw size={18} color="#2563EB" style={{ flexShrink: 0 }} />
+                        <div>
+                          <span style={{ fontWeight: 700 }}>
+                            {b.status === 'CANCELLED_BY_RESTAURANT' ? 'Nhà hàng đã huỷ đơn' : 'Đơn đặt bàn đã huỷ'} • Đang xử lý hoàn cọc {Number(b.status === 'CANCELLED_BY_RESTAURANT' ? (getBookingDeposit(b) || b.refundAmount || 0) : (b.refundAmount || getBookingDeposit(b) || 0)).toLocaleString('vi-VN')}₫
+                          </span>
+                          <div style={{ fontSize: '.75rem', color: '#3B82F6', marginTop: 1 }}>
+                            Đã nhận STK. Hệ thống đang tự động chuyển tiền hoàn cọc qua PayOS.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRefundModalBooking(b);
+                        }}
+                        style={{
+                          padding: '.4rem .85rem',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: '#2563EB',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: '.78rem',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        Sửa STK nhận tiền
+                      </button>
+                    </div>
+                  ) : (b.refundStatus === 'PENDING' || (b.status === 'CANCELLED_BY_RESTAURANT' && (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0))) ? (
                     <div style={{
                       background: '#FFFBEB',
                       border: '1.5px solid #FDE68A',
@@ -263,7 +313,7 @@ export default function MyBookings() {
                         <Landmark size={18} color="#D97706" style={{ flexShrink: 0 }} />
                         <div>
                           <span style={{ fontWeight: 700 }}>
-                            Nhà hàng đã huỷ đơn • Cần hoàn cọc {Number(b.refundAmount || b.depositAmount || 0).toLocaleString('vi-VN')}₫
+                            {b.status === 'CANCELLED_BY_RESTAURANT' ? 'Nhà hàng đã huỷ đơn' : 'Đơn đặt bàn đã huỷ'} • Cần hoàn cọc {Number(b.status === 'CANCELLED_BY_RESTAURANT' ? (getBookingDeposit(b) || b.refundAmount || 0) : (b.refundAmount || getBookingDeposit(b) || 0)).toLocaleString('vi-VN')}₫
                           </span>
                           <div style={{ fontSize: '.75rem', color: '#B45309', marginTop: 1 }}>
                             Vui lòng nhập tài khoản ngân hàng để hệ thống tự động hoàn tiền qua PayOS.
@@ -291,29 +341,6 @@ export default function MyBookings() {
                       >
                         Nhập STK nhận tiền
                       </button>
-                    </div>
-                  ) : b.refundStatus === 'PENDING' && (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0) ? (
-                    <div style={{
-                      background: '#EFF6FF',
-                      border: '1px solid #BFDBFE',
-                      borderRadius: 8,
-                      padding: '.65rem .85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '.5rem',
-                      fontSize: '.82rem',
-                      color: '#1E40AF',
-                      marginBottom: '.875rem'
-                    }}>
-                      <Landmark size={18} color="#2563EB" style={{ flexShrink: 0 }} />
-                      <div>
-                        <span style={{ fontWeight: 700 }}>
-                          Đơn đặt bàn đã huỷ • Đang xử lý hoàn cọc {Number(b.refundAmount || b.depositAmount || 0).toLocaleString('vi-VN')}₫
-                        </span>
-                        <div style={{ fontSize: '.74rem', color: '#3B82F6', marginTop: 1 }}>
-                          Hệ thống đang tự động chuyển tiền về tài khoản ngân hàng bạn đã cung cấp qua PayOS.
-                        </div>
-                      </div>
                     </div>
                   ) : null
                 )}
@@ -345,20 +372,7 @@ export default function MyBookings() {
                     </button>
                   )}
 
-                  {/* Nút nhập STK chỉ hiển thị cho trường hợp Nhà hàng huỷ và chưa hoàn tiền */}
-                  {b.status === 'CANCELLED_BY_RESTAURANT' && b.refundStatus !== 'SUCCESS' && (Number(b.refundAmount) > 0 || Number(b.depositAmount) > 0) && (
-                    <button
-                      type="button"
-                      className="btn-outline btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRefundModalBooking(b);
-                      }}
-                      style={{ borderColor: '#F59E0B', color: '#B45309', background: '#FFFBEB' }}
-                    >
-                      <Landmark size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} /> Nhập STK hoàn tiền
-                    </button>
-                  )}
+
 
                   {canCancel && (
                     <button className="btn-danger btn-sm" onClick={(e) => handleOpenCancelModal(b, e)}>

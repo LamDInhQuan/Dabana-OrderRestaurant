@@ -206,7 +206,7 @@ export default function ManageBookings({ branchId }) {
     setCurrentPage(1)
   }, [filter, typeFilter, dateFilter])
 
-  // Xử lý mở Modal hủy đơn
+  // Xử lý mở Modal hủy đơn từ phía nhà hàng
   const handleOpenCancelModal = (booking) => {
     setSelectedBookingForCancel(booking)
 
@@ -217,34 +217,14 @@ export default function ManageBookings({ branchId }) {
     const minHours = restaurantCancelPolicy?.enabled ? (restaurantCancelPolicy.minHoursBeforeReservation ?? 24) : 0
     const isTooLate = restaurantCancelPolicy?.enabled && diffHours > 0 && diffHours < minHours
 
-    const snapshot = booking.policySnapshotDto || booking.policySnapshot
-    const hasPolicy = snapshot && (
-      snapshot.freeCancellationHours !== null ||
-      snapshot.freeRefundPercent !== null ||
-      snapshot.lateRefundPercent !== null ||
-      snapshot.noShowRefundPercent !== null
-    )
-
     const deposit = getBookingDeposit(booking)
+    const hasDeposit = Number(deposit) > 0
 
-    if (hasPolicy && Number(deposit) > 0) {
-      let refundPercent = 0
-      let ruleType = ''
-      const freeHours = snapshot.freeCancellationHours || 0
-
-      if (booking.inGracePeriod) {
-        refundPercent = 100
-        const remMins = Math.max(1, Math.ceil((booking.gracePeriodRemainingSeconds || 0) / 60))
-        ruleType = `Chính sách ân hạn Dabana (Vừa CONFIRMED, còn ~${remMins} phút ân hạn)`
-      } else if (diffHours >= freeHours) {
-        refundPercent = snapshot.freeRefundPercent || 0
-        ruleType = `Trước giờ hẹn trên ${freeHours} tiếng (Miễn phí / Hoàn tiền theo chính sách)`
-      } else {
-        refundPercent = snapshot.lateRefundPercent || 0
-        ruleType = `Hủy muộn (Dưới ${freeHours} tiếng trước giờ hẹn)`
-      }
-
-      const refundAmount = (deposit * refundPercent) / 100
+    if (hasDeposit) {
+      // Khi nhà hàng chủ động huỷ đơn -> Luôn hoàn đủ 100% tiền cọc cho khách hàng
+      const refundPercent = 100
+      const refundAmount = deposit
+      const ruleType = 'Nhà hàng chủ động huỷ đơn: Hoàn trả 100% tiền đặt cọc cho khách hàng'
 
       setCancellationInfo({
         hasPolicy: true,
@@ -254,8 +234,7 @@ export default function ManageBookings({ branchId }) {
         refundPercent,
         refundAmount,
         deposit,
-        ruleType,
-        snapshot
+        ruleType
       })
     } else {
       setCancellationInfo({
@@ -537,20 +516,20 @@ export default function ManageBookings({ branchId }) {
             ) : cancellationInfo?.hasPolicy ? (
               <div style={{ background: '#f9fafb', padding: '1.25rem', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '.9rem' }}>
                 <p style={{ display: 'flex', alignItems: 'center', gap: '.5rem', fontWeight: 600, color: 'var(--brand)', marginBottom: '.5rem' }}>
-                  <AlertCircle size={18} /> Áp dụng chính sách hoàn cọc
+                  <AlertCircle size={18} /> Hoàn tiền cọc cho khách hàng
                 </p>
                 <p style={{ marginBottom: '.3rem' }}>Thời gian còn lại: <strong>{cancellationInfo.diffHours} giờ</strong> so với giờ hẹn.</p>
                 <p style={{ marginBottom: '.3rem' }}>Quy tắc: <em>{cancellationInfo.ruleType}</em></p>
                 <p style={{ marginBottom: '.3rem' }}>Tiền cọc ban đầu: <strong>{Number(cancellationInfo.deposit).toLocaleString('vi-VN')}₫</strong></p>
                 <div style={{ marginTop: '.5rem', padding: '8px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
                   <p style={{ color: '#047857', fontWeight: 700, fontSize: '.9rem' }}>
-                    Số tiền hoàn lại cho khách ({cancellationInfo.refundPercent}%): {Number(cancellationInfo.refundAmount).toLocaleString('vi-VN')}₫
+                    Số tiền hoàn lại cho khách (100%): {Number(cancellationInfo.refundAmount).toLocaleString('vi-VN')}₫
                   </p>
                 </div>
               </div>
             ) : (
               <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '.95rem' }}>
-                Đơn này không có cấu hình chính sách hoàn cọc (hoặc không có tiền cọc). Bạn có chắc chắn muốn hủy đơn này không?
+                Đơn này không có tiền cọc. Bạn có chắc chắn muốn hủy đơn này không?
               </p>
             )}
 
