@@ -186,8 +186,9 @@ public class SubscriptionService implements ISubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.INVOICE_NOT_PAYABLE);
         }
 
-        // Da co link con hieu luc - tra ve link CU, KHONG goi payOS tao lai.
-        if (invoice.getCheckoutUrl() != null) {
+        // Da co link va ma QR day du thi tra ve link cu, neu thieu thi goi payOS tao moi.
+        if (invoice.getCheckoutUrl() != null && !invoice.getCheckoutUrl().isBlank()
+                && invoice.getQrCode() != null && !invoice.getQrCode().isBlank()) {
             return toPaymentInfoResponse(invoice, null);
         }
 
@@ -229,7 +230,8 @@ public class SubscriptionService implements ISubscriptionService {
     public InvoicePaymentInfoResponse getPaymentInfo(Long restaurantId, Long invoiceId) {
         SubscriptionInvoice invoice = getOwnedInvoiceOrThrow(restaurantId, invoiceId);
 
-        if (invoice.getCheckoutUrl() == null) {
+        if (invoice.getCheckoutUrl() == null || invoice.getCheckoutUrl().isBlank()
+                || invoice.getQrCode() == null || invoice.getQrCode().isBlank()) {
             throw new BusinessException(SubscriptionErrorCode.PAYMENT_LINK_NOT_FOUND);
         }
 
@@ -500,7 +502,7 @@ public class SubscriptionService implements ISubscriptionService {
 
         // ---- Chieu 1: khoi phuc chi nhanh dang tam ngung, neu con cho trong ----
         long activeCount = allBranches.stream()
-                .filter(b -> !BranchStatus.SUSPENDED.getStatus().equals(b.getStatus()))
+                .filter(b -> BranchStatus.ACTIVE.getStatus().equals(b.getStatus()))
                 .count();
         long slotsToRestore = maxBranches - activeCount;
 
@@ -512,8 +514,10 @@ public class SubscriptionService implements ISubscriptionService {
             for (BranchSuspension suspension : suspendedBranches) {
                 if (restored >= slotsToRestore) break;
                 Branch branch = suspension.getBranch();
-                branch.setStatus(BranchStatus.ACTIVE.getStatus());
-                branchRepository.save(branch);
+                if (BranchStatus.SUSPENDED.getStatus().equals(branch.getStatus())) {
+                    branch.setStatus(BranchStatus.ACTIVE.getStatus());
+                    branchRepository.save(branch);
+                }
 
                 suspension.setStatus(SuspensionStatus.RESTORED);
                 suspension.setRestoredAt(LocalDateTime.now());
@@ -522,22 +526,18 @@ public class SubscriptionService implements ISubscriptionService {
             }
         }
 
-        // ---- Chieu 2: neu VAN CON vuot han muc (truong hop ha cap) - tam ngung bot ----
-        // Dung Comparator.nullsFirst de tranh NPE neu co branch nao bi thieu createdAt (du hiem,
-        // vi du du lieu cu tao truoc khi bat JPA Auditing) - branch thieu createdAt se bi coi la
-        // "cu nhat", uu tien GIU LAI thay vi tam ngung nham.
-        List<Branch> stillActiveBranches = branchRepository.findByRestaurantId(restaurantId).stream()
-                .filter(b -> !BranchStatus.SUSPENDED.getStatus().equals(b.getStatus()))
+        // ---- Chieu 2: neu so chi nhanh ACTIVE hien tai VAN CON vuot han muc (truong hop ha cap) - tam ngung bot ----
+        List<Branch> currentlyActiveBranches = branchRepository.findByRestaurantIdAndStatus(restaurantId, BranchStatus.ACTIVE.getStatus()).stream()
                 .sorted(Comparator.comparing(Branch::getCreatedAt,
                         Comparator.nullsFirst(Comparator.naturalOrder())).reversed())
                 .toList();
 
-        long overLimitCount = stillActiveBranches.size() - maxBranches;
+        long overLimitCount = currentlyActiveBranches.size() - maxBranches;
         if (overLimitCount <= 0) {
             return;
         }
 
-        stillActiveBranches.stream()
+        currentlyActiveBranches.stream()
                 .limit(overLimitCount)
                 .forEach(branch -> {
                     branch.setStatus(BranchStatus.SUSPENDED.getStatus());

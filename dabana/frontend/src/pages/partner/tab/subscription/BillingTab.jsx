@@ -130,9 +130,10 @@ function PaymentQrModal({ invoice, onClose, onPaid }) {
       let res
       try {
         res = await subscriptionApi.getInvoicePaymentInfo(invoice.id)
+        if (!res.data?.data?.qrCode) {
+          res = await subscriptionApi.createInvoicePaymentLink(invoice.id)
+        }
       } catch {
-        // Chưa từng tạo link (SUB_304 PAYMENT_LINK_NOT_FOUND) -> tạo mới, giống hệt
-        // cách paymentApi xử lý PAYMENT_NOT_FOUND cho luồng đặt cọc.
         res = await subscriptionApi.createInvoicePaymentLink(invoice.id)
       }
       const info = res.data?.data
