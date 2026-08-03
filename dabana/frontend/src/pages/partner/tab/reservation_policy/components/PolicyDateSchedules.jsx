@@ -527,29 +527,6 @@ function PolicyDateSchedules({
                   </>
                 )}
 
-                {scheduleType === "DATE_RANGE" && (
-                  <>
-                    <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
-                      <label style={ui.label}>Từ ngày *</label>
-                      <input
-                        type="date"
-                        value={form.dateFrom}
-                        onChange={(e) => setForm((f) => ({ ...f, dateFrom: e.target.value }))}
-                        style={ui.input}
-                      />
-                    </div>
-
-                    <div style={{ ...ui.field, flex: "1.2 1 125px" }}>
-                      <label style={ui.label}>Đến ngày *</label>
-                      <input
-                        type="date"
-                        value={form.dateTo}
-                        onChange={(e) => setForm((f) => ({ ...f, dateTo: e.target.value }))}
-                        style={ui.input}
-                      />
-                    </div>
-                  </>
-                )}
 
                 <div style={{ ...ui.field, flex: "1.8 1 160px" }}>
                   <label style={ui.label}>Giờ mở</label>

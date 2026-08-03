@@ -130,13 +130,17 @@ function computeDepositInfo(policy, guestCount, timeSlot, dateStr) {
   let reqDOW = null
   if (dateStr) {
     const d = new Date(dateStr)
-    const dowNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-    reqDOW = dowNames[d.getDay()]
+    reqDOW = d.getDay() // Trả về số từ 0 đến 6 (Khớp với kiểu số của API)
   }
 
   const inSchedule = policy.status === 'ACTIVE' && policy.schedules.some(sch => {
     if (sch.status && sch.status !== 'ACTIVE') return false
-    if (sch.dayOfWeek && reqDOW && sch.dayOfWeek !== reqDOW) return false
+
+    // So sánh trực tiếp số với số (ép kiểu Number để chắc chắn)
+    if (sch.dayOfWeek !== null && reqDOW !== null && Number(sch.dayOfWeek) !== Number(reqDOW)) {
+      return false
+    }
+
     if (sch.timeFrom && sch.timeTo) {
       const from = toMinutes(sch.timeFrom)
       const to = toMinutes(sch.timeTo)
