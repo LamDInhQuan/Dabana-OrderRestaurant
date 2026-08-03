@@ -3,6 +3,10 @@ package com.dabana.backend.modules.payment.service;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.booking.Booking;
 import com.dabana.backend.modules.booking.BookingRepository;
+import com.dabana.backend.modules.admin.service.ISystemPolicyService;
+import com.dabana.backend.modules.booking.BookingStatus;
+import com.dabana.backend.modules.notification.NotificationService;
+import com.dabana.backend.modules.notification.NotificationType;
 import com.dabana.backend.modules.payment.dto.request.CancelDepositPaymentRequest;
 import com.dabana.backend.modules.payment.dto.request.CreateDepositPaymentRequest;
 import com.dabana.backend.modules.payment.dto.response.DepositPaymentResponse;
@@ -21,7 +25,9 @@ import vn.payos.PayOS;
 import vn.payos.exception.PayOSException;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
 import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -43,6 +49,8 @@ public class DepositPaymentService {
     private final BookingRepository bookingRepository;
     private final PayosClientProvider payosClientProvider;
     private final DepositPaymentMapper depositPaymentMapper;
+    private final NotificationService notificationService;
+    private final ISystemPolicyService systemPolicyService;
 
     @Value("${app.payment.cancel-url-template}")
     private String cancelUrlTemplate;
@@ -54,12 +62,16 @@ public class DepositPaymentService {
             BranchBankAccountRepository branchBankAccountRepository,
             BookingRepository bookingRepository,
             PayosClientProvider payosClientProvider,
-            DepositPaymentMapper depositPaymentMapper) {
+            DepositPaymentMapper depositPaymentMapper,
+            NotificationService notificationService,
+            ISystemPolicyService systemPolicyService) {
         this.depositPaymentRepository = depositPaymentRepository;
         this.branchBankAccountRepository = branchBankAccountRepository;
         this.bookingRepository = bookingRepository;
         this.payosClientProvider = payosClientProvider;
         this.depositPaymentMapper = depositPaymentMapper;
+        this.notificationService = notificationService;
+        this.systemPolicyService = systemPolicyService;
     }
 
     @Transactional
@@ -149,11 +161,72 @@ public class DepositPaymentService {
      * chuyen PAID se bi 404 (PAID khong nam trong ACTIVE_STATUSES) khien FE
      * tuong nham la "chua thanh toan".
      */
+    @Transactional
     public DepositPaymentResponse getLatestByReservation(Long reservationId) {
         DepositPayment entity = depositPaymentRepository
                 .findFirstByReservation_IdOrderByIdDesc(reservationId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.DEPOSIT_NOT_FOUND));
+
+        entity = syncDepositWithPayosIfPending(entity);
         return depositPaymentMapper.toResponse(entity);
+    }
+
+    private DepositPayment syncDepositWithPayosIfPending(DepositPayment entity) {
+        if (entity.getStatus() != DepositPaymentStatus.PAID && entity.getOrderCode() != null) {
+            try {
+                PayOS client = payosClientProvider.getPaymentClientForBranch(
+                        entity.getBranchBankAccount().getBranch().getId());
+                PaymentLink liveInfo = client.paymentRequests().get(entity.getOrderCode());
+                if (liveInfo != null && "PAID".equalsIgnoreCase(String.valueOf(liveInfo.getStatus()))) {
+                    BigDecimal paidAmount = liveInfo.getAmountPaid() != null
+                            ? BigDecimal.valueOf(liveInfo.getAmountPaid())
+                            : entity.getAmount();
+                    entity.setAmountPaid(paidAmount);
+                    entity.setAmountRemaining(entity.getAmount().subtract(paidAmount));
+                    entity.setStatus(DepositPaymentStatus.PAID);
+                    entity.setPaidAt(LocalDateTime.now());
+                    entity = depositPaymentRepository.save(entity);
+
+                    Booking booking = entity.getReservation();
+                    if (booking != null && (booking.getStatus() == BookingStatus.HOLDING
+                            || booking.getStatus() == BookingStatus.AWAITING_PAYMENT)) {
+                        booking.setStatus(BookingStatus.CONFIRMED);
+                        booking.setConfirmedAt(LocalDateTime.now());
+                        bookingRepository.save(booking);
+                        log.info("Active sync payOS: Booking id={} da CONFIRMED sau khi coc PAID (orderCode={})",
+                                booking.getId(), entity.getOrderCode());
+
+                        int graceMinutes = systemPolicyService.getGracePeriodMinutes();
+                        boolean graceEnabled = systemPolicyService.isGracePeriodEnabled();
+                        String graceNote = (graceEnabled && graceMinutes > 0)
+                                ? String.format(" (Quý khách có thể huỷ và được hoàn 100%% tiền cọc trong vòng %d phút sau khi xác nhận)", graceMinutes)
+                                : "";
+
+                        if (booking.getCustomer() != null) {
+                            String content = String.format(
+                                    "Thanh toán tiền cọc thành công cho đơn đặt bàn lúc %s tại %s.%s",
+                                    booking.getReservationTime(), booking.getBranch().getName(), graceNote);
+                            notificationService.sendImmediate(
+                                    booking.getCustomer(), NotificationType.PAYMENT_SUCCESS, content, "IN_APP", booking.getBranch().getId());
+                        }
+                        if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null && booking.getBranch().getRestaurant().getOwner() != null) {
+                            String restaurantContent = String.format(
+                                    "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s (Đã cọc).%s",
+                                    booking.getBranch().getName(), booking.getReservationTime(), booking.getContactName(), graceNote);
+                            notificationService.sendImmediate(
+                                    booking.getBranch().getRestaurant().getOwner(), NotificationType.BOOKING_CONFIRMED, restaurantContent, "IN_APP", booking.getBranch().getId());
+                        }
+                    }
+                } else if (liveInfo != null && "CANCELLED".equalsIgnoreCase(String.valueOf(liveInfo.getStatus()))) {
+                    entity.setStatus(DepositPaymentStatus.CANCELLED);
+                    entity.setCanceledAt(LocalDateTime.now());
+                    entity = depositPaymentRepository.save(entity);
+                }
+            } catch (Exception e) {
+                log.warn("Active sync payOS that bai cho deposit orderCode={}: {}", entity.getOrderCode(), e.getMessage());
+            }
+        }
+        return entity;
     }
 
     @Transactional

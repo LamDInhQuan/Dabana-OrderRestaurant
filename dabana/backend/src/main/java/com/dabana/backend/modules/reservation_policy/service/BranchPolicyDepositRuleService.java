@@ -68,6 +68,10 @@ public class BranchPolicyDepositRuleService implements IBranchPolicyDepositRuleS
         entity.setMaxGuest(request.getMaxGuests());
         entity.setDepositType(request.getDepositType());
         entity.setDepositValue(request.getDepositValue());
+        entity.setMaxTables(request.getMaxTables());
+        entity.setMaxCapacitySlop(request.getMaxCapacitySlop() != null ? request.getMaxCapacitySlop() : 2);
+        entity.setMinPreorderAmount(request.getMinPreorderAmount());
+        entity.setPreorderDepositPercent(request.getPreorderDepositPercent());
 
         return branchPolicyDepositRuleMapper.toResponse(branchPolicyDepositRuleRepository.save(entity));
     }

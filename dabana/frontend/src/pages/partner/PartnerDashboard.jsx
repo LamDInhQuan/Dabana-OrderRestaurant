@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi, adminApi } from '../../api'
+import { branchApi, bookingApi, menuApi, zoneApi, tableApi, waitlistApi, reviewApi, notificationApi, restaurantApi, operatingHourApi, branchPolicyApi, reservationPolicyApi, subscriptionApi, adminApi, partnerReportApi } from '../../api'
 import { BarChart3, ClipboardList, ConciergeBell, Armchair, Soup, Hourglass, User, Star, TrendingUp, Wallet, AlarmClock, CreditCard, Bell, Settings, Calendar, Users, X, Utensils, Globe, Send, Mail, Search, TriangleAlert, Check, Ban, CircleAlert, Sparkles, Circle, Pencil, Save } from 'lucide-react'
 
 //   restaurantApi, operatingHourApi, depositPolicyApi } from '../../api'
@@ -197,7 +197,7 @@ function SuspendedNotice({ branchName, tabName, status }) {
         lineHeight: 1.6,
         marginBottom: '1.5rem'
       }}>
-        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>Tạm ngưng hoạt động (Status 5)</strong>. 
+        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>Tạm ngưng hoạt động (Status 5)</strong>.
         Tính năng <strong>{tabName}</strong> và toàn bộ các thao tác liên quan tạm thời bị khóa.
       </p>
       <div style={{
@@ -235,6 +235,7 @@ export default function PartnerDashboard() {
   const [reviewFilter, setReviewFilter] = useState('ALL')
   const [branchStats, setBranchStats] = useState([])
   const [branchDailyStats, setBranchDailyStats] = useState([])
+  const [weeklyDepositStats, setWeeklyDepositStats] = useState([])
   const [statsLoading, setStatsLoading] = useState(false)
   const [replyDrafts, setReplyDrafts] = useState({})  // { [reviewId]: text }
   const [bkFilter, setBkFilter] = useState('ALL')
@@ -355,7 +356,9 @@ export default function PartnerDashboard() {
     operatingHourApi.getByBranch(bid)
       .then(r => setOperatingHours(r.data?.length ? r.data : []))
       .catch(() => setOperatingHours([]))
-    bookingApi.myBookings().then(r => setBookings(r.data?.data || [])).catch(() => setBookings([]))
+    restaurantApi.UpcomingBooking(bid)
+      .then(r => setBranchBookings(r.data?.data || []))
+      .catch(() => setBranchBookings([]))
     // menu
     // menu (backend tra ve theo Danh muc -> Mon an, can flatten cho UI dang phang)
     menuApi.getByBranch(bid).then(r => {
@@ -405,9 +408,20 @@ export default function PartnerDashboard() {
       if (!activeBranch?.id) return
       try {
         setStatsLoading(true)
-        const [dashboardRes, dailyRes] = await Promise.all([
-          restaurantApi.Dashboard(),
-          restaurantApi.PerDayReports(activeBranch.id),
+        const pad = (n) => String(n).padStart(2, '0');
+        const formatDateISO = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+        const today = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 6);
+
+        const fromDate = formatDateISO(sevenDaysAgo);
+        const toDate = formatDateISO(today);
+
+        const [dashboardRes, dailyRes, depositRes] = await Promise.all([
+          restaurantApi.Dashboard().catch(() => ({})),
+          restaurantApi.PerDayReports(activeBranch.id).catch(() => ({})),
+          partnerReportApi.deposits({ branchId: activeBranch.id, period: 'CUSTOM', from: fromDate, to: toDate }).catch(() => ({})),
         ])
 
         const dashboardData = dashboardRes?.data?.data || []
@@ -415,6 +429,29 @@ export default function PartnerDashboard() {
 
         setBranchStats(dashboardData)
         setBranchDailyStats(dailyData)
+
+        // Tính toán dữ liệu doanh thu tiền cọc 7 ngày gần nhất
+        const days = [];
+        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(today.getDate() - i);
+          const iso = formatDateISO(d);
+          const dayLabel = dayNames[d.getDay()];
+          const dateLabel = `${d.getDate()}/${d.getMonth() + 1}`;
+          days.push({ iso, dayLabel, dateLabel, amount: 0 });
+        }
+
+        const cashflow = depositRes?.data?.data?.cashflowByTime || [];
+        const depositMap = {};
+        cashflow.forEach(item => {
+          depositMap[item.label] = Number(item.series?.collected || item.value || 0);
+        });
+        const finalWeekly = days.map(d => ({
+          ...d,
+          amount: depositMap[d.iso] || 0
+        }));
+        setWeeklyDepositStats(finalWeekly);
       } catch (error) {
         console.error('Failed to load branch dashboard stats:', error)
       } finally {
@@ -470,7 +507,7 @@ export default function PartnerDashboard() {
   // ── Computed stats ─────────────────────────────────
   // const allTables = floorPlan.zones.flatMap(z => z.tables || [])
   const today = new Date().toDateString()
-  const todayBookings = (bookings || []).filter(b => b?.reservationTime && new Date(b.reservationTime).toDateString() === today)
+  const todayBookings = (branchBookingList || []).filter(b => b?.reservationTime && new Date(b.reservationTime).toDateString() === today)
 
   const activeBranchStats = branchStats.find(item => item.branchId === activeBranch?.id) || null
   const branchSummary = activeBranchStats ? {
@@ -490,10 +527,10 @@ export default function PartnerDashboard() {
     reserved: tablesByStatus[2].length,
     cleaning: tablesByStatus[4].length,
     maintenance: tablesByStatus[5].length,
-    fillRate: branchSummary?.fillRate != null ? Number(branchSummary.fillRate) : (allTables.length ? Math.round((allTables.filter(t => t.status !== 1).length / allTables.length) * 100) : 0),
+    fillRate: branchSummary?.fillRate != null ? Number(branchSummary.fillRate) : (allTables.length ? Math.round(((tablesByStatus[2].length + tablesByStatus[3].length) / allTables.length) * 100) : 0),
     todayConfirmed: branchSummary?.todayBooking ?? todayBookings.filter(b => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN').length,
-    totalRevenue: bookings.filter(b => b.status === 'COMPLETED').reduce((s, b) => s + (b.depositAmount || 0), 0),
-    noShowRate: branchSummary?.noShowRate30Day != null ? Number(branchSummary.noShowRate30Day) : (bookings.length ? Math.round((bookings.filter(b => b.status === 'NO_SHOW').length / bookings.length) * 100) : 0),
+    totalRevenue: (branchBookingList || []).filter(b => b.status === 'COMPLETED').reduce((s, b) => s + (b.depositAmount || 0), 0),
+    noShowRate: branchSummary?.noShowRate30Day != null ? Number(branchSummary.noShowRate30Day) : (branchBookingList.length ? Math.round((branchBookingList.filter(b => b.status === 'NO_SHOW').length / branchBookingList.length) * 100) : 0),
   }
 
   // B13: điểm đánh giá trung bình
@@ -834,7 +871,6 @@ export default function PartnerDashboard() {
     { id: 'order_board', icon: ConciergeBell, label: 'Gọi món' },
     { id: 'tables', icon: Armchair, label: 'Sơ đồ bàn' },
     { id: 'menu', icon: Soup, label: 'Thực đơn' },
-    { id: 'waitlist', icon: Hourglass, label: 'Hàng chờ' },
     { id: 'customers', icon: User, label: 'Khách hàng' },
     { id: 'reviews', icon: Star, label: 'Đánh giá', badge: (hasViewedReviews || activeTab === 'reviews') ? 0 : unrepliedReviewCount },
     { id: 'reports', icon: TrendingUp, label: 'Thống kê' },
@@ -1066,7 +1102,6 @@ export default function PartnerDashboard() {
                 <StatCard icon={<Armchair size={26} />} label="Tỷ lệ lấp đầy" value={`${stats.fillRate}%`} sub={`${stats.available}/${stats.totalTables} bàn trống`} color={C.green} trend={5} />
                 <StatCard icon={<Users size={26} />} label="Đang phục vụ" value={stats.occupied} sub="bàn đang có khách" color={C.amber} />
                 <StatCard icon={<ClipboardList size={26} />} label="Bàn đã đặt" value={stats.reserved} sub="sắp có khách đến" color={C.blue} />
-                <StatCard icon={<Hourglass size={26} />} label="Hàng chờ" value={waitlist.filter(w => w.status === 'WAITING').length} sub="đang chờ bàn trống" color={C.purple} />
                 <StatCard icon={<X size={26} />} label="Tỷ lệ No-show" value={`${stats.noShowRate}%`} sub="trong 30 ngày qua" color={C.red} />
                 <StatCard icon={<Star size={26} />} label="Đánh giá trung bình" value={avgRating} sub={`${visibleReviews.length} lượt đánh giá`} color={C.gold} />
               </div>
@@ -1143,25 +1178,58 @@ export default function PartnerDashboard() {
                   )}
                 </div>
 
-                {/* Revenue chart placeholder */}
+                {/* Revenue chart - Doanh thu tiền cọc 7 ngày gần nhất */}
                 <div style={{ ...S.card, gridColumn: '1/-1' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                    <div style={S.eyebrow}>Doanh thu tiền cọc 7 ngày gần nhất</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '.625rem', height: 120 }}>
-                    {[65, 45, 80, 55, 90, 70, 100].map((h, i) => (
-                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.35rem' }}>
-                        <div style={{
-                          width: '100%', background: `linear-gradient(to top,${C.gold},${C.goldLight})`,
-                          height: `${h}%`, borderRadius: '4px 4px 0 0', transition: 'height .5s',
-                          minHeight: 4, cursor: 'default'
-                        }}
-                          title={`${(h * 5000).toLocaleString('vi-VN')}₫`} />
-                        <span style={{ fontSize: '.65rem', color: C.muted }}>
-                          {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][i]}
-                        </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '.5rem' }}>
+                    <div>
+                      <div style={S.eyebrow}>Doanh thu tiền cọc 7 ngày gần nhất</div>
+                      <div style={{ fontSize: '.75rem', color: C.muted, marginTop: '.2rem' }}>
+                        {weeklyDepositStats.length > 0 && `Từ ngày ${weeklyDepositStats[0]?.dateLabel} đến ${weeklyDepositStats[weeklyDepositStats.length - 1]?.dateLabel}`}
                       </div>
-                    ))}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '.75rem', color: C.muted, textTransform: 'uppercase', fontWeight: 600 }}>Tổng tiền cọc: </span>
+                      <strong style={{ fontSize: '1.05rem', color: C.brown, fontWeight: 700 }}>
+                        {weeklyDepositStats.reduce((sum, d) => sum + d.amount, 0).toLocaleString('vi-VN')}₫
+                      </strong>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '.625rem', height: 130, paddingTop: '1rem' }}>
+                    {(() => {
+                      const maxAmount = Math.max(...weeklyDepositStats.map(d => d.amount), 1);
+                      return weeklyDepositStats.map((d, i) => {
+                        const h = d.amount > 0 ? Math.max(Math.round((d.amount / maxAmount) * 100), 12) : 4;
+                        return (
+                          <div key={d.iso || i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '.4rem', height: '100%', justifyContent: 'flex-end' }}>
+                            <div style={{ fontSize: '.68rem', fontWeight: 600, color: d.amount > 0 ? C.brownMid : 'transparent', whiteSpace: 'nowrap' }}>
+                              {d.amount > 0 ? (d.amount >= 1000000 ? `${(d.amount / 1000000).toFixed(1)}Tr` : `${(d.amount / 1000).toLocaleString('vi-VN')}k`) : '0đ'}
+                            </div>
+                            <div
+                              style={{
+                                width: '100%',
+                                background: d.amount > 0
+                                  ? `linear-gradient(to top, ${C.goldDark}, ${C.gold})`
+                                  : C.creamDark,
+                                height: `${h}%`,
+                                borderRadius: '4px 4px 0 0',
+                                transition: 'all .3s ease',
+                                minHeight: 4,
+                                cursor: 'pointer'
+                              }}
+                              title={`${d.dayLabel} (${d.dateLabel}): ${d.amount.toLocaleString('vi-VN')}₫`}
+                            />
+                            <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
+                              <span style={{ fontSize: '.72rem', fontWeight: 600, color: C.text, display: 'block' }}>
+                                {d.dayLabel}
+                              </span>
+                              <span style={{ fontSize: '.65rem', color: C.muted }}>
+                                {d.dateLabel}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>

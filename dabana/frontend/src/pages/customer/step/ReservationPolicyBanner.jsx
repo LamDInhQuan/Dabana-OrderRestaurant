@@ -11,7 +11,7 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, formatVND 
         const data = res.data?.data || res.data;
         if (data) setSystemPolicy(data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   // 1. Logic xác định Rule phù hợp (bao gồm logic Fallback)
   const { activeRule, isFallback, maxSupportedGuest } = useMemo(() => {
@@ -43,10 +43,12 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, formatVND 
     };
   }, [policy, guestCount]);
 
-  // 计算 deposit label
+  // deposit label
+  const isPerPerson = (t) => String(t || '').trim().toUpperCase() === 'PER_PERSON';
+
   const depositLabel = useMemo(() => {
     if (!activeRule) return '';
-    if (activeRule.depositType === 'PER_PERSON') {
+    if (isPerPerson(activeRule.depositType)) {
       return `${formatVND(activeRule.depositValue * guestCount)} (${formatVND(activeRule.depositValue)}/người)`;
     }
     return formatVND(activeRule.depositValue);
@@ -138,7 +140,7 @@ function ReservationPolicyBanner({ policyLoading, policy, guestCount, formatVND 
                   : `${rule.minGuest}–${rule.maxGuest} khách`;
 
               const amountLabel =
-                rule.depositType === 'PER_PERSON'
+                isPerPerson(rule.depositType)
                   ? `${formatVND(rule.depositValue)}/người`
                   : formatVND(rule.depositValue);
 

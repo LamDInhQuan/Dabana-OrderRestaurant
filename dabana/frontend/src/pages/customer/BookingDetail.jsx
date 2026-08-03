@@ -94,6 +94,13 @@ export default function BookingLockDetail({ booking, onTimeOut }) {
 
                 if (deposit?.status === 'PAID') {
                     clearInterval(checkStatusTimer);
+                    try {
+                        const updatedBookingRes = await bookingApi.getById(booking.id);
+                        const updatedBooking = updatedBookingRes.data?.data || updatedBookingRes.data;
+                        if (updatedBooking) setConfirmedBooking(updatedBooking);
+                    } catch (e) {
+                        console.error("Lỗi lấy thông tin booking mới:", e);
+                    }
                     setIsPaidSuccess(true);
                     toast.success("Thanh toán thành công! Đơn giữ bàn đã được xác nhận.");
                 }

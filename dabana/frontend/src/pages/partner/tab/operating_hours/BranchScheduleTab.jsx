@@ -4,6 +4,7 @@ import WeeklyHoursPanel from './WeeklyHoursPanel'
 import ExceptionsPanel from './ExceptionsPanel'
 import ErrorDetailsModal from './ErrorDetailsModal' // 1. Import Modal báo lỗi
 import { Calendar, TriangleAlert } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 export default function BranchScheduleTab({ branch }) {
     const [tab, setTab] = useState('weekly')
@@ -24,7 +25,6 @@ export default function BranchScheduleTab({ branch }) {
     })
 
     // Catch & format lỗi từ Axios/Fetch Response
-    // Catch & format lỗi từ Axios/Fetch Response
     const handleApiError = (err) => {
         const errorData = err?.response?.data || err;
         const errorCode = errorData?.errorCode;
@@ -36,16 +36,13 @@ export default function BranchScheduleTab({ branch }) {
         // Nếu là lỗi validation từ Spring (có object fields)
         if (errorCode === 'VALIDATION_ERROR' && errorData?.fields) {
             // Chuyển object fields thành mảng details để modal dễ hiển thị
-            // Ví dụ: fields: { closeTime: "Giờ kết thúc phải sau giờ bắt đầu" }
             details = Object.entries(errorData.fields).map(([field, msg]) => ({
                 field: field,
                 message: msg
             }));
 
-            // Có thể đổi title thành câu thông báo chung gọn gàng hơn nếu muốn
             title = "Dữ liệu không hợp lệ, vui lòng kiểm tra lại các trường bên dưới!";
         } else {
-            // Lấy errorDetails thông thường nếu có
             details = errorData?.errorDetails || [];
         }
 
@@ -55,6 +52,7 @@ export default function BranchScheduleTab({ branch }) {
             details: details
         });
     }
+
     // Fetch Giờ tuần
     const fetchWeeklyHours = useCallback(async () => {
         if (!branch?.id) return
@@ -123,13 +121,12 @@ export default function BranchScheduleTab({ branch }) {
     const handleSaveWeekly = async (payload) => {
         try {
             await operatingHourApi.save(branch.id, payload)
-            console.log("vao day");
-
             await fetchWeeklyHours()
-            alert('Đã cập nhật khung giờ hoạt động thành công!')
+            toast.success('Đã cập nhật khung giờ hoạt động thành công!')
         } catch (err) {
             console.error('Lỗi khi lưu giờ tuần:', err)
             handleApiError(err) // 2. Bắt lỗi để hiện Modal
+            throw err
         }
     }
 
