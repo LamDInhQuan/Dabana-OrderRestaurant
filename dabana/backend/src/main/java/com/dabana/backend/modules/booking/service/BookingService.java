@@ -277,7 +277,8 @@ public class BookingService implements IBookingService {
 
             String restaurantContent = String.format(
                     "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s.%s",
-                    branch.getName(), booking.getReservationTime(), booking.getContactName());
+                    branch.getName(), booking.getReservationTime(), booking.getContactName(), graceNote);
+            notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
             notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
         }
         // Ví dụ gom nhóm các bàn theo Zone ID trong Java Service
@@ -290,13 +291,17 @@ public class BookingService implements IBookingService {
         List<Long> tableIds = tables.stream()
                 .map(BaseEntity::getId) // hoặc item -> item.getId()
                 .toList();
+        Long customerId = (booking.getCustomer() != null && booking.getCustomer().getId() != null)
+                ? booking.getCustomer().getId().longValue()
+                : null;
+
         eventPublisher.publishEvent(
                 new BookingTableChangedEvent(
                         booking.getStatus(),
                         tableIds,
                         booking.getId(),
                         booking.getBranch().getId(),
-                        booking.getCustomer().getId().longValue(),
+                        customerId, // Sử dụng biến an toàn vừa khai báo ở trên
                         req.getReservationTime(),
                         zoneIds,
                         booking.getContactEmail()));
