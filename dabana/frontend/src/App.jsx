@@ -30,6 +30,7 @@ import Reports from './pages/admin/Reports'
 import PartnerReportsPage from './pages/partner/reports/PartnerReportsPage'
 import BookingLockPage from './pages/customer/BookingLockPage'
 import BookingInvoicePage from './pages/customer/BookingInvoicePage'
+import SearchPage from './pages/customer/component/SearchPage'
 
 // Bổ sung prop allowGuest: Nếu true thì Guest chưa login vẫn vào được
 function ProtectedRoute({ children, role, allowGuest = false }) {
@@ -57,6 +58,7 @@ export default function App() {
         <Routes>
           {/* ===== Public ===== */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/search" element={<SearchPage />} /> 
           <Route path="/branch/:id" element={<BranchDetail />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

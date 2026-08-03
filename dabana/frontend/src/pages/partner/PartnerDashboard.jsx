@@ -19,7 +19,7 @@ import { useOrderBoardState } from './tab/order_board/hooks/useOrderBoardState'
 import MenuManagementTab from './tab/menu/MenuManagementTab'
 import { useMenuState } from './tab/menu/hooks/useMenuState'
 import BranchScheduleTab from './tab/operating_hours/BranchScheduleTab'
-import { BranchLocationPicker } from './tab/settings/BranchLocationPicker'
+import { BranchLocationPicker, EditBranchModal } from './tab/settings/BranchLocationPicker'
 import BranchBankAccountSettings from './tab/settings/BranchBankAccountSettings'
 import BillingTab from './tab/subscription/BillingTab'
 import BranchImageManager from './tab/settings/BranchImageManager'
@@ -194,7 +194,7 @@ function SuspendedNotice({ branchName, tabName }) {
         lineHeight: 1.6,
         marginBottom: '1.5rem'
       }}>
-        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>Tạm ngưng hoạt động (Status 5)</strong>. 
+        Chi nhánh <strong>{branchName}</strong> hiện đang ở trạng thái <strong>Tạm ngưng hoạt động (Status 5)</strong>.
         Tính năng <strong>{tabName}</strong> và toàn bộ các thao tác liên quan tạm thời bị khóa.
       </p>
       <div style={{
@@ -592,35 +592,48 @@ export default function PartnerDashboard() {
     } catch { toast.error('Không thể huỷ yêu cầu cập nhật') }
   }
 
-  const saveBranchInfo = async () => {
-    if (!activeBranch) return
-    if (!branchForm.name.trim() || !branchForm.address.trim()) {
-      toast.error('Tên chi nhánh và địa chỉ không được để trống')
-      return
+  const saveBranchInfo = async (e) => {
+    if (e) e.preventDefault();
+
+    // Dùng editBranchForm thay vì branchForm vì modal đang sửa trên state này
+    if (!editingBranch) return;
+    if (!editBranchForm.name.trim() || !editBranchForm.address.trim()) {
+      toast.error('Tên chi nhánh và địa chỉ không được để trống');
+      return;
     }
-    setSavingBranch(true)
+
+    setSavingBranch(true);
+    console.log("editBranchForm before payload:", editBranchForm); // Debug kiểm tra dữ liệu tỉnh thành, tọa độ...
+
     try {
       const payload = {
-        ...branchForm, latitude: branchForm.latitude === '' ? null : Number(branchForm.latitude),
-        longitude: branchForm.longitude === '' ? null : Number(branchForm.longitude),
-        branchImages: (branchForm.branchImageDtos || []).map((img, index) => ({
+        ...editBranchForm, // Lấy toàn bộ dữ liệu từ form sửa trong modal (bao gồm province mới chọn, tọa độ mới...)
+        latitude: editBranchForm.latitude === '' ? null : Number(editBranchForm.latitude),
+        longitude: editBranchForm.longitude === '' ? null : Number(editBranchForm.longitude),
+        branchImages: (editBranchForm.branchImageDtos || []).map((img, index) => ({
           id: img.id || null,
           imageUrl: img.imageUrl,
           isCover: img.isCover ?? 0,
           displayOrder: img.displayOrder || index + 1
         }))
-      }
-      const { data: res } = await branchApi.update(activeBranch.id, payload)
-      const updated = res.data
-      setBranches(prev => prev.map(b => b.id === activeBranch.id ? { ...b, ...updated } : b))
-      setActiveBranch(prev => ({ ...prev, ...updated }))
-      toast.success('Đã lưu thông tin chi nhánh!')
+      };
+
+      const { data: res } = await branchApi.update(editingBranch.id, payload);
+      const updated = res.data;
+
+      setBranches(prev => prev.map(b => b.id === editingBranch.id ? { ...b, ...updated } : b));
+      setEditingBranch(prev => ({ ...prev, ...updated }));
+      toast.success('Đã lưu thông tin chi nhánh!');
+
+      // Lưu xong thì tự động đóng modal luôn tại đây
+      setEditBranchModal(false);
+
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể lưu thông tin chi nhánh')
+      toast.error(err.response?.data?.message || 'Không thể lưu thông tin chi nhánh');
     } finally {
-      setSavingBranch(false)
+      setSavingBranch(false);
     }
-  }
+  };
   const openEditBranchModal = (b) => {
     setEditingBranch(b)
     setEditBranchForm({
@@ -874,7 +887,7 @@ export default function PartnerDashboard() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '1rem' }}>
           <div style={{ width: 760, maxWidth: '100%', background: C.white, borderRadius: 8, padding: '1rem 1.25rem', boxShadow: '0 6px 30px rgba(0,0,0,.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '.5rem' }}>
-       
+
               <button onClick={() => setExportModal(false)} style={{ ...S.btnOut }}>Đóng</button>
             </div>
             <ExportExcelBar branches={branches} onClose={() => setExportModal(false)} />
@@ -1429,7 +1442,7 @@ export default function PartnerDashboard() {
             //     </div>
             //   </div>
             // </div>
-            <PartnerReportsPage/>
+            <PartnerReportsPage />
           )}
 
           {/* ══════ NOTIFICATIONS (B09) ══════ */}
@@ -1698,114 +1711,14 @@ export default function PartnerDashboard() {
       {/* New Branch Modal (B04 bước 1) */}
       {/* ════════ MODALS ════════ */}
       {editBranchModal && editingBranch && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 200,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
-        }}>
-          <div style={{
-            background: C.white, borderRadius: 8, width: '100%', maxWidth: 640,
-            maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden'
-          }}>
-            {/* Header — cố định */}
-            <div style={{
-              background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: '1rem 1.25rem',
-              flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-            }}>
-              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.05rem', margin: 0 }}>
-                Sửa chi nhánh — {editingBranch.name}
-              </h2>
-              <span style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.6)' }}>ID #{editingBranch.id}</span>
-            </div>
-
-            {/* form bọc ngoài, chiếm hết phần còn lại, chia làm 2 vùng con */}
-            <form
-              onSubmit={saveEditBranch}
-              style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
-            >
-              {/* Body — CUỘN riêng, không kéo footer theo */}
-              <div style={{
-                padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem',
-                overflowY: 'auto', flex: 1
-              }}>
-                <div>
-                  <label style={S.label}>Tên chi nhánh *</label>
-                  <input style={S.input} value={editBranchForm.name} required maxLength={150}
-                    onChange={e => setEditBranchForm(p => ({ ...p, name: e.target.value }))} />
-                </div>
-
-                <div>
-                  <label style={S.label}>Địa chỉ *</label>
-                  <input style={S.input} value={editBranchForm.address} required
-                    onChange={e => setEditBranchForm(p => ({ ...p, address: e.target.value }))} />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label style={S.label}>Tỉnh/Thành phố</label>
-                    <input style={S.input} value={editBranchForm.province || ''} maxLength={100}
-                      onChange={e => setEditBranchForm(p => ({ ...p, province: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={S.label}>Số điện thoại</label>
-                    <input style={S.input} value={editBranchForm.phone || ''} maxLength={20}
-                      onChange={e => setEditBranchForm(p => ({ ...p, phone: e.target.value }))} />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={S.label}>Trạng thái hoạt động</label>
-                  <select
-                    style={S.input}
-                    value={editBranchForm.status ?? 1}
-                    onChange={e => setEditBranchForm(p => ({ ...p, status: Number(e.target.value) }))}
-                  >
-                    <option value={2}>Hoạt động</option>
-                    <option value={1}>Ngừng hoạt động</option>
-                    <option value={5}>Bị tạm ngưng</option>
-                  </select>
-                </div>
-
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '1rem' }}>
-                  <BranchImageManager
-                    images={editBranchForm.branchImageDtos || []}
-                    onChange={(updatedImages) =>
-                      setEditBranchForm(p => ({ ...p, branchImageDtos: updatedImages }))
-                    }
-                  />
-                </div>
-
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '1rem' }}>
-                  <BranchLocationPicker
-                    value={{ latitude: editBranchForm.latitude, longitude: editBranchForm.longitude }}
-                    onChange={({ latitude, longitude }) =>
-                      setEditBranchForm(p => ({ ...p, latitude, longitude }))
-                    }
-                  />
-                </div>
-
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '1rem' }}>
-                  <PolicyResTab restaurantId={editingBranch.restaurantId} />
-                </div>
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '1rem' }}>
-                  <BranchBankAccountSettings branchId={editingBranch.id} />
-                </div>
-              </div>
-
-              {/* Footer — LUÔN cố định ở đáy modal, không bị cuộn mất */}
-              <div style={{
-                flexShrink: 0, borderTop: `1px solid ${C.border}`, background: C.white,
-                padding: '1rem 1.25rem', display: 'flex', gap: '.75rem', justifyContent: 'flex-end'
-              }}>
-                <button type="button" onClick={() => setEditBranchModal(false)} style={S.btnOut}>
-                  Huỷ
-                </button>
-                <button type="submit" disabled={savingEditBranch} style={S.btnGold}>
-                  {savingEditBranch ? 'Đang lưu...' : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem' }}><Save size={16} /> Lưu thay đổi</span>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <EditBranchModal
+          editBranchModal={editBranchModal}
+          setEditBranchModal={setEditBranchModal}
+          updateBranch={saveBranchInfo}
+          editBranchForm={editBranchForm}
+          setEditBranchForm={setEditBranchForm}
+          updatingBranch={savingBranch}
+        />
       )}
       {/* New Branch Modal */}
       {newBranchModal && (

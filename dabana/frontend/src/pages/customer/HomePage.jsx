@@ -1,24 +1,16 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import { restaurantApi, branchApi, authApi, bookingApi } from '../../api'
-import GuestBookingLookup from './GuestBookingLookup'
+import GuestBookingLookup from './component/GuestBookingLookup'
 import {
   Utensils, Flag, Fish, Beef, Shell, Soup, Map, Bell, Shield, Star, MapPin,
   X, Phone, Mail, Globe, Building2, Sparkles, Search, Lamp, PartyPopper,
 } from 'lucide-react'
+import BookingForm from './BookingForm'
+import RestaurantSearchFilter from './component/RestaurantSearchFilter'
 
-// ─── Constants (giữ nguyên) ────────────────────────────────────
-const CUISINES = [
-  { label: 'Tất cả', value: '', icon: Utensils },
-  { label: 'Việt Nam', value: 'Việt Nam', icon: Flag },
-  { label: 'Nhật Bản', value: 'Nhật Bản', icon: Fish },
-  { label: 'Hàn Quốc', value: 'Hàn Quốc', icon: Beef },
-  { label: 'Hải sản', value: 'Hải sản', icon: Shell },
-  { label: 'Lẩu nướng', value: 'Lẩu & Nướng', icon: Soup },
-  { label: 'Âu', value: 'Âu', icon: Utensils },
-]
 
 const CARD_GRADIENTS = [
   ['#6b4226', '#3d2b1f'], ['#1a5276', '#0d2137'], ['#1e8449', '#0b3d25'],
@@ -418,6 +410,7 @@ export default function HomePage() {
 
   const [restaurants, setRestaurants] = useState([])
   const [keyword, setKeyword] = useState('')
+  const [selectedCuisine, setSelectedCuisine] = useState('') // Lưu ẩm thực đang chọn ở badge
   const [cuisine, setCuisine] = useState('')
   const [loadingRestaurants, setLoadingRestaurants] = useState(false)
 
@@ -500,6 +493,23 @@ export default function HomePage() {
     setTimeout(() => setBookSuccess(true), 800)
   }
 
+
+
+  // Hàm khi click Badge ẩm thực tại trang chủ (KHÔNG GỌI API)
+  const handleCuisineBadgeClick = (cuisineName) => {
+    setSelectedCuisine(cuisineName);
+
+    if (cuisineName === 'Tất cả') {
+      setFilteredRestaurants(restaurants);
+    } else {
+      const filtered = restaurants.filter(item => {
+        const types = item.cuisineType ? item.cuisineType.toLowerCase() : '';
+        return types.includes(cuisineName.toLowerCase());
+      });
+      setFilteredRestaurants(filtered);
+    }
+  };
+
   const S = {
     section: { padding: '6rem 5%' },
     eyebrow: {
@@ -514,6 +524,15 @@ export default function HomePage() {
     lead: { color: 'var(--muted)', lineHeight: 1.8, fontSize: '.95rem' },
   }
 
+  const filteredRestaurants = useMemo(() => {
+    if (!selectedCuisine) return restaurants
+    return restaurants.filter(item => {
+      if (!item.cuisineType) return false
+      // Xử lý tách chuỗi phòng trường hợp 1 nhà hàng có nhiều kiểu ẩm thực gộp (vd: "Trung Hoa, Singapore")
+      const cuisinesOfRestaurant = item.cuisineType.split(',').map(c => c.trim())
+      return cuisinesOfRestaurant.includes(selectedCuisine)
+    })
+  }, [restaurants, selectedCuisine])
   return (
     <div style={{ fontFamily: "'Be Vietnam Pro',system-ui,sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600;1,700&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -564,9 +583,9 @@ export default function HomePage() {
       </section>
 
       {/* ══════════════ STATS (giữ nguyên) ══════════════ */}
-      <div id="stats" style={{ background: 'var(--brown)', padding: '3.5rem 5%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
+      {/* <div id="stats" style={{ background: 'var(--brown)', padding: '3.5rem 5%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
         {STATS.map((s, i) => <StatItem key={i} {...s} />)}
-      </div>
+      </div> */}
 
       {/* ══════════════ RESTAURANTS ══════════════ */}
       <section id="restaurants" style={S.section}>
@@ -580,41 +599,12 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '.75rem', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
-          <input
-            value={keyword}
-            onChange={e => setKeyword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Tìm tên nhà hàng, loại ẩm thực..."
-            style={{ flex: 1, minWidth: 220, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
-          />
-          <select
-            value={cuisine}
-            onChange={e => setCuisine(e.target.value)}
-            style={{ width: 'auto', minWidth: 180, padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
-          >
-            {CUISINES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-          <button onClick={handleSearch} style={{ background: 'var(--brown)', color: '#fff', border: 'none', padding: '.65rem 1.75rem', fontSize: '.88rem', fontWeight: 600, letterSpacing: '.06em', borderRadius: 2, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-            <Search size={16} style={{ verticalAlign: '-3px' }} /> Tìm kiếm
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
-          {CUISINES.map(c => (
-            <button
-              key={c.value}
-              onClick={() => { setCuisine(c.value); loadRestaurants(c.value ? { cuisineType: c.value } : {}) }}
-              style={{
-                padding: '.35rem .9rem', borderRadius: 99, fontSize: '.8rem', fontWeight: 600,
-                border: cuisine === c.value ? '2px solid var(--gold)' : '1.5px solid var(--border)',
-                background: cuisine === c.value ? 'var(--gold)' : 'var(--white)',
-                color: cuisine === c.value ? 'var(--brown)' : 'var(--muted)',
-                cursor: 'pointer', transition: 'all .2s', fontFamily: 'inherit',
-              }}
-            ><c.icon size={14} style={{ verticalAlign: '-2px' }} /> {c.label}</button>
-          ))}
-        </div>
+        <RestaurantSearchFilter
+          onCuisineSelect={(selectedCuisine) => {
+            // Lọc trực tiếp mảng nhà hàng ở trang chủ, TUYỆT ĐỐI KHÔNG gọi API
+            handleCuisineBadgeClick(selectedCuisine);
+          }}
+        />
 
         {restaurants.length === 0 && !loadingRestaurants ? (
           <div style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--muted)' }}>
@@ -622,14 +612,108 @@ export default function HomePage() {
             <p>Không tìm thấy nhà hàng phù hợp. Thử từ khoá khác nhé!</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '2rem' }}>
-            {restaurants.map((r, i) => (
-              <RestaurantCard
-                key={r.id}
-                restaurant={r}
-                index={i}
-                onClick={() => openDrawer(r)}
-              />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginTop: '2rem' }}>
+            {filteredRestaurants.map((item, idx) => (
+              <div
+                key={idx}
+                onClick={() => openDrawer(item)} // 👉 ĐÃ KHÔI PHỤC: Bấm vào card hoặc nút đều mở Drawer chi nhánh
+                style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  background: '#fff',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)'
+                  e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.08)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+              >
+                <img
+                  src={item.logoUrl || 'https://via.placeholder.com/300'}
+                  alt={item.restaurantName}
+                  style={{ width: '100%', height: 160, objectFit: 'cover' }}
+                />
+
+                <div style={{
+                  padding: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flexGrow: 1
+                }}>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    color: '#b45309',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    marginBottom: '0.5rem',
+                    minHeight: '18px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {item.cuisineType || 'Ẩm thực'}
+                  </div>
+
+                  <h3 style={{
+                    fontSize: '1rem',
+                    margin: '0 0 0.5rem 0',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    color: '#1f2937'
+                  }}>
+                    {item.restaurantName}
+                  </h3>
+
+                  <p style={{
+                    fontSize: '0.85rem',
+                    color: '#6b7280',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    marginBottom: '1rem'
+                  }}>
+                    {item.description}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation() // Chặn nổi bọt để tránh gọi sự kiện click 2 lần
+                      openDrawer(item)
+                    }}
+                    style={{
+                      marginTop: 'auto',
+                      width: '100%',
+                      padding: '0.6rem',
+                      background: '#f3f4f6',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  >
+                    XEM CHI NHÁNH &rarr;
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -672,103 +756,8 @@ export default function HomePage() {
 
           <GuestBookingLookup />
 
-          <div>
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '2.5rem 0' }} />
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.6rem', fontWeight: 700, color: 'var(--brown)' }}>
-                Tạo Yêu Cầu Đặt Bàn Mới
-              </h3>
-            </div>
+          <BookingForm />
 
-            {!bookSuccess ? (
-              <form onSubmit={handleBookSubmit}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-                  {[
-                    { label: 'Họ và tên', value: bName, setter: setBName, placeholder: 'Nguyễn Văn A', type: 'text' },
-                    { label: 'Số điện thoại', value: bPhone, setter: setBPhone, placeholder: '0901 234 567', type: 'text' },
-                    { label: 'Email', value: bEmail, setter: setBEmail, placeholder: 'email@gmail.com', type: 'email' },
-                  ].map(f => (
-                    <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                      <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>{f.label}</label>
-                      <input type={f.type} value={f.value} onChange={e => f.setter(e.target.value)} placeholder={f.placeholder} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-                    </div>
-                  ))}
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Nhà hàng</label>
-                    <select
-                      value={bRestaurantId}
-                      onChange={e => handleSelectFormRestaurant(e.target.value)}
-                      required
-                      style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}
-                    >
-                      <option value="">— Chọn nhà hàng —</option>
-                      {restaurants.map(r => <option key={r.id} value={r.id}>{r.restaurantName}</option>)}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Chi nhánh</label>
-                    <select
-                      value={bBranchId}
-                      onChange={e => setBBranchId(e.target.value)}
-                      required
-                      disabled={!bRestaurantId || bBranches.length === 0}
-                      style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2, opacity: (!bRestaurantId || bBranches.length === 0) ? .5 : 1 }}
-                    >
-                      <option value="">
-                        {!bRestaurantId ? '← Chọn nhà hàng trước' : bBranches.length === 0 ? 'Đang tải chi nhánh...' : '— Chọn chi nhánh —'}
-                      </option>
-                      {bBranches.map(b => <option key={b.id} value={b.id}>{b.name} — {b.address}</option>)}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Ngày đến</label>
-                    <input type="date" value={bDate} onChange={e => setBDate(e.target.value)} min={new Date().toISOString().split('T')[0]} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Giờ đến</label>
-                    <select value={bTime} onChange={e => setBTime(e.target.value)} required style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
-                      <option value="">— Chọn giờ —</option>
-                      {['10:00', '11:00', '11:30', '12:00', '12:30', '13:00', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'].map(t => <option key={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Số khách</label>
-                    <select value={bGuests} onChange={e => setBGuests(e.target.value)} style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
-                      {['1 người', '2 người', '3 người', '4 người', '5 người', '6 người', '7–10 người', 'Trên 10 người'].map(g => <option key={g}>{g}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Khu vực ngồi</label>
-                    <select value={bZone} onChange={e => setBZone(e.target.value)} style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }}>
-                      {['Trong nhà (máy lạnh)', 'Ngoài trời (sân vườn)', 'Phòng VIP riêng', 'Không yêu cầu'].map(z => <option key={z}>{z}</option>)}
-                    </select>
-                  </div>
-
-                  <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: '.4rem' }}>
-                    <label style={{ fontSize: '.75rem', fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--brown-mid)' }}>Yêu cầu đặc biệt</label>
-                    <textarea value={bNote} onChange={e => setBNote(e.target.value)} rows={3} placeholder="Dị ứng thực phẩm, tiệc sinh nhật, trang trí đặc biệt..." style={{ padding: '.75rem 1rem', border: '1px solid var(--border)', borderRadius: 2 }} />
-                  </div>
-
-                  <div style={{ gridColumn: '1/-1', textAlign: 'center', marginTop: '.5rem' }}>
-                    <button type="submit" style={{ background: 'var(--gold)', color: 'var(--brown)', border: 'none', padding: '1rem 3.5rem', fontSize: '.9rem', fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 2, fontFamily: 'inherit' }}>
-                      <Sparkles size={16} style={{ verticalAlign: '-3px' }} /> Xác Nhận Đặt Bàn <Sparkles size={16} style={{ verticalAlign: '-3px' }} />
-                    </button>
-                  </div>
-                </div>
-              </form>
-            ) : (
-              <div style={{ background: 'linear-gradient(135deg,#3d2b1f,#6b4226)', color: 'var(--gold-light)', padding: '3rem 2rem', textAlign: 'center', borderRadius: 4 }}>
-                <div style={{ marginBottom: '1rem' }}><PartyPopper size={48} /></div>
-                <h3 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: '1.8rem', fontWeight: 700, marginBottom: '.75rem' }}>Đặt bàn thành công!</h3>
-                <p style={{ color: 'rgba(232,201,122,.75)', fontSize: '.95rem', lineHeight: 1.7 }}>
-                  Chúng tôi sẽ liên hệ xác nhận qua điện thoại/email trong vài phút.<br />Hẹn gặp bạn tại nhà hàng!
-                </p>
-              </div>
-            )}
-          </div>
         </div>
       </section>
 

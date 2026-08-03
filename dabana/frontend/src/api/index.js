@@ -79,7 +79,8 @@ export const branchApi = {
   getMyList: () => api.get('/branchs/me'),
   create: (data) => api.post('/branchs', data),
   update: (id, d) => api.put(`/branchs/${id}`, d),
-  getByRestaurant: (restaurantId) => api.get(`/branchs/by-restaurant/${restaurantId}`)
+  getByRestaurant: (restaurantId) => api.get(`/branchs/by-restaurant/${restaurantId}`) ,
+  searchAvailable: (params) => api.get('/branchs/search-availability', { params }),
 }
 
 // ===== Table Layout API (B07/B08) =====
@@ -236,7 +237,9 @@ export const restaurantApi = {
   export: (branchIds, from, to, type = 'BOOKING') => api.get(`/restaurants/me/export`, {
     responseType: "blob",
     params: { branchIds, from, to, type }
-  })
+  }),
+  getSystemOptions: () => api.get('/restaurants/options') ,
+  search: (params) => api.get('/restaurants/search', { params }),
 }
 
 // ===== BỔ SUNG: Operating Hour API =====

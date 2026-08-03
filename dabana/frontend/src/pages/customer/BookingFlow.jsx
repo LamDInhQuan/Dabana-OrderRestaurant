@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Navbar from '../../components/Navbar'
 import { useAuth } from '../../context/AuthContext'
@@ -104,6 +104,16 @@ export default function BookingFlow() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { auth } = useAuth()
+  const [searchParams] = useSearchParams()
+
+  const paramGuests = Number(searchParams.get('guests')) || null
+  const paramDate = searchParams.get('date')
+  const paramTime = searchParams.get('time')
+  const paramTableIds = useMemo(() => {
+    const raw = searchParams.get('tableIds')
+    if (!raw) return []
+    return raw.split(',').map(Number).filter(n => !Number.isNaN(n))
+  }, [searchParams])
 
   const [step, setStep] = useState(0)
   const [branch, setBranch] = useState(null)
@@ -118,11 +128,12 @@ export default function BookingFlow() {
   const [menuLoading, setMenuLoading] = useState(true)
 
   // Step 0 — thời gian, số khách, phương thức chọn bàn
-  const [date, setDate] = useState(todayStr())
-  const [timeSlot, setTimeSlot] = useState('')
-  const [guestCount, setGuestCount] = useState(2)
+  const [date, setDate] = useState(paramDate || todayStr())
+  const [timeSlot, setTimeSlot] = useState(paramTime || '')
+  const [guestCount, setGuestCount] = useState(paramGuests || 2)
   const [method, setMethod] = useState('manual')
   const [selectedTables, setSelectedTables] = useState([])
+  const [tablesInitializedFromParams, setTablesInitializedFromParams] = useState(paramTableIds.length === 0)
 
   // Step 1 — thông tin liên hệ
   const [contactName, setContactName] = useState(auth?.fullName || '')
@@ -140,6 +151,9 @@ export default function BookingFlow() {
 
   const [loading, setLoading] = useState(false)
   const [confirmedBooking, setConfirmedBooking] = useState(null)
+
+  const dateFirstRun = useRef(true)
+  const timeFirstRun = useRef(true)
 
   // socket
   // 1. Lấy thông tin user đăng nhập và email khách vãng lai từ state hoặc localStorage
@@ -249,6 +263,29 @@ export default function BookingFlow() {
       .finally(() => setTablesLoading(false))
   }, [id, date, timeSlot, activeZoneId])
 
+  // Nạp lại thông tin đầy đủ của các bàn được truyền qua query param tableIds
+  // (id, tableName, capacity, zoneId...) — chỉ chạy 1 lần khi vừa vào trang từ link ngoài.
+  useEffect(() => {
+    if (tablesInitializedFromParams) return
+    if (!id || !date || !timeSlot || zones.length === 0) return
+    const reservationTime = `${date}T${timeSlot}:00`
+    setMethod('manual')
+    Promise.all(
+      zones.map(z =>
+        tableApi.getAvailable(id, reservationTime, z.id)
+          .then(r => (unwrap(r) || []).map(t => ({ ...t, zoneId: z.id })))
+          .catch(() => [])
+      )
+    ).then(allZoneTables => {
+      const flat = allZoneTables.flat()
+      const matched = flat.filter(t => paramTableIds.includes(t.id))
+      if (matched.length > 0) {
+        setSelectedTables(matched)
+        setActiveZoneId(matched[0].zoneId)
+      }
+    }).finally(() => setTablesInitializedFromParams(true))
+  }, [id, date, timeSlot, zones, paramTableIds, tablesInitializedFromParams])
+
   useEffect(() => {
     if (!id || !date) {
       setPolicy(null)
@@ -262,7 +299,10 @@ export default function BookingFlow() {
       .finally(() => setPolicyLoading(false))
   }, [id, date])
 
-  useEffect(() => { setSelectedTables([]) }, [timeSlot])
+  useEffect(() => {
+    if (timeFirstRun.current) { timeFirstRun.current = false; return }
+    setSelectedTables([])
+  }, [timeSlot])
 
   useEffect(() => {
     if (!id || !date) return
@@ -272,7 +312,10 @@ export default function BookingFlow() {
       .catch(() => { setDaySlots(null); setSlotsError(true) })
   }, [id, date])
 
-  useEffect(() => { setTimeSlot('') }, [date])
+  useEffect(() => {
+    if (dateFirstRun.current) { dateFirstRun.current = false; return }
+    setTimeSlot('')
+  }, [date])
 
   const handleSendOtp = async (email) => {
     try {

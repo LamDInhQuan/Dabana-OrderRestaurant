@@ -20,6 +20,11 @@ const S = {
     border: `1px solid ${C.border}`, borderRadius: 4, fontSize: ".88rem",
     outline: "none", background: C.white, color: "#333",
   },
+  select: {
+    width: "100%", boxSizing: "border-box", padding: "8px 10px",
+    border: `1px solid ${C.border}`, borderRadius: 4, fontSize: ".88rem",
+    outline: "none", background: C.white, color: "#333", cursor: "pointer",
+  },
   inputReadonly: {
     width: "100%", boxSizing: "border-box", padding: "8px 10px",
     border: `1px solid ${C.border}`, borderRadius: 4, fontSize: ".82rem",
@@ -49,10 +54,9 @@ export function BranchLocationPicker({ value, onChange }) {
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState("");
   const [showMap, setShowMap] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false); // Phóng to dạng Fullscreen
+  const [isExpanded, setIsExpanded] = useState(false);
   const debounceRef = useRef(null);
 
-  // Load Leaflet Script
   useEffect(() => {
     if (!showMap) return;
     if (window.L) {
@@ -70,12 +74,11 @@ export function BranchLocationPicker({ value, onChange }) {
     document.head.appendChild(script);
   }, [showMap]);
 
-  // Khởi tạo Map
   useEffect(() => {
     if (!leafletReady || !mapRef.current || leafletMap.current) return;
     const L = window.L;
-    const lat = parseFloat(value.latitude) || 21.0278;
-    const lng = parseFloat(value.longitude) || 105.8342;
+    const lat = parseFloat(value?.latitude) || 21.0278;
+    const lng = parseFloat(value?.longitude) || 105.8342;
 
     const map = L.map(mapRef.current).setView([lat, lng], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -85,13 +88,11 @@ export function BranchLocationPicker({ value, onChange }) {
     const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
     marker.bindPopup("Kéo ghim hoặc click để chọn").openPopup();
 
-    // Event 1: Drag
     marker.on("dragend", (e) => {
       const pos = e.target.getLatLng();
       onChange({ latitude: pos.lat.toFixed(6), longitude: pos.lng.toFixed(6) });
     });
 
-    // Event 2: Click Map
     map.on("click", (e) => {
       const { lat, lng } = e.latlng;
       marker.setLatLng([lat, lng]);
@@ -104,7 +105,6 @@ export function BranchLocationPicker({ value, onChange }) {
     setTimeout(() => map.invalidateSize(), 250);
   }, [leafletReady]);
 
-  // Recalculate Size khi Bật Map hoặc Phóng to / Thu nhỏ
   useEffect(() => {
     if (leafletMap.current) {
       setTimeout(() => {
@@ -113,16 +113,14 @@ export function BranchLocationPicker({ value, onChange }) {
     }
   }, [showMap, isExpanded]);
 
-  // Sync marker khi value đổi từ ngoài
   useEffect(() => {
     if (!leafletMap.current || !markerRef.current) return;
-    if (!value.latitude || !value.longitude) return;
+    if (!value?.latitude || !value?.longitude) return;
     const latlng = [parseFloat(value.latitude), parseFloat(value.longitude)];
     markerRef.current.setLatLng(latlng);
     leafletMap.current.setView(latlng, 16);
-  }, [value.latitude, value.longitude]);
+  }, [value?.latitude, value?.longitude]);
 
-  // Search Address
   const handleSearchInput = (e) => {
     const q = e.target.value;
     setSearchQuery(q);
@@ -153,11 +151,10 @@ export function BranchLocationPicker({ value, onChange }) {
     if (!showMap) setShowMap(true);
   };
 
-  const hasCoords = Boolean(value.latitude && value.longitude);
+  const hasCoords = Boolean(value?.latitude && value?.longitude);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%" }}>
-      {/* Search Bar */}
       <div>
         <label style={S.label}>Tìm kiếm vị trí trên bản đồ</label>
         <div style={{ position: "relative", width: "100%" }}>
@@ -185,7 +182,6 @@ export function BranchLocationPicker({ value, onChange }) {
         </div>
       </div>
 
-      {/* Buttons */}
       <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
         <button type="button" onClick={() => setShowMap(v => !v)} style={{ ...S.btnOut, fontSize: ".8rem", padding: "6px 12px" }}>
           {showMap ? <><ChevronUp size={14} style={{ verticalAlign: "-2px" }} /> Ẩn bản đồ</> : <><Map size={14} style={{ verticalAlign: "-2px" }} /> Mở bản đồ chọn vị trí</>}
@@ -204,20 +200,13 @@ export function BranchLocationPicker({ value, onChange }) {
         )}
       </div>
 
-      {/* Container Bản Đồ Duy Nhất (Chuyển style khi Phóng To) */}
       {showMap && (
         <div style={
           isExpanded
             ? {
-              position: "fixed",
-              inset: "20px",
-              zIndex: 99999,
-              background: "#fff",
-              borderRadius: 8,
-              boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
-              display: "flex",
-              flexDirection: "column",
-              padding: "10px",
+              position: "fixed", inset: "20px", zIndex: 99999, background: "#fff",
+              borderRadius: 8, boxShadow: "0 0 0 9999px rgba(0,0,0,0.7)",
+              display: "flex", flexDirection: "column", padding: "10px",
             }
             : { position: "relative", width: "100%" }
         }>
@@ -246,7 +235,6 @@ export function BranchLocationPicker({ value, onChange }) {
         </div>
       )}
 
-      {/* Vĩ độ / Kinh độ */}
       {hasCoords && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
           <div>
@@ -262,6 +250,7 @@ export function BranchLocationPicker({ value, onChange }) {
     </div>
   );
 }
+
 // ─── Component Quản lý danh sách ảnh chi nhánh ───────────────────
 function BranchImageManager({ images = [], onChange }) {
   const [urlInput, setUrlInput] = useState("");
@@ -271,7 +260,6 @@ function BranchImageManager({ images = [], onChange }) {
     const newImage = {
       id: null,
       imageUrl: urlInput.trim(),
-      // Nếu là ảnh đầu tiên thì mặc định làm ảnh bìa (isCover = 1), còn lại là 0
       isCover: images.length === 0 ? 1 : 0,
       displayOrder: images.length + 1,
     };
@@ -281,11 +269,10 @@ function BranchImageManager({ images = [], onChange }) {
 
   const handleRemove = (index) => {
     const updated = images.filter((_, i) => i !== index);
-    // Tự động sắp xếp lại displayOrder và đảm bảo luôn có ít nhất 1 ảnh làm cover nếu còn ảnh
     const reordered = updated.map((img, i) => ({
       ...img,
       displayOrder: i + 1,
-      isCover: i === 0 ? 1 : 0 // Lấy ảnh đầu tiên làm cover mặc định nếu xóa ảnh cũ
+      isCover: i === 0 ? 1 : 0
     }));
     onChange(reordered);
   };
@@ -293,7 +280,7 @@ function BranchImageManager({ images = [], onChange }) {
   const handleSetCover = (index) => {
     const updated = images.map((img, i) => ({
       ...img,
-      isCover: i === index ? 1 : 0 // Đổi cờ isCover cho đúng ảnh được chọn
+      isCover: i === index ? 1 : 0
     }));
     onChange(updated);
   };
@@ -302,7 +289,6 @@ function BranchImageManager({ images = [], onChange }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       <label style={S.label}>Hình ảnh chi nhánh & Banner</label>
 
-      {/* Input thêm URL ảnh */}
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <input
           style={{ ...S.input, flex: 1 }}
@@ -316,7 +302,6 @@ function BranchImageManager({ images = [], onChange }) {
         </button>
       </div>
 
-      {/* Danh sách ảnh đã thêm */}
       {images.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "200px", overflowY: "auto", paddingRight: "4px" }}>
           {images.map((img, index) => (
@@ -324,7 +309,6 @@ function BranchImageManager({ images = [], onChange }) {
               display: "flex", alignItems: "center", gap: "0.75rem",
               background: C.bg, padding: "8px", borderRadius: 6, border: `1px solid ${C.border}`
             }}>
-              {/* Xem trước ảnh nhỏ */}
               <img src={img.imageUrl} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.border}` }}
                 onError={(e) => { e.target.src = "https://via.placeholder.com/40?text=Lỗi"; }} />
 
@@ -337,14 +321,12 @@ function BranchImageManager({ images = [], onChange }) {
                 </div>
               </div>
 
-              {/* Nút chọn làm Cover */}
               {img.isCover !== 1 && (
                 <button type="button" onClick={() => handleSetCover(index)} style={{ ...S.btnOut, fontSize: ".75rem", padding: "4px 8px" }}>
                   Đặt làm bìa
                 </button>
               )}
 
-              {/* Nút xóa */}
               <button type="button" onClick={() => handleRemove(index)} style={{ background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: "1rem", fontWeight: "bold", display: "inline-flex" }}>
                 <X size={16} />
               </button>
@@ -359,9 +341,19 @@ function BranchImageManager({ images = [], onChange }) {
     </div>
   );
 }
-// ─── Modal Thêm Chi Nhánh (Cấu trúc Layout Chuẩn) ───────────────
-// ─── Modal Thêm Chi Nhánh (Đã tích hợp quản lý List Ảnh) ───────────────
+
+// ─── Modal Thêm Chi Nhánh ───────────────
 export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch, newBranchForm, setNewBranchForm, creatingBranch }) {
+  const [provinces, setProvinces] = useState([]);
+
+  useEffect(() => {
+    if (!newBranchModal) return;
+    fetch('https://provinces.open-api.vn/api/p/')
+      .then(res => res.json())
+      .then(data => setProvinces(data))
+      .catch(err => console.error("Lỗi tải tỉnh thành:", err));
+  }, [newBranchModal]);
+
   if (!newBranchModal) return null;
 
   return (
@@ -371,16 +363,13 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
     }}>
       <div style={{
         background: C.white, borderRadius: 8, width: "100%", maxWidth: 620,
-        maxHeight: "90vh", // Giới hạn chiều cao Modal
-        display: "flex", flexDirection: "column", overflow: "hidden",
+        maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden",
         boxShadow: "0 10px 30px rgba(0,0,0,.3)"
       }}>
-        {/* 1. Header cố định */}
         <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: "1rem 1.25rem", flexShrink: 0 }}>
           <h2 style={{ fontWeight: 700, color: "#fff", fontSize: "1.1rem", margin: 0 }}>Thêm chi nhánh mới</h2>
         </div>
 
-        {/* 2. Body LƯỚT ĐƯỢC (overflowY: auto) */}
         <form onSubmit={createBranch} style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto", flex: 1 }}>
           <div>
             <label style={S.label}>Tên chi nhánh * (Tối đa 150 ký tự)</label>
@@ -396,9 +385,18 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
             <div>
-              <label style={S.label}>Tỉnh/Thành phố</label>
-              <input style={S.input} value={newBranchForm.province || ""} maxLength={100}
-                onChange={e => setNewBranchForm(p => ({ ...p, province: e.target.value }))} />
+              <label style={S.label}>Tỉnh/Thành phố *</label>
+              <select 
+                style={S.select} 
+                value={newBranchForm.province || ""} 
+                required
+                onChange={e => setNewBranchForm(p => ({ ...p, province: e.target.value }))}
+              >
+                <option value="">-- Chọn Tỉnh/Thành phố --</option>
+                {provinces.map(prov => (
+                  <option key={prov.code} value={prov.name}>{prov.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label style={S.label}>Số điện thoại</label>
@@ -407,23 +405,17 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
             </div>
           </div>
 
-          {/* Component Quản lý danh sách ảnh & cấu hình Banner chuẩn DTO */}
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1rem" }}>
             <BranchImageManager
               images={newBranchForm.branchImages || []}
-              onChange={(updatedImages) =>
-                setNewBranchForm(p => ({ ...p, branchImages: updatedImages }))
-              }
+              onChange={(updatedImages) => setNewBranchForm(p => ({ ...p, branchImages: updatedImages }))}
             />
           </div>
 
-          {/* Component Bản đồ độc lập 100% width */}
           <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1rem" }}>
             <BranchLocationPicker
               value={{ latitude: newBranchForm.latitude, longitude: newBranchForm.longitude }}
-              onChange={({ latitude, longitude }) =>
-                setNewBranchForm(p => ({ ...p, latitude, longitude }))
-              }
+              onChange={({ latitude, longitude }) => setNewBranchForm(p => ({ ...p, latitude, longitude }))}
             />
           </div>
 
@@ -431,11 +423,120 @@ export function NewBranchModal({ newBranchModal, setNewBranchModal, createBranch
             Chi nhánh mới sẽ ở trạng thái "Chờ duyệt" cho đến khi quản trị viên xác thực.
           </p>
 
-          {/* 3. Footer Buttons Cố định góc dưới */}
           <div style={{ display: "flex", gap: ".75rem", justifyContent: "flex-end", paddingTop: ".5rem" }}>
             <button type="button" onClick={() => setNewBranchModal(false)} style={S.btnOut}>Huỷ</button>
             <button type="submit" disabled={creatingBranch} style={S.btnGold}>
               {creatingBranch ? "Đang tạo..." : <span style={{ display: "inline-flex", alignItems: "center", gap: ".4rem" }}><Sparkles size={14} /> Tạo chi nhánh</span>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Sửa Chi Nhánh (Đã tích hợp API Tỉnh/Thành phố & Sửa lỗi ImageManager) ───────────────
+export function EditBranchModal({ editBranchModal, setEditBranchModal, updateBranch, editBranchForm, setEditBranchForm, updatingBranch }) {
+  const [provinces, setProvinces] = useState([]);
+
+  // 1. Chỉ fetch khi modal mở và form đã có dữ liệu
+  useEffect(() => {
+    console.log("vao day");
+    
+    if (!editBranchModal || !editBranchForm) return;
+    
+    console.log("vao day - Đang tải danh sách tỉnh thành...");
+    fetch('https://provinces.open-api.vn/api/p/')
+      .then(res => res.json())
+      .then(data => setProvinces(data))
+      .catch(err => console.error("Lỗi tải tỉnh thành:", err));
+  }, [editBranchModal, editBranchForm]);
+
+  // 2. Chặn render ngay từ đầu nếu modal đóng hoặc form chưa có dữ liệu (tránh lỗi crash ngầm)
+  if (!editBranchModal || !editBranchForm) return null;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 200,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem"
+    }}>
+      <div style={{
+        background: C.white, borderRadius: 8, width: "100%", maxWidth: 620,
+        maxHeight: "90vh", display: "flex", flexDirection: "column", overflow: "hidden",
+        boxShadow: "0 10px 30px rgba(0,0,0,.3)"
+      }}>
+        <div style={{ background: `linear-gradient(135deg,${C.brown},${C.brownMid})`, padding: "1rem 1.25rem", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ fontWeight: 700, color: "#fff", fontSize: "1.1rem", margin: 0 }}>
+            Sửa chi nhánh — {editBranchForm?.name || ""}
+          </h2>
+          {editBranchForm?.id && <span style={{ color: C.gold, fontSize: "0.85rem", fontWeight: 600 }}>ID #{editBranchForm.id}</span>}
+        </div>
+
+        <form onSubmit={updateBranch} style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto", flex: 1 }}>
+          <div>
+            <label style={S.label}>Tên chi nhánh * (Tối đa 150 ký tự)</label>
+            <input style={S.input} value={editBranchForm.name || ""} required maxLength={150}
+              onChange={e => setEditBranchForm(p => ({ ...p, name: e.target.value }))} />
+          </div>
+
+          <div>
+            <label style={S.label}>Địa chỉ *</label>
+            <input style={S.input} value={editBranchForm.address || ""} required
+              onChange={e => setEditBranchForm(p => ({ ...p, address: e.target.value }))} />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div>
+              <label style={S.label}>Tỉnh/Thành phố *</label>
+              <select 
+                style={S.select} 
+                value={editBranchForm.province || ""} 
+                required
+                onChange={e => setEditBranchForm(p => ({ ...p, province: e.target.value }))}
+              >
+                <option value="">-- Chọn Tỉnh/Thành phố --</option>
+                {provinces.map(prov => (
+                  <option key={prov.code} value={prov.name}>{prov.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={S.label}>Số điện thoại</label>
+              <input style={S.input} value={editBranchForm.phone || ""} maxLength={20}
+                onChange={e => setEditBranchForm(p => ({ ...p, phone: e.target.value }))} />
+            </div>
+          </div>
+
+          <div>
+            <label style={S.label}>Trạng thái hoạt động</label>
+            <select 
+              style={S.select}
+              value={editBranchForm.status ?? 1}
+              onChange={e => setEditBranchForm(p => ({ ...p, status: Number(e.target.value) }))}
+            >
+              <option value={1}>Hoạt động</option>
+              <option value={0}>Tạm ngưng</option>
+            </select>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1rem" }}>
+            <BranchImageManager
+              images={editBranchForm?.branchImages || []}
+              onChange={(updatedImages) => setEditBranchForm(p => ({ ...p, branchImages: updatedImages }))}
+            />
+          </div>
+
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "1rem" }}>
+            <BranchLocationPicker
+              value={{ latitude: editBranchForm.latitude, longitude: editBranchForm.longitude }}
+              onChange={({ latitude, longitude }) => setEditBranchForm(p => ({ ...p, latitude, longitude }))}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: ".75rem", justifyContent: "flex-end", paddingTop: ".5rem" }}>
+            <button type="button" onClick={() => setEditBranchModal(false)} style={S.btnOut}>Huỷ</button>
+            <button type="submit" disabled={updatingBranch} style={S.btnGold}>
+              {updatingBranch ? "Đang lưu..." : <span style={{ display: "inline-flex", alignItems: "center", gap: ".4rem" }}><Sparkles size={14} /> Lưu thay đổi</span>}
             </button>
           </div>
         </form>
