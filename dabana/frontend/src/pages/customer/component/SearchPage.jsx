@@ -14,13 +14,11 @@ export default function SearchPage() {
     const cuisine = searchParams.get('cuisine') || ''
     const minRate = searchParams.get('minRate') || ''
 
-    // Dùng ref để lưu chuỗi query trước đó, tránh gọi API lặp vô hạn
     const prevQueryRef = useRef(null)
 
     useEffect(() => {
         const queryString = searchParams.toString()
 
-        // Nếu query string không thay đổi so với lần gọi trước thì bỏ qua
         if (prevQueryRef.current === queryString) return
         prevQueryRef.current = queryString
 
@@ -49,7 +47,7 @@ export default function SearchPage() {
                     }
                 })
 
-                // Lọc Frontend (chỉ lọc khi người dùng thực sự có chọn tiêu chí trên URL)
+                // Lọc Frontend theo tiêu chí URL
                 const filtered = extractedBranches.filter(branch => {
                     if (province && province.trim() !== '') {
                         const branchProv = (branch.province || '').toLowerCase()
@@ -102,7 +100,6 @@ export default function SearchPage() {
     return (
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '2.5rem 1.5rem', fontFamily: 'inherit' }}>
 
-            {/* NÚT QUAY LẠI TRANG CHỦ */}
             <div style={{ marginBottom: '1.5rem' }}>
                 <button
                     onClick={() => navigate('/')}
@@ -156,7 +153,6 @@ export default function SearchPage() {
                 </div>
             )}
 
-            {/* LƯỚI CARD PHẲNG ĐỘC LẬP */}
             {!loading && flatBranches.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
                     {flatBranches.map((branch, idx) => {
@@ -190,7 +186,6 @@ export default function SearchPage() {
                                     e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
                                 }}
                             >
-                                {/* Phần Ảnh đại diện chi nhánh */}
                                 <div style={{ width: '100%', height: '200px', background: '#f3f4f6', position: 'relative' }}>
                                     <img
                                         src={branchImage}
@@ -198,7 +193,6 @@ export default function SearchPage() {
                                         loading="lazy"
                                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                     />
-                                    {/* Nhãn Tỉnh/Thành góc trên phải */}
                                     <div style={{
                                         position: 'absolute',
                                         top: '12px',
@@ -215,16 +209,13 @@ export default function SearchPage() {
                                     </div>
                                 </div>
 
-                                {/* Phần Thông tin chi tiết của Card */}
                                 <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between', gap: '10px' }}>
                                     <div>
-                                        {/* TÊN NHÀ HÀNG MẸ & ĐÁNH GIÁ (RATING) */}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                                             <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4f46e5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                                 {branch.restaurantName}
                                             </span>
 
-                                            {/* Hiển thị Rate sao */}
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#fffbeb', border: '1px solid #fef3c7', padding: '2px 8px', borderRadius: '12px' }}>
                                                 <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>★</span>
                                                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#b45309' }}>
@@ -233,7 +224,6 @@ export default function SearchPage() {
                                             </div>
                                         </div>
 
-                                        {/* HIỂN THỊ ĐÚNG CÁC LOẠI ẨM THỰC */}
                                         {branch.cuisineTypes && branch.cuisineTypes.length > 0 && (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
                                                 {branch.cuisineTypes.map((c, cIdx) => {
@@ -258,24 +248,20 @@ export default function SearchPage() {
                                             </div>
                                         )}
 
-                                        {/* Tên Chi nhánh cụ thể */}
                                         <h3 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 700, color: '#111827', lineHeight: 1.3 }}>
                                             {branch.name}
                                         </h3>
 
-                                        {/* Địa chỉ */}
                                         <p style={{ margin: '0 0 6px 0', fontSize: '0.84rem', color: '#6b7280', lineHeight: 1.4 }}>
                                             {branch.address}, {branch.province}
                                         </p>
 
-                                        {/* Giờ hoạt động trong ngày (operatingCurrentDay) */}
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#4b5563', fontWeight: 500 }}>
                                             <span>🕒</span>
                                             <span>{branch.operatingCurrentDay || 'Đang cập nhật giờ'}</span>
                                         </div>
                                     </div>
 
-                                    {/* Footer Card: Số điện thoại & Nút hành động */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #f3f4f6', marginTop: '4px' }}>
                                         <span style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 500 }}>
                                             {branch.phone ? `SĐT: ${branch.phone}` : 'Đang cập nhật SĐT'}
