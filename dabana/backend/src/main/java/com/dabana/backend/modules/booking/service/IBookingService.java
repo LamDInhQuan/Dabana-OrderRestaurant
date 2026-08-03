@@ -40,4 +40,6 @@ public interface IBookingService {
     void expireOverdueConfirmedBookings();
 
     List<CustomerResponse> getListCustomerByBranch(Long branchId , String keyword) ;
+
+     void autoCheckoutStuckBookings() ;
 }

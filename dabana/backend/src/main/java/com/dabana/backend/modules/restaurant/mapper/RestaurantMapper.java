@@ -1,5 +1,10 @@
 package com.dabana.backend.modules.restaurant.mapper;
 
+import com.dabana.backend.modules.branch2.dto.BranchImageDto;
+import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
+import com.dabana.backend.modules.branch2.entity.Branch;
+import com.dabana.backend.modules.branch2.entity.BranchImage;
+import com.dabana.backend.modules.restaurant.Dto.response.RestaurantDetailResponse;
 import org.springframework.stereotype.Component;
 
 import com.dabana.backend.modules.auth.entity.User;
@@ -9,6 +14,9 @@ import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterReque
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
+
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class RestaurantMapper {
@@ -61,5 +69,57 @@ public class RestaurantMapper {
         
         return response;
     }
-    
+
+    public RestaurantDetailResponse toDetailResponse(
+            Restaurant restaurant,
+            List<Branch> branches,
+            Map<Long, List<BranchImage>> imagesByBranchMap) {
+
+        // Map thông tin cơ bản của nhà hàng + Owner (dùng lại hàm toResponse cũ của bạn)
+        RestaurantResponse baseResponse = toResponse(restaurant);
+
+        RestaurantDetailResponse detailResponse = new RestaurantDetailResponse();
+        detailResponse.setId(baseResponse.getId());
+        detailResponse.setApprovalStatus(baseResponse.getApprovalStatus());
+        detailResponse.setOwner(baseResponse.getOwner());
+        detailResponse.setRestaurantName(baseResponse.getRestaurantName());
+        detailResponse.setLogoUrl(baseResponse.getLogoUrl());
+        detailResponse.setDescription(baseResponse.getDescription());
+        detailResponse.setEmail(baseResponse.getEmail());
+        detailResponse.setPhone(baseResponse.getPhone());
+        detailResponse.setWebsite(baseResponse.getWebsite());
+        detailResponse.setCuisineType(baseResponse.getCuisineType());
+
+        // Map danh sách Branch và nhét ảnh tương ứng vào từng Branch từ Map có sẵn (Không phát sinh thêm query SQL nào)
+        List<BranchResponse> branchResponses = branches.stream().map(branch -> {
+            BranchResponse branchRes = new BranchResponse();
+            branchRes.setId(branch.getId());
+            branchRes.setRestaurantId(branch.getRestaurant().getId().intValue());
+            branchRes.setName(branch.getName());
+            branchRes.setProvince(branch.getProvince());
+            branchRes.setAddress(branch.getAddress());
+            branchRes.setPhone(branch.getPhone());
+            branchRes.setLatitude(branch.getLatitude());
+            branchRes.setLongitude(branch.getLongitude());
+            branchRes.setStatus(branch.getStatus());
+            branchRes.setCreatedAt(branch.getCreatedAt());
+            branchRes.setUpdatedAt(branch.getUpdatedAt());
+
+            // Lấy danh sách ảnh từ Map dựa theo branch.getId()
+            List<BranchImage> images = imagesByBranchMap.getOrDefault(branch.getId(), List.of());
+            List<BranchImageDto> imageDtos = images.stream().map(img -> {
+                BranchImageDto imgDto = new BranchImageDto();
+                imgDto.setId(img.getId());
+                imgDto.setImageUrl(img.getImageUrl());
+                imgDto.setDisplayOrder(img.getDisplayOrder());
+                return imgDto;
+            }).toList();
+
+            branchRes.setBranchImageDtos(imageDtos);
+            return branchRes;
+        }).toList();
+
+        detailResponse.setBranches(branchResponses);
+        return detailResponse;
+    }
 }

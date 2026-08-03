@@ -12,20 +12,13 @@ import lombok.Data;
 
 @Data
 public class RestaurantResponse {
-
     private Long id;
-
     private ApprovalStatus approvalStatus;
-
     private OwnerDto owner; 
     private Long restaurantId ;
     private String restaurantName;
-
     private String logoUrl;
-
-
     private String description;
-
     private String website;
     private String email;
     private String phone;

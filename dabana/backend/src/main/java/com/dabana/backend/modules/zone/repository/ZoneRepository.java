@@ -14,6 +14,8 @@ public interface ZoneRepository extends JpaRepository<Zone, Long> {
 
     List<Zone> findByBranchIdOrderByIdAsc(Long branchId);
 
+    List<Zone> findByBranchIdInOrderByIdAsc(List<Long> branchIds);
+
     Optional<Zone> findByBranchIdAndZoneNameIgnoreCase(Long branchId, String zoneName);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

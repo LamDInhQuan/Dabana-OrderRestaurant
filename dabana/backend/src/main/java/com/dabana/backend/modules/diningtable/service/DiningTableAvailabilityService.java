@@ -8,6 +8,7 @@ import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 import com.dabana.backend.modules.diningtable.repository.DiningTableRepository;
 import com.dabana.backend.modules.diningtable.util.DiningTableStatus;
 import com.dabana.backend.modules.diningtable.util.TableAvailabilityStatus;
+import com.dabana.backend.modules.zone.entity.Zone;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -79,4 +80,6 @@ public class DiningTableAvailabilityService implements IDiningTableAvailabilityS
                 })
                 .toList();
     }
+
+
 }

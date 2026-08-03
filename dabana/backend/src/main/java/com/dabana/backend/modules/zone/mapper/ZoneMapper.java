@@ -1,5 +1,6 @@
 package com.dabana.backend.modules.zone.mapper;
 
+import com.dabana.backend.modules.branch2.dto.response.BranchAvailabilityResponse;
 import com.dabana.backend.modules.zone.dto.response.ZoneResponse;
 import com.dabana.backend.modules.zone.entity.Zone;
 import org.springframework.stereotype.Component;
@@ -15,4 +16,5 @@ public class ZoneMapper {
         response.setDescription(zone.getDescription());
         return response;
     }
+
 }

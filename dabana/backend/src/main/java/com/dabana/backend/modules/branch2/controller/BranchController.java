@@ -13,14 +13,17 @@ import com.dabana.backend.modules.auth.dto.response.UserResponse;
 import com.dabana.backend.modules.auth.service.AuthService;
 import com.dabana.backend.modules.branch2.dto.request.BranchRequest;
 import com.dabana.backend.modules.branch2.dto.request.BranchUpdateRequest;
+import com.dabana.backend.modules.branch2.dto.response.BranchAvailabilityResponse;
 import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
 import com.dabana.backend.modules.branch2.entity.Branch;
 import com.dabana.backend.modules.branch2.service.BranchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,6 +48,16 @@ public class BranchController extends BaseController {
     public ResponseEntity<ApiResponse<List<BranchResponse>>> getAllBranches() {
         List<BranchResponse> responses = branchService.findAll();
         return ResponseEntity.ok(ResponseBuilder.success(SuccessCode.SUCCESS, responses));
+    }
+
+    @GetMapping("/search-availability")
+    public List<BranchAvailabilityResponse> searchBranches(
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(value = "city", required = false) String city,
+            @RequestParam(value = "guests", required = false) Integer guests) {
+
+        // Gọi service xử lý logic tìm kiếm chi nhánh + check slot trống trong ngày `date`
+        return branchService.searchAvailableBranches(date, city, guests);
     }
 
     @GetMapping("/me")

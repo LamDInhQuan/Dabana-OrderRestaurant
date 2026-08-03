@@ -26,5 +26,5 @@ public interface OperatingHourRepository extends JpaRepository<OperatingHour, Lo
             OperatingDay operatingDay
     );
 
-
+    List<OperatingHour> findByBranchIdInAndDayOfWeek(List<Long> branchIds, OperatingDay dayOfWeek);
 }

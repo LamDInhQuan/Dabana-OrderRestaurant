@@ -38,4 +38,12 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
          )
    """)
    List<Restaurant> findRestaurantsWithActiveBranches(@Param("branchStatus") Integer branchStatus);
+
+   @Query("""
+       SELECT DISTINCT r.cuisineType FROM Restaurant r
+       WHERE r.approvalStatus != com.dabana.backend.modules.restaurant.ApprovalStatus.PENDING
+         AND r.approvalStatus != com.dabana.backend.modules.restaurant.ApprovalStatus.REJECTED
+         AND r.cuisineType IS NOT NULL AND r.cuisineType != ''
+   """)
+   List<String> findAllActiveCuisineNames();
 }

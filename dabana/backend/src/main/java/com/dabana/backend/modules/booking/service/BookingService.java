@@ -290,7 +290,7 @@ public class BookingService implements IBookingService {
                         booking.getBranch().getId(),
                         booking.getCustomer().getId().longValue(),
                         req.getReservationTime(),
-                        zoneIds ,
+                        zoneIds,
                         booking.getContactEmail()
                 )
         );
@@ -872,5 +872,26 @@ public class BookingService implements IBookingService {
     @Override
     public List<CustomerResponse> getListCustomerByBranch(Long branchId, String keyword) {
         return bookingRepository.getBranchCustomersStats(branchId, keyword);
+    }
+
+    @Override
+    public void autoCheckoutStuckBookings() {
+        // Ngưỡng thời gian: Quá 3 tiếng kể từ giờ đặt lịch mà vẫn chưa checkout
+        LocalDateTime thresholdTime = LocalDateTime.now().minusHours(3);
+
+        List<Booking> stuckBookings = bookingRepository.findByStatusAndReservationTimeBefore(
+                BookingStatus.CHECKED_IN, thresholdTime
+        );
+
+        if (!stuckBookings.isEmpty()) {
+            for (Booking booking : stuckBookings) {
+                // 1. Cập nhật trạng thái đơn
+                booking.setStatus(BookingStatus.COMPLETED);
+                // 2. Save ngay lập tức từng booking để DB ghi nhận thay đổi
+                booking = bookingRepository.save(booking);
+                // 3. Gọi hàm giải phóng bàn (Dùng AVAILABLE hoặc CLEANING tùy theo luồng của quán bạn)
+                applyTableStatus(booking, DiningTableStatus.EMPTY);
+            }
+        }
     }
 }

@@ -31,4 +31,10 @@ public class BookingScheduledTasks {
     public void expireOverdueConfirmedBookings() {
         bookingService.expireOverdueConfirmedBookings();
     }
+
+    // 👉 THÊM TASK NÀY ĐỂ TỰ ĐỘNG DỌN DẸP CÁC ĐƠN CHECKED_IN BỊ TREO QUÁ GIỜ
+    @Scheduled(fixedRate = 60_000) // Hoặc có thể tăng lên 5-15 phút nếu muốn (ví dụ: 5 * 60_000)
+    public void autoCheckoutStuckBookings() {
+        bookingService.autoCheckoutStuckBookings();
+    }
 }

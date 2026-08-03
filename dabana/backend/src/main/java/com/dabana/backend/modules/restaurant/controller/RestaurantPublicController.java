@@ -5,6 +5,9 @@ import com.dabana.backend.common.ResponseBuilder;
 import com.dabana.backend.common.SuccessCode;
 import com.dabana.backend.exception.BusinessException;
 import com.dabana.backend.modules.admin.util.AdminErrorCode;
+import com.dabana.backend.modules.branch2.repository.BranchRepository;
+import com.dabana.backend.modules.restaurant.Dto.request.SystemOptionsResponse;
+import com.dabana.backend.modules.restaurant.Dto.response.RestaurantDetailResponse;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
 import com.dabana.backend.modules.restaurant.mapper.RestaurantMapper;
@@ -14,10 +17,7 @@ import com.dabana.backend.modules.zone.dto.response.ZoneResponse;
 import com.dabana.backend.modules.zone.service.IZoneService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -34,7 +34,17 @@ public class RestaurantPublicController {
     public ResponseEntity<ApiResponse<List<RestaurantResponse>>> getAllRestaurant() {
         return ResponseEntity.ok(
                 ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.findAll()));
+    }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<RestaurantDetailResponse>> searchRestaurants(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String province,
+            @RequestParam(required = false) String cuisine) {
+
+        // Gọi thẳng sang BranchRepository thay vì RestaurantRepository
+        List<RestaurantDetailResponse> results = restaurantService.searchRestaurantsWithBranches(keyword, province, cuisine);
+        return ResponseEntity.ok(results);
     }
 
     @GetMapping("/by-user/{userId}")
@@ -43,5 +53,11 @@ public class RestaurantPublicController {
                 .orElseThrow(() -> new BusinessException(AdminErrorCode.RESTAURANT_NOT_FOUND));
 
         return ResponseEntity.ok(restaurantMapper.toResponse(restaurant));
+    }
+
+    @GetMapping("/options")
+    public ResponseEntity<ApiResponse<SystemOptionsResponse>> getOptions() {
+        return ResponseEntity.ok(
+                ResponseBuilder.success(SuccessCode.SUCCESS, restaurantService.getAllOptions()));
     }
 }

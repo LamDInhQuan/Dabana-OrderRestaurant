@@ -54,10 +54,24 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("statuses") List<BookingStatus> statuses
     );
 
+    @Query("SELECT bt.diningTable.id, b.status, b.reservationTime " +
+            "FROM Booking b " +
+            "JOIN b.bookingTables bt " +
+            "WHERE bt.diningTable.id IN :tableIds " +
+            "AND b.status IN :statuses " +
+            "AND b.reservationTime BETWEEN :startTimeRange AND :endTimeRange")
+    List<Object[]> findConflictTableStatusesInDateRange(
+            @Param("tableIds") List<Long> tableIds,
+            @Param("startTimeRange") LocalDateTime startTimeRange,
+            @Param("endTimeRange") LocalDateTime endTimeRange,
+            @Param("statuses") List<BookingStatus> statuses
+    );
     List<Booking> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 
     @Query("SELECT b FROM Booking b WHERE b.status = 'HOLDING' AND b.holdExpiresAt < :now")
     List<Booking> findExpiredHoldings(@Param("now") LocalDateTime now);
+
+    List<Booking> findByStatusAndReservationTimeBefore(BookingStatus status, LocalDateTime time);
 
     /* TẠM THỜI TẮT CÁC HÀM CHƯA DÙNG ĐỂ TRÁNH NGỢP VÀ RÁC CODE GIAI ĐOẠN ĐẦU */
 

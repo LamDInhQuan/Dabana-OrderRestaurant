@@ -1,5 +1,7 @@
 package com.dabana.backend.modules.restaurant.service;
 
+import com.dabana.backend.modules.branch2.entity.BranchImage;
+import com.dabana.backend.modules.branch2.repository.BranchImageRepository;
 import com.dabana.backend.modules.diningtable.mapper.DiningTableMapper;
 
 import java.io.ByteArrayInputStream;
@@ -15,6 +17,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import com.dabana.backend.modules.restaurant.Dto.request.SystemOptionsResponse;
+import com.dabana.backend.modules.restaurant.Dto.response.RestaurantDetailResponse;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
@@ -61,6 +65,7 @@ import com.dabana.backend.modules.waitlist.WaitlistRepository;
 import com.dabana.backend.modules.waitlist.WaitlistStatus;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -75,6 +80,7 @@ public class RestaurantService {
         private final DiningTableRepository diningTableRepository;
         private final ReviewRepository reviewRepository;
         private final InvoiceRepository invoiceRepository;
+        private final BranchImageRepository branchImageRepository ;
 
 
         private final RestaurantMapper restaurantMapper;
@@ -92,6 +98,83 @@ public class RestaurantService {
                 return restaurantMapper.toResponse(restaurantRepos.findByOwnerUserId(ownerId)
                                 .orElseThrow(() -> new RuntimeException(
                                                 "Restaurant not found for ownerId: " + ownerId)));
+        }
+
+        public SystemOptionsResponse getAllOptions() {
+                // Lấy danh sách tên các tỉnh thành (đã distinct hoặc chỉ lấy active)
+                List<String> provinces = branchRepository.findAllActiveProvinceNames();
+
+                // Lấy danh sách tên các loại ẩm thực từ các nhà hàng đã được duyệt
+                List<String> cuisines = restaurantRepos.findAllActiveCuisineNames();
+
+                return new SystemOptionsResponse(provinces, cuisines);
+        }
+
+        @Transactional(readOnly = true)
+        public List<RestaurantDetailResponse> searchRestaurantsWithBranches(String keyword, String province, String cuisine) {
+                // 1. Lấy danh sách Restaurant từ câu query branch filter
+                List<Restaurant> restaurants = branchRepository.searchRestaurantsByBranchFilter(keyword, province, cuisine);
+
+                if (restaurants.isEmpty()) {
+                        return List.of();
+                }
+
+                // 2. Lấy toàn bộ ID của các nhà hàng này để tìm các chi nhánh tương ứng
+                List<Long> restaurantIds = restaurants.stream().map(Restaurant::getId).toList();
+                List<Branch> branches = branchRepository.findByRestaurantIdInAndStatus(restaurantIds, 2);
+
+                //  LỌC NGAY TẠI ĐÂY: Chỉ giữ lại các chi nhánh khớp thực sự với Province và Cuisine người dùng tìm kiếm
+                List<Branch> filteredBranches = branches.stream().filter(branch -> {
+                        // Kiểm tra điều kiện Tỉnh/Thành nếu có nhập
+                        if (province != null && !province.isBlank()) {
+                                if (branch.getProvince() == null || !branch.getProvince().toLowerCase().contains(province.trim().toLowerCase())) {
+                                        return false;
+                                }
+                        }
+                        // Kiểm tra điều kiện Ẩm thực nếu có nhập (dựa trên chuỗi cuisineType của nhà hàng mẹ hoặc chi nhánh)
+                        if (cuisine != null && !cuisine.isBlank()) {
+                                String restaurantCuisine = branch.getRestaurant().getCuisineType(); // Hoặc tùy thuộc entity của bạn
+                                boolean matchCuisine = restaurantCuisine != null && restaurantCuisine.toLowerCase().contains(cuisine.trim().toLowerCase());
+                                if (!matchCuisine) {
+                                        return false;
+                                }
+                        }
+                        return true;
+                }).toList();
+
+                // Nếu sau khi lọc chi nhánh mà nhà hàng đó không còn chi nhánh nào khớp, ta có thể loại bỏ luôn nhà hàng đó ra khỏi danh sách trả về
+                List<Long> validRestaurantIds = filteredBranches.stream()
+                        .map(b -> b.getRestaurant().getId())
+                        .distinct()
+                        .toList();
+
+                List<Restaurant> finalRestaurants = restaurants.stream()
+                        .filter(r -> validRestaurantIds.contains(r.getId()))
+                        .toList();
+
+                if (finalRestaurants.isEmpty()) {
+                        return List.of();
+                }
+
+                // 3. Gom ID các chi nhánh đã lọc lại
+                List<Long> branchIds = filteredBranches.stream().map(Branch::getId).toList();
+
+                //  Lấy toàn bộ ảnh của các chi nhánh trong 1 câu lệnh duy nhất (tránh N+1)
+                List<BranchImage> allImages = branchIds.isEmpty() ? List.of() : branchImageRepository.findByBranchIdInOrderByDisplayOrderAsc(branchIds);
+
+                // Gom nhóm ảnh theo branchId bằng Map để map dữ liệu O(1)
+                Map<Long, List<BranchImage>> imagesByBranchMap = allImages.stream()
+                        .collect(Collectors.groupingBy(img -> img.getBranch().getId()));
+
+                // Gom nhóm danh sách branch đã lọc theo restaurantId
+                Map<Long, List<Branch>> branchesByRestaurantMap = filteredBranches.stream()
+                        .collect(Collectors.groupingBy(b -> b.getRestaurant().getId()));
+
+                // 4. Map sang Response DTO thông qua Mapper
+                return finalRestaurants.stream().map(restaurant -> {
+                        List<Branch> restaurantBranches = branchesByRestaurantMap.getOrDefault(restaurant.getId(), List.of());
+                        return restaurantMapper.toDetailResponse(restaurant, restaurantBranches, imagesByBranchMap);
+                }).toList();
         }
 
         public ByteArrayInputStream exportToExcel(Long ownerId, List<Long> branchIds, LocalDate from, LocalDate to)
@@ -542,5 +625,7 @@ public class RestaurantService {
                 BigDecimal bd = new BigDecimal(d).setScale(2, RoundingMode.HALF_UP);
                 return bd.doubleValue();
         }
+
+
 
 }
