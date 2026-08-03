@@ -22,7 +22,9 @@ import com.dabana.backend.modules.auth.util.AuthErrorCode;
 import com.dabana.backend.modules.auth.util.OtpPurpose;
 import com.dabana.backend.modules.auth.util.RoleUser;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
+import com.dabana.backend.modules.restaurant.mapper.RestaurantMapper;
 import com.dabana.backend.modules.restaurant.repository.RestaurantRepository;
 import com.dabana.backend.security.CustomUserDetail;
 import com.dabana.backend.security.CustomUserDetailsService;
@@ -59,6 +61,7 @@ public class AuthService implements IAuthService {
     private final UserMapper userMapper;
     private final MailService mailService;
     private final RestaurantRepository restaurantRepository ;
+    private final RestaurantMapper restaurantMapper;
 
     private static final String PASSWORD_CHARS =
             "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -75,15 +78,36 @@ public class AuthService implements IAuthService {
      */
     @Override
     @Transactional
-    public UserResponse register(RegisterAccountRequest req) {
-        // Nếu đăng ký là đối tác nhà hàng thì bắt buộc phải có thông tin nhà hàng
-        if (req.getRole() == RoleUser.RESTAURANT_PARTNER) {
-            if (req.getRestaurantName() == null || req.getRestaurantName().trim().isEmpty()) {
-                throw new BusinessException(AuthErrorCode.RESTAURANT_NAME_REQUIRED);
-            }
-            if (req.getRestaurantPhone() == null || req.getRestaurantPhone().trim().isEmpty()) {
-                throw new BusinessException(AuthErrorCode.RESTAURANT_PHONE_REQUIRED);
-            }
+    public UserResponse registerCustomer(RegisterAccountRequest req) {
+        if (req.getEmail() != null && userRepository.existsByEmail(req.getEmail())) {
+            throw new BusinessException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+        if (req.getPhone() != null && userRepository.existsByPhone(req.getPhone())) {
+            throw new BusinessException(AuthErrorCode.PHONE_ALREADY_EXISTS);
+        }
+
+        User user = userMapper.toEntyity(req);
+        user.setPassword(passwordEncoder.encode(req.getPassword()));
+        Role role = roleRepository.findByName(RoleUser.CUSTOMER.name())
+                .orElseThrow(() -> new BusinessException(AuthErrorCode.ROLE_NOT_FOUND));
+        HashSet<UserRole> roles = new HashSet<>();
+        roles.add(com.dabana.backend.modules.auth.entity.UserRole.builder().role(role).user(user).build());
+        user.setUserRoles(roles);
+
+        user.setStatus(AccountStatus.ACTIVE.getStatus());
+        user = userRepository.saveAndFlush(user);
+
+        return userMapper.userResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse registerPartner(RegisterAccountRequest req,RestaurantRegisterRequest restaurantReq) {
+        if (restaurantReq.getRestaurantName() == null || restaurantReq.getRestaurantName().trim().isEmpty()) {
+            throw new BusinessException(AuthErrorCode.RESTAURANT_NAME_REQUIRED);
+        }
+        if (restaurantReq.getRestaurantPhone() == null || restaurantReq.getRestaurantPhone().trim().isEmpty()) {
+            throw new BusinessException(AuthErrorCode.RESTAURANT_PHONE_REQUIRED);
         }
         if (req.getEmail() != null && userRepository.existsByEmail(req.getEmail())) {
             throw new BusinessException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
@@ -92,41 +116,29 @@ public class AuthService implements IAuthService {
             throw new BusinessException(AuthErrorCode.PHONE_ALREADY_EXISTS);
         }
 
-        RoleUser requestedRole = req.getRole() != null ? req.getRole() : RoleUser.CUSTOMER;
-
         User user = userMapper.toEntyity(req);
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-        Role role = roleRepository.findByName(requestedRole.name())
+        Role role = roleRepository.findByName(RoleUser.RESTAURANT_PARTNER.name())
                 .orElseThrow(() -> new BusinessException(AuthErrorCode.ROLE_NOT_FOUND));
         HashSet<UserRole> roles = new HashSet<>();
         roles.add(com.dabana.backend.modules.auth.entity.UserRole.builder().role(role).user(user).build());
         user.setUserRoles(roles);
 
-        if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
-            user.setStatus(AccountStatus.PENDING_OTP.getStatus());
-        } else {
-            user.setStatus(AccountStatus.ACTIVE.getStatus());
-        }
+        user.setStatus(AccountStatus.PENDING_OTP.getStatus());
         user = userRepository.saveAndFlush(user);
-        // === TẠO BẢN GHI NHÀ HÀNG NẾU LÀ RESTAURANT_PARTNER ===
-        if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
-            Restaurant restaurant = new Restaurant();
-            restaurant.setOwner(user); // Gắn khóa ngoại liên kết với User vừa tạo
-            restaurant.setRestaurantName(req.getRestaurantName());
-            restaurant.setPhone(req.getRestaurantPhone() != null && !req.getRestaurantPhone().trim().isEmpty() ? req.getRestaurantPhone() : req.getPhone());
-            restaurant.setDescription(req.getDescription());
-            restaurant.setWebsite(req.getWebsite());
-            restaurant.setApprovalStatus(ApprovalStatus.PENDING); // Trạng thái chờ admin duyệt nhà hàng
 
-            restaurantRepository.save(restaurant);
-        }
+        // === TẠO BẢN GHI NHÀ HÀNG NẾU LÀ RESTAURANT_PARTNER ===
+        Restaurant restaurant = restaurantMapper.toEntity(restaurantReq);
+        restaurant.setOwner(user); // Gắn khóa ngoại liên kết với User vừa tạo
+        restaurant.setApprovalStatus(ApprovalStatus.PENDING); // Trạng thái chờ admin duyệt nhà hàng
+
+        restaurantRepository.save(restaurant);
+
         UserResponse userResponse = userMapper.userResponse(user);
-        if (requestedRole == RoleUser.RESTAURANT_PARTNER) {
-            String otp = otpService.generateAndSend(req.getEmail(), OtpPurpose.REGISTER); // B02 Buoc 3: gui OTP that qua email
-            if (exposeOtpInResponse) {
-                // Chi dung khi dev/test chua cau hinh SMTP that, de tien kiem tra luong ma khong can mo email.
-                userResponse.setOtp(otp);
-            }
+        String otp = otpService.generateAndSend(req.getEmail(), OtpPurpose.REGISTER); // B02 Buoc 3: gui OTP that qua email
+        if (exposeOtpInResponse) {
+            // Chi dung khi dev/test chua cau hinh SMTP that, de tien kiem tra luong ma khong can mo email.
+            userResponse.setOtp(otp);
         }
 
         return userResponse;

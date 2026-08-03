@@ -24,6 +24,7 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState('')
   const [resendCooldown, setResendCooldown] = useState(0)
   const [resending, setResending] = useState(false)
+  const [licenses, setLicenses] = useState([])
 
   // State lưu lỗi chi tiết trả về từ Backend theo từng field
   const [errors, setErrors] = useState({})
@@ -47,12 +48,43 @@ export default function RegisterPage() {
     setLoading(true)
     setErrors({}) // Reset lỗi cũ
     try {
-      await authApi.register(form)
       if (form.role === 'RESTAURANT_PARTNER') {
+        if (!licenses || licenses.length === 0) {
+           toast.error("Vui lòng tải lên ít nhất một ảnh giấy phép kinh doanh.");
+           setLoading(false);
+           return;
+        }
+
+        const formData = new FormData()
+        formData.append("request", JSON.stringify({
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          role: form.role
+        }))
+        formData.append("restaurantRegisterRequest", JSON.stringify({
+          restaurantName: form.restaurantName,
+          restaurantPhone: form.restaurantPhone,
+          description: form.description,
+          website: form.website
+        }))
+        licenses.forEach(file => {
+          formData.append('licenses', file)
+        })
+
+        await authApi.registerPartner(formData)
         toast.success('Đăng ký thành công! Mã OTP đã được gửi đến email của bạn.')
         setStep('otp')
         setResendCooldown(RESEND_COOLDOWN_SECONDS)
       } else {
+        await authApi.register({
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          role: form.role
+        })
         toast.success('Đăng ký thành công! Bạn có thể đăng nhập ngay.')
         navigate('/login')
       }
@@ -205,6 +237,8 @@ export default function RegisterPage() {
                 <input value={form.restaurantPhone} onChange={set('restaurantPhone')} placeholder="0243123456" />
                 {errors.restaurantPhone && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.restaurantPhone}</span>}
               </div>
+              
+
 
               <div>
                 <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Mô tả tổng quan</label>
@@ -222,6 +256,23 @@ export default function RegisterPage() {
                 <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Website (Có thể bỏ trống)</label>
                 <input value={form.website} onChange={set('website')} placeholder="https://example.com" />
                 {errors.website && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.website}</span>}
+              </div>
+
+              <div>
+                <label style={{ fontSize: '.85rem', fontWeight: 500, display: 'block', marginBottom: '.3rem' }}>Ảnh giấy phép kinh doanh *</label>
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*"
+                  onChange={(e) => setLicenses(Array.from(e.target.files))}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '.85rem', background: '#fff' }}
+                />
+                {licenses.length > 0 && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--brand)', fontWeight: 500 }}>
+                    Đã chọn {licenses.length} ảnh.
+                  </div>
+                )}
+                {errors.licenses && <span style={{ color: '#e74c3c', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{errors.licenses}</span>}
               </div>
             </>
           )}

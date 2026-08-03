@@ -276,9 +276,8 @@ public class BookingService implements IBookingService {
             notifyCustomer(booking, NotificationType.BOOKING_CONFIRMED, content);
 
             String restaurantContent = String.format(
-                    "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s.%s",
-                    branch.getName(), booking.getReservationTime(), booking.getContactName(), graceNote);
-            notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
+                    "Có đơn đặt bàn mới tại %s lúc %s từ khách hàng %s",
+                    branch.getName(), booking.getReservationTime(), booking.getContactName());
             notifyRestaurant(booking, NotificationType.BOOKING_CONFIRMED, restaurantContent);
         }
         // Ví dụ gom nhóm các bàn theo Zone ID trong Java Service
@@ -464,7 +463,8 @@ public class BookingService implements IBookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new BusinessException(BookingErrorCode.BOOKING_NOT_FOUND));
 
-        // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ (nếu là đơn của khách)
+        // 2. Bảo mật: Đảm bảo khách hàng hiện tại chỉ được xem đơn của chính họ (nếu là
+        // đơn của khách)
         if (user != null && booking.getCustomer() != null && !booking.getCustomer().getId().equals(user.getId())) {
             boolean isRestaurantOwner = booking.getBranch() != null
                     && booking.getBranch().getRestaurant() != null
@@ -802,7 +802,8 @@ public class BookingService implements IBookingService {
         if (booking == null || booking.getCustomer() == null) {
             return;
         }
-        // Khong gui thong bao cua customer (nhu moi danh gia, xac nhan...) cho chu nha hang
+        // Khong gui thong bao cua customer (nhu moi danh gia, xac nhan...) cho chu nha
+        // hang
         if (booking.getBranch() != null && booking.getBranch().getRestaurant() != null
                 && booking.getBranch().getRestaurant().getOwner() != null
                 && booking.getBranch().getRestaurant().getOwner().getId().equals(booking.getCustomer().getId())) {
@@ -913,7 +914,6 @@ public class BookingService implements IBookingService {
     // .build();
     // }
 
-
     @Override
     public List<CustomerResponse> getListCustomerByBranch(Long branchId, String keyword) {
         return bookingRepository.getBranchCustomersStats(branchId, keyword);
@@ -925,8 +925,7 @@ public class BookingService implements IBookingService {
         LocalDateTime thresholdTime = LocalDateTime.now().minusHours(3);
 
         List<Booking> stuckBookings = bookingRepository.findByStatusAndReservationTimeBefore(
-                BookingStatus.CHECKED_IN, thresholdTime
-        );
+                BookingStatus.CHECKED_IN, thresholdTime);
 
         if (!stuckBookings.isEmpty()) {
             for (Booking booking : stuckBookings) {
@@ -934,7 +933,8 @@ public class BookingService implements IBookingService {
                 booking.setStatus(BookingStatus.COMPLETED);
                 // 2. Save ngay lập tức từng booking để DB ghi nhận thay đổi
                 booking = bookingRepository.save(booking);
-                // 3. Gọi hàm giải phóng bàn (Dùng AVAILABLE hoặc CLEANING tùy theo luồng của quán bạn)
+                // 3. Gọi hàm giải phóng bàn (Dùng AVAILABLE hoặc CLEANING tùy theo luồng của
+                // quán bạn)
                 applyTableStatus(booking, DiningTableStatus.EMPTY);
             }
         }

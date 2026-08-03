@@ -7,9 +7,12 @@ import com.dabana.backend.modules.auth.dto.request.RefreshTokenRequest;
 import com.dabana.backend.modules.auth.dto.request.RegisterAccountRequest;
 import com.dabana.backend.modules.auth.dto.request.VerifyOtpRequest;
 import com.dabana.backend.modules.auth.dto.response.UserResponse;
+import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 
 public interface IAuthService {
-    UserResponse register(RegisterAccountRequest request);
+    UserResponse registerCustomer(RegisterAccountRequest request);
+
+    UserResponse registerPartner(RegisterAccountRequest request,RestaurantRegisterRequest restaurantRegisterRequest);
 
     Boolean verifyOtp(VerifyOtpRequest req);
 

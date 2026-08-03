@@ -1,5 +1,11 @@
 package com.dabana.backend.modules.restaurant.mapper;
 
+import java.sql.Blob;
+import java.sql.SQLException;
+import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import com.dabana.backend.modules.branch2.dto.BranchImageDto;
 import com.dabana.backend.modules.branch2.dto.response.BranchResponse;
 import com.dabana.backend.modules.branch2.entity.Branch;
@@ -10,17 +16,18 @@ import org.springframework.stereotype.Component;
 import com.dabana.backend.modules.auth.entity.User;
 import com.dabana.backend.modules.restaurant.ApprovalStatus;
 import com.dabana.backend.modules.restaurant.Dto.OwnerDto;
+import com.dabana.backend.modules.restaurant.Dto.RestaurantLicensesDto;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantRegisterRequest;
 import com.dabana.backend.modules.restaurant.Dto.request.RestaurantUpdateRequest;
 import com.dabana.backend.modules.restaurant.Dto.response.RestaurantResponse;
 import com.dabana.backend.modules.restaurant.entity.Restaurant;
+import com.dabana.backend.modules.restaurant.entity.RestaurantLicense;
 
 import java.util.List;
 import java.util.Map;
 
 @Component
 public class RestaurantMapper {
-
 
     public Restaurant toEntity(RestaurantRegisterRequest request) {
         Restaurant restaurant = new Restaurant();
@@ -29,12 +36,13 @@ public class RestaurantMapper {
         restaurant.setLogoUrl(request.getLogoUrl());
         restaurant.setDescription(request.getDescription());
         restaurant.setEmail(request.getEmail());
-        restaurant.setPhone(request.getPhone());
+        restaurant.setPhone(request.getRestaurantPhone());
         restaurant.setWebsite(request.getWebsite());
         return restaurant;
     }
-    public Restaurant toEntity(RestaurantUpdateRequest request,Restaurant restaurant) {
-       
+
+    public Restaurant toEntity(RestaurantUpdateRequest request, Restaurant restaurant) {
+
         restaurant.setRestaurantName(request.getRestaurantName());
         restaurant.setLogoUrl(request.getLogoUrl());
         restaurant.setDescription(request.getDescription());
@@ -67,6 +75,7 @@ public class RestaurantMapper {
         response.setWebsite(restaurant.getWebsite());
         response.setCuisineType(restaurant.getCuisineType());
         
+
         return response;
     }
 
@@ -129,4 +138,29 @@ public class RestaurantMapper {
         detailResponse.setBranches(branchResponses);
         return detailResponse;
     }
+      public RestaurantLicensesDto toRestaurantLicensesDto(RestaurantLicense license) {
+            RestaurantLicensesDto dto = new RestaurantLicensesDto();
+            dto.setId(license.getId());
+            dto.setUrl(license.getUrl());
+            dto.setFileName(license.getFileName());
+            dto.setFileType(license.getFileType());
+            // dto.setImage(blobToBase64(license.getImage()));
+            dto.setRestaurantId(license.getRestaurant().getId());
+            return dto;
+        
+    }
+
+    private String blobToBase64(Blob blob) {
+        if (blob == null) {
+            return null;
+        }
+        try {
+            byte[] bytes = blob.getBytes(1, (int) blob.length());
+            return Base64.getEncoder().encodeToString(bytes);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error converting Blob to Base64", e);
+        }
+    }
+
+
 }

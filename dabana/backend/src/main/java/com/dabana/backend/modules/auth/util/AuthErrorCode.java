@@ -146,9 +146,9 @@ public enum AuthErrorCode implements ErrorCode {
     ) ,
     // --- Thêm 2 error code mới cho thông tin nhà hàng ---
     RESTAURANT_NAME_REQUIRED("RESTAURANT_NAME_REQUIRED", "Tên nhà hàng không được để trống khi đăng ký đối tác"),
-    RESTAURANT_PHONE_REQUIRED("RESTAURANT_PHONE_REQUIRED", "Số điện thoại nhà hàng không được để trống khi đăng ký đối tác");
-
-
+    RESTAURANT_PHONE_REQUIRED("RESTAURANT_PHONE_REQUIRED", "Số điện thoại nhà hàng không được để trống khi đăng ký đối tác"),
+    RESTAURANT_LICENSES_REQUIRED("RESTAURANT_LICENSES_REQUIRED", "Giấy phép nhà hàng không được để trống khi đăng ký đối tác"),
+    FILE_UPLOAD_FAILED("FILE_UPLOAD_FAILED", "Lỗi tải lên tệp tin.");
     private final String code;
     private final String message;
 }

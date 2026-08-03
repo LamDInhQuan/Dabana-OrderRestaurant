@@ -62,6 +62,9 @@ api.interceptors.response.use(
 // ===== Auth API =====
 export const authApi = {
   register: (data) => api.post('/auth/register/customer', data),
+  registerPartner: (formData) => api.post('/auth/register/partner', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   login: (data) => api.post('/auth/login', data),
   verifyOtp: (data) => api.post('/auth/verify-otp', data),
   resendOtp: (data) => api.post('/auth/resend-otp', data),
