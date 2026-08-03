@@ -166,6 +166,15 @@ public class RestaurantService {
                 Map<Long, List<BranchImage>> imagesByBranchMap = allImages.stream()
                         .collect(Collectors.groupingBy(img -> img.getBranch().getId()));
 
+                // Lấy điểm đánh giá trung bình của các chi nhánh
+                Map<Long, Double> ratingMap = branchIds.isEmpty() ? Map.of() :
+                        reviewRepository.getAverageRatingByBranchIds(branchIds).stream()
+                                .collect(Collectors.toMap(
+                                        row -> (Long) row[0],
+                                        row -> row[1] != null ? ((Number) row[1]).doubleValue() : 0.0,
+                                        (existing, replacing) -> existing
+                                ));
+
                 // Gom nhóm danh sách branch đã lọc theo restaurantId
                 Map<Long, List<Branch>> branchesByRestaurantMap = filteredBranches.stream()
                         .collect(Collectors.groupingBy(b -> b.getRestaurant().getId()));
@@ -173,7 +182,7 @@ public class RestaurantService {
                 // 4. Map sang Response DTO thông qua Mapper
                 return finalRestaurants.stream().map(restaurant -> {
                         List<Branch> restaurantBranches = branchesByRestaurantMap.getOrDefault(restaurant.getId(), List.of());
-                        return restaurantMapper.toDetailResponse(restaurant, restaurantBranches, imagesByBranchMap);
+                        return restaurantMapper.toDetailResponse(restaurant, restaurantBranches, imagesByBranchMap, ratingMap);
                 }).toList();
         }
 
