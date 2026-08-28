@@ -1,13 +1,43 @@
+# =========================
+# Maven / Java
+# =========================
 target/
-.gitignore
-pom.xml
-application.yml
-frontend/node_modules/
+*.class
+
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
+dist/
+build/
+*.log
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# IDE
+# =========================
+.idea/
+.vscode/
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Postman
+# =========================
 .postman/
 postman/
-backend/target/
-.vscode/
-node_modules/
-package-lock.json
-package.json
-.env
+
+# =========================
+# Logs
+# =========================
+logs/
