@@ -6,11 +6,13 @@ server:
 spring:
   application:
     name: dabana-backend
+  config:
+    import: optional:file:.env[.properties]
 
   datasource:
-    url: jdbc:mysql://localhost:3306/dabana_order_restaurant1?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true
-    username: root
-    password: zzwolfmoi
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -25,7 +27,7 @@ spring:
       # This project does not yet have versioned SQL migrations.  Keep the
       # local MySQL schema in sync with the JPA entities so newly added admin
       # fields/tables do not make every repository query fail with HTTP 500.
-      ddl-auto: none
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -48,8 +50,8 @@ spring:
   mail:
       host: smtp.gmail.com
       port: 587
-      username: thanhnd@itss.vn
-      password: "nivo vjlc biuy dbry"
+      username: ${MAIL_USERNAME}
+      password: ${MAIL_PASSWORD}
       properties:
         mail:
           smtp:
@@ -62,7 +64,7 @@ spring:
 # JWT
 app:
   jwt:
-    secret: ${JWT_SECRET:dabana_super_secret_key_for_jwt_signing_change_in_production_2026}
+    secret: ${JWT_SECRET}
     access-token-expiration-ms: 604800000      # 1 gio
     refresh-token-expiration-ms: 604800000   # 7 ngay
 
@@ -76,17 +78,17 @@ app:
     invite-timeout-minutes: 10
 
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000
+    allowed-origins: ${FRONTEND_URLS}
 
   payment:
-    encryption-secret: ${PAYMENT_ENCRYPTION_SECRET:CS3TEvzM7F1QbiPfK2c50JhtAROnHlNG}
-    cancel-url-template: http://localhost:3000/booking/{reservationId}/deposit-cancelled
-    return-url-template: http://localhost:3000/booking/{reservationId}/deposit-success
+    encryption-secret: ${PAYMENT_ENCRYPTION_SECRET}
+    cancel-url-template: ${BASE_FRONTEND_URL}/booking/{reservationId}/deposit-cancelled
+    return-url-template: ${BASE_FRONTEND_URL}/booking/{reservationId}/deposit-success
 
   subscription:
     payment:
-      return-url-template: https://munchkin-drippy-reputable.ngrok-free.app/partner/billing?invoiceId={invoiceId}&status=success
-      cancel-url-template: https://munchkin-drippy-reputable.ngrok-free.app/partner/billing?invoiceId={invoiceId}&status=cancel
+      return-url-template: ${BASE_WEBHOOK_URL}/partner/billing?invoiceId={invoiceId}&status=success
+      cancel-url-template: ${BASE_WEBHOOK_URL}/partner/billing?invoiceId={invoiceId}&status=cancel
 
 logging:
   level:

@@ -686,14 +686,15 @@ export default function PartnerDashboard() {
   const openEditBranchModal = (b) => {
     setEditingBranch(b)
     setEditBranchForm({
+      id: b.id,
       name: b.name || '',
       address: b.address || '',
       province: b.province || '',
       phone: b.phone || '',
-      status: b.status ?? 1,
+      status: b.status !== undefined && b.status !== null ? Number(b.status) : 2,
       latitude: b.latitude ?? '',
       longitude: b.longitude ?? '',
-      branchImageDtos: b.branchImageDtos || [],
+      branchImages: b.branchImageDtos || b.branchImages || [],
     })
     setEditBranchModal(true)
   }
@@ -701,27 +702,27 @@ export default function PartnerDashboard() {
   const saveEditBranch = async (e) => {
     e.preventDefault()
     if (!editingBranch) return
-    if (!editBranchForm.name.trim() || !editBranchForm.address.trim()) {
+    if (!editBranchForm.name?.trim() || !editBranchForm.address?.trim()) {
       toast.error('Tên chi nhánh và địa chỉ không được để trống')
       return
     }
     setSavingEditBranch(true)
     try {
+      const imagesList = editBranchForm.branchImages || editBranchForm.branchImageDtos || []
       const payload = {
         ...editBranchForm,
         status: editBranchForm.status !== undefined ? Number(editBranchForm.status) : editingBranch.status,
         latitude: editBranchForm.latitude === '' ? null : Number(editBranchForm.latitude),
         longitude: editBranchForm.longitude === '' ? null : Number(editBranchForm.longitude),
-        // Đưa mảng ảnh vào payload dưới tên branchImages (hoặc sửa tên trường theo đúng API của bạn)
-        branchImages: editBranchForm.branchImageDtos.map((img, index) => ({
+        branchImages: imagesList.map((img, index) => ({
           id: img.id || null,
           imageUrl: img.imageUrl,
           isCover: img.isCover ?? 0,
           displayOrder: img.displayOrder || index + 1
         }))
       }
-      const { data: res } = await branchApi.update(editingBranch.id, payload)
-      const updated = res.data
+      const res = await branchApi.update(editingBranch.id, payload)
+      const updated = res.data?.data || res.data || res
       // chỉ cập nhật list branches, KHÔNG động vào activeBranch
       setBranches(prev => prev.map(b => b.id === editingBranch.id ? { ...b, ...updated } : b))
       // nếu chi nhánh đang sửa trùng activeBranch thì đồng bộ luôn cho UI nơi khác không lệch
@@ -890,26 +891,24 @@ export default function PartnerDashboard() {
 
     try {
       const response = await bookingApi.getBranchCustomers(activeBranch.id, keyword);
-      const data = response.data || response;
+      const rawData = response.data !== undefined ? response.data : response;
+      const list = Array.isArray(rawData) ? rawData : (rawData?.data && Array.isArray(rawData.data) ? rawData.data : []);
 
-      if (Array.isArray(data)) {
-        const formattedData = data.map((item, index) => ({
-          key: item.customerId || `guest_${index}`,
-          name: item.fullName || 'Khách vãng lai',
-          phone: item.phone || 'Chưa cập nhật',
-          email: item.email || '', // Bổ sung thêm email ở đây
-          totalBookings: item.totalBookings || 0,
-          completed: item.completedBookings || 0,
-          cancelled: item.cancelledOrNoShow || 0,
-          noShows: 0,
-          totalSpent: item.totalDeposit || 0,
-          lastVisit: item.lastVisit
-        }));
+      const formattedData = list.map((item, index) => ({
+        key: item.customerId ? `user_${item.customerId}` : `guest_${item.phone || item.email || index}`,
+        name: item.fullName || 'Khách vãng lai',
+        phone: item.phone || 'Chưa cập nhật',
+        email: item.email || '',
+        totalBookings: Number(item.totalBookings) || 0,
+        completed: Number(item.completedBookings) || 0,
+        cancelled: Number(item.cancelledOrNoShow) || 0,
+        noShows: 0,
+        totalDeposit: Number(item.totalDeposit) || 0,
+        totalInvoicePaid: Number(item.totalInvoicePaid) || 0,
+        lastVisit: item.lastVisit
+      }));
 
-        setCustomerProfiles(formattedData);
-      } else {
-        setCustomerProfiles([]);
-      }
+      setCustomerProfiles(formattedData);
     } catch (error) {
       console.error("Lỗi khi tải danh sách khách hàng:", error);
       setCustomerProfiles([]);
@@ -1375,11 +1374,12 @@ export default function PartnerDashboard() {
                         <div><div style={{ fontWeight: 700, color: C.text }}>{c.totalBookings}</div><div style={{ color: C.muted, fontSize: '.72rem' }}>Lượt đặt</div></div>
                         <div><div style={{ fontWeight: 700, color: C.green }}>{c.completed}</div><div style={{ color: C.muted, fontSize: '.72rem' }}>Hoàn tất</div></div>
                         <div><div style={{ fontWeight: 700, color: C.red }}>{c.noShows + c.cancelled}</div><div style={{ color: C.muted, fontSize: '.72rem' }}>Huỷ/No-show</div></div>
-                        <div><div style={{ fontWeight: 700, color: C.goldDark }}>{c.totalSpent.toLocaleString('vi-VN')}₫</div><div style={{ color: C.muted, fontSize: '.72rem' }}>Tổng cọc</div></div>
+                        <div><div style={{ fontWeight: 700, color: C.goldDark }}>{(c.totalDeposit || 0).toLocaleString('vi-VN')}₫</div><div style={{ color: C.muted, fontSize: '.72rem' }}>Tiền cọc</div></div>
+                        <div><div style={{ fontWeight: 700, color: '#2563eb' }}>{(c.totalInvoicePaid || 0).toLocaleString('vi-VN')}₫</div><div style={{ color: C.muted, fontSize: '.72rem' }}>Hoá đơn (đã trừ cọc)</div></div>
                       </div>
                     </div>
                     <div style={{ marginTop: '.875rem', paddingTop: '.875rem', borderTop: `1px solid ${C.creamDark}`, fontSize: '.78rem', color: C.muted }}>
-                      Lần đến gần nhất: {new Date(c.lastVisit).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      Lần đến gần nhất: {c.lastVisit ? new Date(c.lastVisit).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Chưa có thông tin'}
                       {(c.noShows >= 2) && <span style={{ marginLeft: '.75rem', color: C.red, fontWeight: 700 }}><TriangleAlert size={13} style={{ verticalAlign: '-2px' }} /> Khách hàng có tiền sử No-show</span>}
                     </div>
                   </div>
@@ -1794,10 +1794,10 @@ export default function PartnerDashboard() {
         <EditBranchModal
           editBranchModal={editBranchModal}
           setEditBranchModal={setEditBranchModal}
-          updateBranch={saveBranchInfo}
+          updateBranch={saveEditBranch}
           editBranchForm={editBranchForm}
           setEditBranchForm={setEditBranchForm}
-          updatingBranch={savingBranch}
+          updatingBranch={savingEditBranch}
         />
       )}
       {/* New Branch Modal */}

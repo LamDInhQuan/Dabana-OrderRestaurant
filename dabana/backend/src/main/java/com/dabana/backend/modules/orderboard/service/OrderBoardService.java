@@ -52,7 +52,7 @@ public class OrderBoardService implements IOrderBoardService {
 
     private static final List<BookingStatus> ACTIVE_BOOKING_STATUSES =
             List.of(BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN);
-    private static final long ACTIVE_BOOKING_LEAD_MINUTES = 180;
+    private static final long ACTIVE_BOOKING_LEAD_MINUTES = 60;
 
     private final BranchRepository branchRepository;
     private final ZoneRepository zoneRepository;
@@ -209,7 +209,8 @@ public class OrderBoardService implements IOrderBoardService {
 
                 boolean isCheckedIn = candidate.getStatus() == BookingStatus.CHECKED_IN;
                 boolean isWithinLeadTime = candidate.getReservationTime() != null
-                        && !candidate.getReservationTime().isAfter(now.plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES));
+                        && !candidate.getReservationTime().isAfter(now.plusMinutes(ACTIVE_BOOKING_LEAD_MINUTES))
+                        && !candidate.getReservationTime().isBefore(now.minusHours(2));
 
                 if (isCheckedIn || isWithinLeadTime) {
                     result.merge(tableId, candidate, this::pickPreferredBooking);

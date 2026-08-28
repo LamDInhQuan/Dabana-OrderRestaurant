@@ -18,6 +18,22 @@ public class CustomerResponse {
     private Long totalBookings;
     private Long completedBookings;
     private Long cancelledOrNoShow;
-    private BigDecimal totalDeposit;
+    private BigDecimal totalDeposit;      // Tổng tiền cọc
+    private BigDecimal totalInvoicePaid;  // Tiền thanh toán hoá đơn (đã trừ cọc)
     private LocalDateTime lastVisit;
+
+    public CustomerResponse(Long customerId, String fullName, String phone, String email,
+                            Long totalBookings, Long completedBookings, Long cancelledOrNoShow,
+                            Double totalDeposit, Double totalInvoicePaid, LocalDateTime lastVisit) {
+        this.customerId = customerId;
+        this.fullName = fullName;
+        this.phone = phone;
+        this.email = email;
+        this.totalBookings = totalBookings;
+        this.completedBookings = completedBookings;
+        this.cancelledOrNoShow = cancelledOrNoShow;
+        this.totalDeposit = totalDeposit != null ? BigDecimal.valueOf(totalDeposit) : BigDecimal.ZERO;
+        this.totalInvoicePaid = totalInvoicePaid != null ? BigDecimal.valueOf(totalInvoicePaid) : BigDecimal.ZERO;
+        this.lastVisit = lastVisit;
+    }
 }

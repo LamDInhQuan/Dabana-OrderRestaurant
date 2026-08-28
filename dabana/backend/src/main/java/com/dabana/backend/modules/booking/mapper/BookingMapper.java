@@ -77,17 +77,15 @@ public class BookingMapper {
         String refundStatusStr = booking.getRefundStatus() != null ? booking.getRefundStatus().name() : null;
         if (booking.getId() != null) {
             hasRefundBankInfo = refundBankInfoRepository.existsByReservation_Id(booking.getId());
-            if (booking.getRefundStatus() == com.dabana.backend.modules.booking.util.RefundStatus.PENDING) {
-                var payoutOpt = payoutOrderRepository.findByReservation_Id(booking.getId());
-                if (payoutOpt.isPresent()) {
-                    var payout = payoutOpt.get();
-                    if (payout.getState() == PayoutState.SUCCEEDED 
-                            || payout.getApprovalState() == PayoutApprovalState.SUCCEEDED
-                            || (payout.getPayosPayoutId() != null && !payout.getPayosPayoutId().isBlank() && payout.getState() != PayoutState.FAILED && payout.getState() != PayoutState.CANCELLED)) {
-                        refundStatusStr = com.dabana.backend.modules.booking.util.RefundStatus.SUCCESS.name();
-                    } else if (payout.getState() == PayoutState.FAILED || payout.getState() == PayoutState.CANCELLED) {
-                        refundStatusStr = com.dabana.backend.modules.booking.util.RefundStatus.FAILED.name();
-                    }
+            var payoutOpt = payoutOrderRepository.findByReservation_Id(booking.getId());
+            if (payoutOpt.isPresent()) {
+                var payout = payoutOpt.get();
+                if (payout.getState() == PayoutState.SUCCEEDED 
+                        || payout.getApprovalState() == PayoutApprovalState.SUCCEEDED
+                        || (payout.getPayosPayoutId() != null && !payout.getPayosPayoutId().isBlank() && payout.getState() != PayoutState.FAILED && payout.getState() != PayoutState.CANCELLED)) {
+                    refundStatusStr = com.dabana.backend.modules.booking.util.RefundStatus.SUCCESS.name();
+                } else if (payout.getState() == PayoutState.FAILED || payout.getState() == PayoutState.CANCELLED) {
+                    refundStatusStr = com.dabana.backend.modules.booking.util.RefundStatus.FAILED.name();
                 }
             }
         }

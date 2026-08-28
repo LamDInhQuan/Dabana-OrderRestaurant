@@ -69,6 +69,7 @@ public class SystemMasterScheduler {
 
         // 5. Đồng bộ trạng thái lệnh hoàn tiền Payout từ payOS
         try {
+            payoutOrderService.retryFailedPayoutCreations();
             payoutOrderService.syncProcessingPayouts();
         } catch (Exception e) {
             log.error("[MasterScheduler] Lỗi khi xử lý syncProcessingPayouts:", e);

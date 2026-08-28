@@ -178,25 +178,41 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("""
     SELECT new com.dabana.backend.modules.booking.dto.response.CustomerResponse(
-        b.customer.id,
-        COALESCE(b.customer.fullName, b.contactName),
-        COALESCE(b.customer.phone, b.contactPhone),
-        COALESCE(b.customer.email, b.contactEmail),
-        CAST(COUNT(b.id) AS java.lang.Long),
-        CAST(SUM(CASE WHEN b.status = 'COMPLETED' THEN 1 ELSE 0 END) AS java.lang.Long),
-        CAST(SUM(CASE WHEN b.status IN ('CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_RESTAURANT', 'NO_SHOW') THEN 1 ELSE 0 END) AS java.lang.Long),
-        CAST(SUM(CASE WHEN b.status = 'COMPLETED' THEN COALESCE(b.estimatedTotal, 0) ELSE 0 END) AS java.math.BigDecimal),
+        c.id,
+        COALESCE(c.fullName, b.contactName),
+        COALESCE(c.phone, b.contactPhone),
+        COALESCE(c.email, b.contactEmail),
+        COUNT(b.id),
+        SUM(CASE WHEN b.status = com.dabana.backend.modules.booking.BookingStatus.COMPLETED THEN 1L ELSE 0L END),
+        SUM(CASE WHEN b.status IN (
+            com.dabana.backend.modules.booking.BookingStatus.CANCELLED_BY_CUSTOMER,
+            com.dabana.backend.modules.booking.BookingStatus.CANCELLED_BY_RESTAURANT,
+            com.dabana.backend.modules.booking.BookingStatus.NO_SHOW
+        ) THEN 1L ELSE 0L END),
+        SUM(CASE WHEN b.status IN (
+            com.dabana.backend.modules.booking.BookingStatus.CONFIRMED,
+            com.dabana.backend.modules.booking.BookingStatus.CHECKED_IN,
+            com.dabana.backend.modules.booking.BookingStatus.COMPLETED,
+            com.dabana.backend.modules.booking.BookingStatus.NO_SHOW
+        ) THEN COALESCE(b.estimatedTotal, 0.0) ELSE 0.0 END),
+        SUM(CASE WHEN inv.status = com.dabana.backend.modules.invoice.util.InvoiceStatus.PAID 
+            THEN (CASE WHEN (inv.grandTotal - inv.depositPaid) > 0.0 THEN (inv.grandTotal - inv.depositPaid) ELSE 0.0 END) 
+            ELSE 0.0 END),
         MAX(b.createdAt)
     )
     FROM Booking b
+    LEFT JOIN b.customer c
+    LEFT JOIN b.invoice inv
     WHERE b.branch.id = :branchId
-      AND (:keyword IS NULL OR 
-           b.customer.fullName LIKE %:keyword% OR b.customer.phone LIKE %:keyword% OR 
-           b.contactName LIKE %:keyword% OR b.contactPhone LIKE %:keyword% OR b.contactEmail LIKE %:keyword%)
+      AND (:keyword IS NULL OR :keyword = '' OR 
+           LOWER(COALESCE(c.fullName, b.contactName)) LIKE LOWER(CONCAT('%', :keyword, '%')) OR 
+           COALESCE(c.phone, b.contactPhone) LIKE CONCAT('%', :keyword, '%') OR 
+           LOWER(COALESCE(c.email, b.contactEmail)) LIKE LOWER(CONCAT('%', :keyword, '%')))
     GROUP BY 
-        b.customer.id, 
-        COALESCE(b.customer.phone, b.contactPhone), 
-        COALESCE(b.customer.email, b.contactEmail)
+        c.id, 
+        COALESCE(c.fullName, b.contactName),
+        COALESCE(c.phone, b.contactPhone), 
+        COALESCE(c.email, b.contactEmail)
     ORDER BY MAX(b.createdAt) DESC
 """)
     List<CustomerResponse> getBranchCustomersStats(@Param("branchId") Long branchId,

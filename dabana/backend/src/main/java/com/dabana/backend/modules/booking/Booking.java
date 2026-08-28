@@ -101,6 +101,9 @@ public class Booking extends BaseEntity {
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingTable> bookingTables = new ArrayList<>();
 
+    @OneToOne(mappedBy = "booking", fetch = FetchType.LAZY)
+    private com.dabana.backend.modules.invoice.entity.Invoice invoice;
+
     @Column(name = "qr_code", columnDefinition = "TEXT")
     private String qrCode;
 

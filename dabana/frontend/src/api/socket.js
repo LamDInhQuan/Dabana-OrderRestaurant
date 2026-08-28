@@ -14,7 +14,8 @@ class WebSocketService {
       return;
     }
 
-    const socketFactory = () => new SockJS('http://localhost:8080/ws'); // Thay đổi URL backend nếu cần
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws';
+    const socketFactory = () => new SockJS(wsUrl); // Thay đổi URL backend bằng biến môi trường
 
     this.stompClient = new Client({
       webSocketFactory: socketFactory,

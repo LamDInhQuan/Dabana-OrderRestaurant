@@ -253,7 +253,7 @@ export default function MyBookings() {
                         Đã hoàn <strong>{Number(b.refundAmount || b.depositAmount || 0).toLocaleString('vi-VN')}₫</strong> tiền cọc về tài khoản ngân hàng của bạn thành công qua PayOS.
                       </span>
                     </div>
-                  ) : b.hasRefundBankInfo && (b.refundStatus === 'PENDING' || (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0)) ? (
+                  ) : (b.hasRefundBankInfo && b.refundStatus === 'PENDING') ? (
                     <div style={{
                       background: '#EFF6FF',
                       border: '1.5px solid #BFDBFE',
@@ -298,7 +298,7 @@ export default function MyBookings() {
                         Sửa STK nhận tiền
                       </button>
                     </div>
-                  ) : (b.refundStatus === 'PENDING' || (b.status === 'CANCELLED_BY_RESTAURANT' && (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0))) ? (
+                  ) : (!b.hasRefundBankInfo && (b.refundStatus === 'PENDING' || (Number(b.depositAmount) > 0 || Number(b.refundAmount) > 0))) ? (
                     <div style={{
                       background: '#FFFBEB',
                       border: '1.5px solid #FDE68A',

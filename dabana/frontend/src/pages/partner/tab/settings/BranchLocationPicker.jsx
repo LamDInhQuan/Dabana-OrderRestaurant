@@ -511,11 +511,14 @@ export function EditBranchModal({ editBranchModal, setEditBranchModal, updateBra
             <label style={S.label}>Trạng thái hoạt động</label>
             <select 
               style={S.select}
-              value={editBranchForm.status ?? 1}
+              value={editBranchForm.status ?? 2}
               onChange={e => setEditBranchForm(p => ({ ...p, status: Number(e.target.value) }))}
             >
-              <option value={1}>Hoạt động</option>
-              <option value={0}>Tạm ngưng</option>
+              <option value={2}>Hoạt động</option>
+              <option value={5}>Tạm ngưng</option>
+              <option value={1}>Ngừng hoạt động</option>
+              {Number(editBranchForm.status) === 3 && <option value={3}>Chờ duyệt</option>}
+              {Number(editBranchForm.status) === 4 && <option value={4}>Bị từ chối</option>}
             </select>
           </div>
 

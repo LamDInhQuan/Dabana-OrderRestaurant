@@ -168,7 +168,7 @@ public class PayoutOrderService {
         entity = payoutOrderRepository.save(entity);
 
         // Dong bo refundStatus cua booking theo ket qua tao lenh chi
-        if (mappedState == PayoutState.SUCCEEDED) {
+        if (mappedState == PayoutState.SUCCEEDED || (payosResponse.getId() != null && !payosResponse.getId().isBlank())) {
             booking.setRefundStatus(RefundStatus.SUCCESS);
             bookingRepository.save(booking);
         } else if (mappedState == PayoutState.FAILED || mappedState == PayoutState.CANCELLED) {
@@ -209,6 +209,27 @@ public class PayoutOrderService {
             } catch (Exception e) {
                 log.error("Loi dong bo payout id={}, payosPayoutId={}",
                         entity.getId(), entity.getPayosPayoutId(), e);
+            }
+        }
+    }
+
+    /**
+     * Thu tao lai lenh chi doi voi cac booking da nhap thong tin ngan hang
+     * (RefundBankInfo ton tai) va RefundStatus = PENDING nhung chua co PayoutOrder.
+     */
+    @Transactional
+    public void retryFailedPayoutCreations() {
+        List<RefundBankInfo> pendingRefunds = refundBankInfoRepository.findPendingRefundsWithoutPayout();
+        for (RefundBankInfo refundBankInfo : pendingRefunds) {
+            try {
+                Booking booking = refundBankInfo.getReservation();
+                CreatePayoutOrderRequest payoutReq = new CreatePayoutOrderRequest();
+                payoutReq.setReservationId(booking.getId());
+                // Khong can kiem tra lai existsByReservation_Id vi query da loc roi
+                this.createPayoutOrder(payoutReq, null);
+                log.info("Da tu dong tao lai lenh chi hoan coc PayOS thanh cong cho bookingId={}", booking.getId());
+            } catch (Exception e) {
+                log.error("Loi khi thu tao lai lenh chi PayOS cho bookingId={}: {}", refundBankInfo.getReservation().getId(), e.getMessage());
             }
         }
     }
@@ -255,7 +276,7 @@ public class PayoutOrderService {
         }
         payoutOrderRepository.save(entity);
 
-        if (newState == PayoutState.SUCCEEDED) {
+        if (newState == PayoutState.SUCCEEDED || (entity.getPayosPayoutId() != null && !entity.getPayosPayoutId().isBlank() && newState != PayoutState.FAILED && newState != PayoutState.CANCELLED)) {
             booking.setRefundStatus(RefundStatus.SUCCESS);
             bookingRepository.save(booking);
             log.info("Dong bo payout: bookingId={} refundStatus=SUCCESS (payosPayoutId={})",

@@ -69,7 +69,7 @@ export default function RefundBankInfoModal({ booking, onClose, onSuccess }) {
         accountHolderName: accountHolderName.trim().toUpperCase(),
       })
 
-      toast.success('Đã lưu thông tin tài khoản! Hệ thống đang tự động kích hoạt chuyển tiền hoàn cọc qua PayOS.', {
+      toast.success('Đã lưu thông tin tài khoản và hoàn tiền cọc thành công qua PayOS!', {
         duration: 5000,
       })
 
